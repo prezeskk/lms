@@ -1,5 +1,5 @@
 {extends file="layout.html"}
-{block name=title}::: LMS :{$layout.pagetitle|striphtml} :::{/block}
+{block name=title}LMS: {$layout.pagetitle|striphtml}{/block}
 {block name=module_content}
 {$xajax}
 <!--// $Id$ //-->
@@ -160,6 +160,12 @@ window.open('?m=invoice&id={$newinvoice.invoice}&original={$newinvoice.original}
 			<select id="customer_addresses" name="invoice[recipient_address_id]"></select>
 		</td>
 	</tr>
+	<tr>
+		<td class="bold">{trans("Comment:")}</td>
+		<td>
+			<TEXTAREA NAME="invoice[comment]" ROWS="4" COLS="50" {tip text="Enter invoice comment"}>{$invoice.comment}</TEXTAREA>
+		</td>
+	</tr>
 	<TR>
 		<TD class="text-right" colspan="2">
 			<A href="javascript:saveheader();">{trans("Submit")} <IMG src="img/save.gif" alt=""></A>
@@ -307,7 +313,7 @@ window.open('?m=invoice&id={$newinvoice.invoice}&original={$newinvoice.original}
 			{$item.prodid}
 		</TD>
 		<TD class="text-right nobr">
-			{$item.count|string_format:"%.2f"}<BR>
+			{$item.count|string_format:"%.3f"}<BR>
 			{$item.jm}
 		</TD>
 		<TD class="text-right nobr">

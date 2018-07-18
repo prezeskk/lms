@@ -175,7 +175,7 @@ CREATE TABLE addresses (
 	name       text NULL,
 	state      varchar(64) NULL,
 	state_id   integer REFERENCES location_states (id) ON DELETE SET NULL ON UPDATE CASCADE,
-	city       varchar(32) NULL,
+	city       varchar(100) NULL,
 	city_id    integer REFERENCES location_cities (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	postoffice varchar(32) DEFAULT NULL,
 	street     varchar(255) NULL,
@@ -375,6 +375,7 @@ CREATE TABLE documents (
 	fullnumber varchar(50)	DEFAULT NULL,
 	cancelled smallint	DEFAULT 0 NOT NULL,
 	published smallint	DEFAULT 0 NOT NULL,
+	comment text DEFAULT NULL,
 	cuserid integer		DEFAULT NULL
 		CONSTRAINT documents_cuserid_fkey REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	recipient_address_id integer DEFAULT NULL
@@ -490,7 +491,6 @@ CREATE TABLE voipaccounts (
 		CONSTRAINT voipaccounts_ownerid_fkey REFERENCES customers (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	login		varchar(255)	NOT NULL DEFAULT '',
 	passwd		varchar(255)	NOT NULL DEFAULT '',
-	phone		varchar(255)	NOT NULL DEFAULT '',
 	access      smallint        NOT NULL DEFAULT 1,
 	creationdate	integer		NOT NULL DEFAULT 0,
 	moddate		integer		NOT NULL DEFAULT 0,
@@ -660,6 +660,12 @@ CREATE TABLE tariffs (
 	upceil integer		DEFAULT 0 NOT NULL,
 	downrate integer	DEFAULT 0 NOT NULL,
 	downceil integer	DEFAULT 0 NOT NULL,
+	down_burst_time smallint DEFAULT 0 NOT NULL,
+	down_burst_limit integer DEFAULT 0 NOT NULL,
+	down_burst_threshold integer DEFAULT 0 NOT NULL,
+	up_burst_time smallint DEFAULT 0 NOT NULL,
+	up_burst_limit integer DEFAULT 0 NOT NULL,
+	up_burst_threshold integer DEFAULT 0 NOT NULL,
 	climit integer		DEFAULT 0 NOT NULL,
 	plimit integer		DEFAULT 0 NOT NULL,
 	dlimit integer		DEFAULT 0 NOT NULL,
@@ -667,6 +673,12 @@ CREATE TABLE tariffs (
 	upceil_n integer        DEFAULT NULL,
 	downrate_n integer      DEFAULT NULL,
 	downceil_n integer      DEFAULT NULL,
+	down_burst_time_n smallint DEFAULT NULL,
+	down_burst_limit_n integer DEFAULT NULL,
+	down_burst_threshold_n integer DEFAULT NULL,
+	up_burst_time_n smallint DEFAULT NULL,
+	up_burst_limit_n integer DEFAULT NULL,
+	up_burst_threshold_n integer DEFAULT NULL,
 	climit_n integer        DEFAULT NULL,
 	plimit_n integer        DEFAULT NULL,
 	domain_limit integer	DEFAULT NULL,
@@ -812,7 +824,9 @@ CREATE TABLE voip_number_assignments (
 	id            integer DEFAULT nextval('voip_number_assignments_id_seq'::text) NOT NULL,
 	number_id     integer NOT NULL REFERENCES voip_numbers (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	assignment_id integer NOT NULL REFERENCES assignments  (id) ON DELETE CASCADE ON UPDATE CASCADE,
-	PRIMARY KEY (id)
+	PRIMARY KEY (id),
+	CONSTRAINT voip_number_assignments_assignment_id_key
+		UNIQUE (assignment_id, number_id)
 );
 
 /* --------------------------------------------------------
@@ -828,7 +842,7 @@ CREATE TABLE invoicecontents (
 		CONSTRAINT invoicecontents_taxid_fkey REFERENCES taxes (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	prodid varchar(255) 	DEFAULT '' NOT NULL,
 	content varchar(16) 	DEFAULT '' NOT NULL,
-	count numeric(9,2) 	DEFAULT 0 NOT NULL,
+	count numeric(9,3) 	DEFAULT 0 NOT NULL,
 	description text 	DEFAULT '' NOT NULL,
 	tariffid integer 	DEFAULT NULL
 		CONSTRAINT invoicecontents_tariffid_fkey REFERENCES tariffs (id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -1037,6 +1051,7 @@ CREATE TABLE networks (
 	id integer DEFAULT nextval('networks_id_seq'::text) NOT NULL,
 	name varchar(255) 	DEFAULT '' NOT NULL,
 	address bigint 		DEFAULT 0 NOT NULL,
+	snat bigint 		DEFAULT NULL,
 	mask varchar(16) 	DEFAULT '' NOT NULL,
 	interface varchar(16) 	DEFAULT '' NOT NULL,
 	gateway varchar(16) 	DEFAULT '' NOT NULL,
@@ -1641,6 +1656,8 @@ CREATE TABLE rtqueues (
   deltime integer	DEFAULT 0 NOT NULL,
   deluserid integer	DEFAULT NULL
 	CONSTRAINT rtqueues_deluserid_fkey REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+  verifierid integer DEFAULT NULL
+    CONSTRAINT rtqueues_verifierid_fkey REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
   PRIMARY KEY (id),
   UNIQUE (name)
 );
@@ -1675,10 +1692,15 @@ CREATE TABLE rttickets (
   deluserid integer	DEFAULT NULL
 	CONSTRAINT rttickets_deluserid_fkey REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
   address_id integer	DEFAULT NULL
-    CONSTRAINT rttickets_address_id_fkey REFERENCES addresses (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT rttickets_address_id_fkey REFERENCES addresses (id) ON UPDATE CASCADE ON DELETE SET NULL,
   nodeid integer	DEFAULT NULL
-    CONSTRAINT rttickets_nodeid_fkey REFERENCES nodes (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT rttickets_nodeid_fkey REFERENCES nodes (id) ON UPDATE CASCADE ON DELETE SET NULL,
   netnodeid integer	DEFAULT NULL,
+  netdevid integer	DEFAULT NULL
+    CONSTRAINT rttickets_netdevid_fkey REFERENCES netdevices (id) ON UPDATE CASCADE ON DELETE SET NULL,
+  verifierid integer DEFAULT NULL
+        CONSTRAINT rttickets_verifierid_fkey REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+  deadline integer DEFAULT NULL,
   PRIMARY KEY (id)
 );
 
@@ -1859,13 +1881,14 @@ CREATE TABLE records (
 	domain_id integer	DEFAULT NULL
 		REFERENCES domains (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	name varchar(255)	DEFAULT NULL,
-	type varchar(6)		DEFAULT NULL,
-	content varchar(255)	DEFAULT NULL,
+	type varchar(10)		DEFAULT NULL,
+	content varchar(65535)	DEFAULT NULL,
 	ttl integer		DEFAULT NULL,
 	prio integer		DEFAULT NULL,
 	change_date integer	DEFAULT NULL,
 	disabled boolean	DEFAULT '0',
 	auth boolean		DEFAULT '1',
+	ordername varchar(255) DEFAULT NULL,
 	PRIMARY KEY (id)
 );
 CREATE INDEX records_name_type_idx ON records (name, type, domain_id);
@@ -1892,10 +1915,64 @@ CREATE SEQUENCE supermasters_id_seq;
 DROP TABLE IF EXISTS supermasters CASCADE;
 CREATE TABLE supermasters (
 	id integer		DEFAULT nextval('supermasters_id_seq'::text) NOT NULL,
-	ip varchar(25)		NOT NULL,
+	ip inet			NOT NULL,
 	nameserver varchar(255) NOT NULL,
 	account varchar(40)	DEFAULT NULL,
 	PRIMARY KEY (id)
+);
+
+/* ---------------------------------------------------
+ Structure of table "comments" (DNS)
+------------------------------------------------------*/
+DROP SEQUENCE IF EXISTS comments_id_seq;
+CREATE SEQUENCE comments_id_seq;
+DROP TABLE IF EXISTS comments CASCADE;
+CREATE TABLE comments (
+	id				integer DEFAULT nextval('comments_id_seq'::text) NOT NULL,
+	domain_id		integer NOT NULL
+		CONSTRAINT comments_domain_id_fkey REFERENCES domains (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	name			varchar(255) NOT NULL,
+	type			varchar(10) NOT NULL,
+	modified_at		integer NOT NULL,
+	account			varchar(40) DEFAULT NULL,
+	comment			varchar(65535) NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT comments_lowercase_name CHECK (((name)::text = LOWER((name)::text)))
+);
+CREATE INDEX comments_domain_id_idx ON comments (domain_id);
+CREATE INDEX comments_name_type_idx ON comments (name, type);
+CREATE INDEX comments_domain_id_modified_at_idx ON comments (domain_id, modified_at);
+
+/* ---------------------------------------------------
+ Structure of table "cryptokeys" (DNS)
+------------------------------------------------------*/
+DROP SEQUENCE IF EXISTS cryptokeys_id_seq;
+CREATE SEQUENCE cryptokeys_id_seq;
+DROP TABLE IF EXISTS cryptokeys CASCADE;
+CREATE TABLE cryptokeys (
+	id				integer DEFAULT nextval('cryptokeys_id_seq'::text) NOT NULL,
+	domain_id		integer
+		CONSTRAINT cryptokeys_domain_id_fkey REFERENCES domains (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	flags			integer NOT NULL,
+	active			boolean,
+	content			text,
+	PRIMARY KEY (id)
+);
+CREATE INDEX cryptokeys_domain_id_idx ON cryptokeys (domain_id);
+
+/* ---------------------------------------------------
+ Structure of table "tsigkeys" (DNS)
+------------------------------------------------------*/
+DROP SEQUENCE IF EXISTS tsigkeys_id_seq;
+CREATE SEQUENCE tsigkeys_id_seq;
+DROP TABLE IF EXISTS tsigkeys CASCADE;
+CREATE TABLE tsigkeys (
+	id				integer DEFAULT nextval('tsigkeys'::text) NOT NULL,
+	name			varchar(255),
+	algorithm		varchar(50),
+	secret			varchar(255),
+	CONSTRAINT tsigkeys_lowercase_name CHECK (((name)::text = LOWER((name)::text))),
+	CONSTRAINT tsigkeys_name_key UNIQUE (name, algorithm)
 );
 
 /* ---------------------------------------------------
@@ -2595,118 +2672,166 @@ CREATE VIEW vnodetariffs AS
 		a.house as location_house, a.flat as location_flat,
 		a.location
 	FROM nodes n
-	LEFT JOIN (SELECT nodeid, array_to_string(array_agg(mac), ',') AS mac FROM macs GROUP BY nodeid) m ON (n.id = m.nodeid)
-	LEFT JOIN vaddresses a ON n.address_id = a.id
-	JOIN (
-		SELECT n.id AS nodeid,
-			SUM(t.downrate) AS downrate,
-			SUM(t.downceil) AS downceil,
-			SUM(t.uprate) AS uprate,
-			SUM(t.upceil) AS upceil,
-			SUM(COALESCE(t.downrate_n, t.downrate)) AS downrate_n,
-			SUM(COALESCE(t.downceil_n, t.downceil)) AS downceil_n,
-			SUM(COALESCE(t.uprate_n, t.uprate)) AS uprate_n,
-			SUM(COALESCE(t.upceil_n, t.upceil)) AS upceil_n
-		FROM nodes n
-		JOIN nodeassignments na ON na.nodeid = n.id
-		JOIN assignments a ON a.id = na.assignmentid
-		JOIN tariffs t ON t.id = a.tariffid
-		LEFT JOIN (
-			SELECT customerid, COUNT(id) AS allsuspended FROM assignments
-			WHERE tariffid IS NULL AND liabilityid IS NULL
-				AND datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
-				AND (dateto = 0 OR dateto > EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
-			GROUP BY customerid
-		) s ON s.customerid = n.ownerid
-		WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
-			AND a.datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
-			AND (a.dateto = 0 OR a.dateto >= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
-			AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
-		GROUP BY n.id
-	) t ON t.nodeid = n.id
+		LEFT JOIN (SELECT nodeid, array_to_string(array_agg(mac), ',') AS mac FROM macs GROUP BY nodeid) m ON (n.id = m.nodeid)
+		LEFT JOIN vaddresses a ON n.address_id = a.id
+		JOIN (
+				 SELECT n.id AS nodeid,
+						SUM(t.downrate) AS downrate,
+						SUM(t.downceil) AS downceil,
+						SUM(t.down_burst_time) AS down_burst_time,
+						SUM(t.down_burst_threshold) AS down_burst_threshold,
+						SUM(t.down_burst_limit) AS down_burst_limit,
+						SUM(t.uprate) AS uprate,
+						SUM(t.upceil) AS upceil,
+						SUM(t.up_burst_time) AS up_burst_time,
+						SUM(t.up_burst_threshold) AS up_burst_threshold,
+						SUM(t.up_burst_limit) AS up_burst_limit,
+						SUM(COALESCE(t.downrate_n, t.downrate)) AS downrate_n,
+						SUM(COALESCE(t.downceil_n, t.downceil)) AS downceil_n,
+						SUM(COALESCE(t.down_burst_time_n, t.down_burst_time)) AS down_burst_time_n,
+						SUM(COALESCE(t.down_burst_threshold_n, t.down_burst_threshold)) AS down_burst_threshold_n,
+						SUM(COALESCE(t.down_burst_limit_n, t.down_burst_limit)) AS down_burst_limit_n,
+						SUM(COALESCE(t.uprate_n, t.uprate)) AS uprate_n,
+						SUM(COALESCE(t.upceil_n, t.upceil)) AS upceil_n,
+						SUM(COALESCE(t.up_burst_time_n, t.up_burst_time)) AS up_burst_time_n,
+						SUM(COALESCE(t.up_burst_threshold_n, t.up_burst_threshold)) AS up_burst_threshold_n,
+						SUM(COALESCE(t.up_burst_limit_n, t.up_burst_limit)) AS up_burst_limit_n
+				 FROM nodes n
+					 JOIN nodeassignments na ON na.nodeid = n.id
+					 JOIN assignments a ON a.id = na.assignmentid
+					 JOIN tariffs t ON t.id = a.tariffid
+					 LEFT JOIN (
+								   SELECT customerid, COUNT(id) AS allsuspended FROM assignments
+								   WHERE tariffid IS NULL AND liabilityid IS NULL
+										 AND datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
+										 AND (dateto = 0 OR dateto > EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
+								   GROUP BY customerid
+							   ) s ON s.customerid = n.ownerid
+				 WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
+					   AND a.datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
+					   AND (a.dateto = 0 OR a.dateto >= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
+					   AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
+				 GROUP BY n.id
+			 ) t ON t.nodeid = n.id
 	WHERE n.ipaddr <> 0 OR n.ipaddr_pub <> 0;
 
 CREATE VIEW vnodealltariffs AS
 	SELECT n.*,
 		COALESCE(t1.downrate, t2.downrate, 0) AS downrate,
 		COALESCE(t1.downceil, t2.downceil, 0) AS downceil,
+		COALESCE(t1.down_burst_time, t2.down_burst_time, 0) AS down_burst_time,
+		COALESCE(t1.down_burst_threshold, t2.down_burst_threshold, 0) AS down_burst_threshold,
+		COALESCE(t1.down_burst_limit, t2.down_burst_limit, 0) AS down_burst_limit,
 		COALESCE(t1.uprate, t2.uprate, 0) AS uprate,
 		COALESCE(t1.upceil, t2.upceil, 0) AS upceil,
+		COALESCE(t1.up_burst_time, t2.up_burst_time, 0) AS up_burst_time,
+		COALESCE(t1.up_burst_threshold, t2.up_burst_threshold, 0) AS up_burst_threshold,
+		COALESCE(t1.up_burst_limit, t2.up_burst_limit, 0) AS up_burst_limit,
 		COALESCE(t1.downrate_n, t2.downrate_n, 0) AS downrate_n,
 		COALESCE(t1.downceil_n, t2.downceil_n, 0) AS downceil_n,
+		COALESCE(t1.down_burst_time_n, t2.down_burst_time_n, 0) AS down_burst_time_n,
+		COALESCE(t1.down_burst_threshold_n, t2.down_burst_threshold_n, 0) AS down_burst_threshold_n,
+		COALESCE(t1.down_burst_limit_n, t2.down_burst_limit_n, 0) AS down_burst_limit_n,
 		COALESCE(t1.uprate_n, t2.uprate_n, 0) AS uprate_n,
 		COALESCE(t1.upceil_n, t2.upceil_n, 0) AS upceil_n,
+		COALESCE(t1.up_burst_time_n, t2.up_burst_time_n, 0) AS up_burst_time_n,
+		COALESCE(t1.up_burst_threshold_n, t2.up_burst_threshold_n, 0) AS up_burst_threshold_n,
+		COALESCE(t1.up_burst_limit_n, t2.up_burst_limit_n, 0) AS up_burst_limit_n,
 		m.mac,
 		a.city_id as location_city, a.street_id as location_street,
 		a.house as location_house, a.flat as location_flat,
 		a.location
 	FROM nodes n
-	LEFT JOIN (
-		SELECT nodeid, array_to_string(array_agg(mac), ',') AS mac
-		FROM macs
-		GROUP BY nodeid
-	) m ON n.id = m.nodeid
-	LEFT JOIN vaddresses a ON a.id = n.address_id
-	LEFT JOIN (
-		SELECT n.id AS nodeid, SUM(t.downrate) AS downrate, SUM(t.downceil) AS downceil,
-			SUM(t.uprate) AS uprate, SUM(t.upceil) AS upceil,
-			SUM(COALESCE(t.downrate_n, t.downrate)) AS downrate_n,
-			SUM(COALESCE(t.downceil_n, t.downceil)) AS downceil_n,
-			SUM(COALESCE(t.uprate_n, t.uprate)) AS uprate_n,
-			SUM(COALESCE(t.upceil_n, t.upceil)) AS upceil_n
-		FROM nodes n
-		JOIN nodeassignments na ON na.nodeid = n.id
-		JOIN assignments a ON a.id = na.assignmentid
-		JOIN tariffs t ON t.id = a.tariffid
 		LEFT JOIN (
-			SELECT customerid, COUNT(id) AS allsuspended FROM assignments
-			WHERE tariffid IS NULL AND liabilityid IS NULL
-				AND datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
-				AND (dateto = 0 OR dateto > EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
-			GROUP BY customerid
-		) s ON s.customerid = n.ownerid
-		WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
-			AND a.datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
-			AND (a.dateto = 0 OR a.dateto >= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
-			AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
-		GROUP BY n.id
-	) t1 ON t1.nodeid = n.id
-	LEFT JOIN (
-		SELECT n.id AS nodeid, SUM(t.downrate) AS downrate, SUM(t.downceil) AS downceil,
-			SUM(t.uprate) AS uprate, SUM(t.upceil) AS upceil,
-			SUM(CASE WHEN t.downrate_n IS NOT NULL THEN t.downrate_n ELSE t.downrate END) AS downrate_n,
-			SUM(CASE WHEN t.downceil_n IS NOT NULL THEN t.downceil_n ELSE t.downceil END) AS downceil_n,
-			SUM(CASE WHEN t.uprate_n IS NOT NULL THEN t.uprate_n ELSE t.uprate END) AS uprate_n,
-			SUM(CASE WHEN t.upceil_n IS NOT NULL THEN t.upceil_n ELSE t.upceil END) AS upceil_n
-		FROM assignments a
-		JOIN tariffs t ON t.id = a.tariffid
-		JOIN (
-			SELECT vn.id,
-				(CASE WHEN nd.id IS NULL THEN vn.ownerid ELSE nd.ownerid END) AS ownerid
-			FROM vnodes vn
-			LEFT JOIN netdevices nd ON nd.id = vn.netdev AND vn.ownerid IS NULL AND nd.ownerid IS NOT NULL
-			WHERE (vn.ownerid IS NOT NULL AND nd.id IS NULL)
-				OR (vn.ownerid IS NULL AND nd.id IS NOT NULL)
-		) n ON n.ownerid = a.customerid
+					  SELECT nodeid, array_to_string(array_agg(mac), ',') AS mac
+					  FROM macs
+					  GROUP BY nodeid
+				  ) m ON n.id = m.nodeid
+		LEFT JOIN vaddresses a ON a.id = n.address_id
 		LEFT JOIN (
-			SELECT customerid, COUNT(id) AS allsuspended FROM assignments
-			WHERE tariffid IS NULL AND liabilityid IS NULL
-				AND datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
-				AND (dateto = 0 OR dateto > EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
-			GROUP BY customerid
-		) s ON s.customerid = a.customerid
-		WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
-			AND a.datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
-			AND (a.dateto = 0 OR a.dateto >= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
-			AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
-			AND n.id NOT IN (SELECT nodeid FROM nodeassignments)
-			AND a.id NOT IN (SELECT assignmentid FROM nodeassignments)
-		GROUP BY n.id
-	) t2 ON t2.nodeid = n.id
+					  SELECT n.id AS nodeid, SUM(t.downrate) AS downrate, SUM(t.downceil) AS downceil,
+							 SUM(t.down_burst_time) AS down_burst_time,
+							 SUM(t.down_burst_threshold) AS down_burst_threshold,
+							 SUM(t.down_burst_limit) AS down_burst_limit,
+							 SUM(t.uprate) AS uprate, SUM(t.upceil) AS upceil,
+							 SUM(t.up_burst_time) AS up_burst_time,
+							 SUM(t.up_burst_threshold) AS up_burst_threshold,
+							 SUM(t.up_burst_limit) AS up_burst_limit,
+							 SUM(COALESCE(t.downrate_n, t.downrate)) AS downrate_n,
+							 SUM(COALESCE(t.downceil_n, t.downceil)) AS downceil_n,
+							 SUM(COALESCE(t.down_burst_time_n, t.down_burst_time)) AS down_burst_time_n,
+							 SUM(COALESCE(t.down_burst_threshold_n, t.down_burst_threshold)) AS down_burst_threshold_n,
+							 SUM(COALESCE(t.down_burst_limit_n, t.down_burst_limit)) AS down_burst_limit_n,
+							 SUM(COALESCE(t.uprate_n, t.uprate)) AS uprate_n,
+							 SUM(COALESCE(t.upceil_n, t.upceil)) AS upceil_n,
+							 SUM(COALESCE(t.up_burst_time_n, t.up_burst_time)) AS up_burst_time_n,
+							 SUM(COALESCE(t.up_burst_threshold_n, t.up_burst_threshold)) AS up_burst_threshold_n,
+							 SUM(COALESCE(t.up_burst_limit_n, t.up_burst_limit)) AS up_burst_limit_n
+					  FROM nodes n
+						  JOIN nodeassignments na ON na.nodeid = n.id
+						  JOIN assignments a ON a.id = na.assignmentid
+						  JOIN tariffs t ON t.id = a.tariffid
+						  LEFT JOIN (
+										SELECT customerid, COUNT(id) AS allsuspended FROM assignments
+										WHERE tariffid IS NULL AND liabilityid IS NULL
+											  AND datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
+											  AND (dateto = 0 OR dateto > EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
+										GROUP BY customerid
+									) s ON s.customerid = n.ownerid
+					  WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
+							AND a.datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
+							AND (a.dateto = 0 OR a.dateto >= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
+							AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
+					  GROUP BY n.id
+				  ) t1 ON t1.nodeid = n.id
+		LEFT JOIN (
+					  SELECT n.id AS nodeid, SUM(t.downrate) AS downrate, SUM(t.downceil) AS downceil,
+							 SUM(t.down_burst_time) AS down_burst_time,
+							 SUM(t.down_burst_threshold) AS down_burst_threshold,
+							 SUM(t.down_burst_limit) AS down_burst_limit,
+							 SUM(t.uprate) AS uprate, SUM(t.upceil) AS upceil,
+							 SUM(t.up_burst_time) AS up_burst_time,
+							 SUM(t.up_burst_threshold) AS up_burst_threshold,
+							 SUM(t.up_burst_limit)AS up_burst_limit,
+							 SUM(CASE WHEN t.downrate_n IS NOT NULL THEN t.downrate_n ELSE t.downrate END) AS downrate_n,
+							 SUM(CASE WHEN t.downceil_n IS NOT NULL THEN t.downceil_n ELSE t.downceil END) AS downceil_n,
+							 SUM(CASE WHEN t.down_burst_time_n IS NOT NULL THEN t.down_burst_time_n ELSE t.down_burst_time END) AS down_burst_time_n,
+							 SUM(CASE WHEN t.down_burst_threshold_n IS NOT NULL THEN t.down_burst_threshold_n ELSE t.down_burst_threshold END) AS down_burst_threshold_n,
+							 SUM(CASE WHEN t.down_burst_limit_n IS NOT NULL THEN t.down_burst_limit_n ELSE t.down_burst_limit END) AS down_burst_limit_n,
+							 SUM(CASE WHEN t.uprate_n IS NOT NULL THEN t.uprate_n ELSE t.uprate END) AS uprate_n,
+							 SUM(CASE WHEN t.upceil_n IS NOT NULL THEN t.upceil_n ELSE t.upceil END) AS upceil_n,
+							 SUM(CASE WHEN t.up_burst_time_n IS NOT NULL THEN t.up_burst_time_n ELSE t.up_burst_time END) AS up_burst_time_n,
+							 SUM(CASE WHEN t.up_burst_threshold_n IS NOT NULL THEN t.up_burst_threshold_n ELSE t.up_burst_threshold END) AS up_burst_threshold_n,
+							 SUM(CASE WHEN t.up_burst_limit_n IS NOT NULL THEN t.up_burst_limit_n ELSE t.up_burst_limit END) AS up_burst_limit_n
+					  FROM assignments a
+						  JOIN tariffs t ON t.id = a.tariffid
+						  JOIN (
+								   SELECT vn.id,
+									   (CASE WHEN nd.id IS NULL THEN vn.ownerid ELSE nd.ownerid END) AS ownerid
+								   FROM vnodes vn
+									   LEFT JOIN netdevices nd ON nd.id = vn.netdev AND vn.ownerid IS NULL AND nd.ownerid IS NOT NULL
+								   WHERE (vn.ownerid IS NOT NULL AND nd.id IS NULL)
+										 OR (vn.ownerid IS NULL AND nd.id IS NOT NULL)
+							   ) n ON n.ownerid = a.customerid
+						  LEFT JOIN (
+										SELECT customerid, COUNT(id) AS allsuspended FROM assignments
+										WHERE tariffid IS NULL AND liabilityid IS NULL
+											  AND datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
+											  AND (dateto = 0 OR dateto > EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
+										GROUP BY customerid
+									) s ON s.customerid = a.customerid
+					  WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
+							AND a.datefrom <= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer
+							AND (a.dateto = 0 OR a.dateto >= EXTRACT(EPOCH FROM CURRENT_TIMESTAMP(0))::integer)
+							AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
+							AND n.id NOT IN (SELECT nodeid FROM nodeassignments)
+							AND a.id NOT IN (SELECT assignmentid FROM nodeassignments)
+					  GROUP BY n.id
+				  ) t2 ON t2.nodeid = n.id
 	WHERE (n.ipaddr <> 0 OR n.ipaddr_pub <> 0)
-		AND ((t1.nodeid IS NOT NULL AND t2.nodeid IS NULL)
-			OR (t1.nodeid IS NULL AND t2.nodeid IS NOT NULL)
-			OR (t1.nodeid IS NULL AND t2.nodeid IS NULL));
+		  AND ((t1.nodeid IS NOT NULL AND t2.nodeid IS NULL)
+			   OR (t1.nodeid IS NULL AND t2.nodeid IS NOT NULL)
+			   OR (t1.nodeid IS NULL AND t2.nodeid IS NULL));
 
 CREATE VIEW teryt_terc AS
 SELECT ident AS woj, 0::text AS pow, 0::text AS gmi, 0 AS rodz,
@@ -2949,6 +3074,7 @@ URL: %url
 ('userpanel', 'google_recaptcha_sitekey', '', '', 0),
 ('userpanel', 'google_recaptcha_secret', '', '', 0),
 ('userpanel', 'allow_reopen_tickets_newer_than', '0', '', 0),
+('userpanel', 'pin_changes', 'true', '', 0),
 ('directories', 'userpanel_dir', 'userpanel', '', 0);
 
 INSERT INTO netdeviceproducers (id, name) VALUES
@@ -3278,6 +3404,6 @@ INSERT INTO netdevicemodels (name, alternative_name, netdeviceproducerid) VALUES
 ('XR7', 'XR7 MINI PCI PCBA', 2),
 ('XR9', 'MINI PCI 600MW 900MHZ', 2);
 
-INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2018022500');
+INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2018070300');
 
 COMMIT;

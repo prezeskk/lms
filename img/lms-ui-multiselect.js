@@ -4,6 +4,8 @@ function multiselect(options) {
 	var multiselect = this;
 	var elemid = options.id;
 	var def = typeof options.defaultValue !== 'undefined' ? options.defaultValue : '';
+	var shorten_to_def = typeof options.shortenToDefaultValue === 'undefined' ||
+		options.shortenToDefaultValue == 'true' ? true : false;
 	var tiny = typeof options.type !== 'undefined' && options.type == 'tiny';
 	var icon = typeof options.icon !== 'undefined' ? options.icon : 'img/settings.gif';
 	var label = typeof options.label !== 'undefined' ? options.label : '';
@@ -56,7 +58,11 @@ function multiselect(options) {
 		$('input:checked', ul).next().each(function(key, value) {
 			selected.push($(this).html());
 		});
-		if (!selected.length) {
+		if (selected.length) {
+			if (def && shorten_to_def && def.length && selected.length == $('input', ul).length) {
+				selected = [ def ];
+			}
+		} else {
 			selected.push(def);
 		}
 		return selected.join(separator);
@@ -212,8 +218,8 @@ function multiselect(options) {
 
 		var parent = $(e.target).parent().html().indexOf(old_element.attr('name'));
 
-		if ($(e.target).html().indexOf("<head>") > -1 || parent == -1
-			|| (parent > -1 && e.target.nodeName != 'INPUT' && e.target.nodeName != 'LI' && e.target.nodeName != 'SPAN')) {
+		if ($(e.target).html().indexOf("<head>") > -1 || parent == -1 ||
+			(parent > -1 && e.target.nodeName != 'INPUT' && e.target.nodeName != 'LI' && e.target.nodeName != 'SPAN')) {
 			$(div).hide();
 			if (new_selected != old_selected)
 				new_element.triggerHandler('change');

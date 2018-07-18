@@ -4,7 +4,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2017 LMS Developers
+ *  (C) Copyright 2001-2018 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -51,7 +51,7 @@ foreach ($short_to_longs as $short => $long)
 if (array_key_exists('version', $options)) {
 	print <<<EOF
 lms-rtparser.php
-(C) 2001-2017 LMS Developers
+(C) 2001-2018 LMS Developers
 
 EOF;
 	exit(0);
@@ -60,7 +60,7 @@ EOF;
 if (array_key_exists('help', $options)) {
 	print <<<EOF
 lms-rtparser.php
-(C) 2001-2017 LMS Developers
+(C) 2001-2018 LMS Developers
 
 -C, --config-file=/etc/lms/lms.ini      alternate config file (default: /etc/lms/lms.ini);
 -h, --help                      print this help and exit;
@@ -79,7 +79,7 @@ $quiet = array_key_exists('silent', $options);
 if (!$quiet) {
 	print <<<EOF
 lms-rtparser.php
-(C) 2001-2017 LMS Developers
+(C) 2001-2018 LMS Developers
 
 EOF;
 }
@@ -284,7 +284,8 @@ if (preg_match('#multipart/#', $partdata['content-type']) && !empty($parts)) {
 					$mail_body = iconv($charset, 'UTF-8', $mail_body);
 				}
 			}
-		} elseif (isset($partdata['content-disposition']) && $partdata['content-disposition'] == 'attachment') {
+		} elseif (isset($partdata['content-disposition']) && ($partdata['content-disposition'] == 'attachment'
+				|| $partdata['content-disposition'] == 'inline')) {
 			$file_content = substr($buffer, $partdata['starting-pos-body'], $partdata['ending-pos-body'] - $partdata['starting-pos-body']);
 			$transfer_encoding = isset($partdata['transfer-encoding']) ? $partdata['transfer-encoding'] : '';
 			switch ($transfer_encoding) {
@@ -295,8 +296,14 @@ if (preg_match('#multipart/#', $partdata['content-type']) && !empty($parts)) {
 					$file_content = quoted_printable_decode($file_content);
 					break;
 			}
+			$file_name = isset($partdata['content-name']) ? $partdata['content-name'] :
+				(isset($partdata['disposition-filename']) ? $partdata['disposition-filename'] : '');
+			if (!$file_name) {
+				unset($file_conntent);
+				continue;
+			}
 			$attachments[] = array(
-				'name' => $partdata['content-name'],
+				'name' => $file_name,
 				'type' => $partdata['content-type'],
 				'content' => $file_content,
 			);
@@ -305,8 +312,19 @@ if (preg_match('#multipart/#', $partdata['content-type']) && !empty($parts)) {
 	}
 } else {
 	$charset = $partdata['content-charset'];
-	$mail_body = iconv($charset, 'UTF-8',
-		substr($buffer, $partdata['starting-pos-body'], $partdata['ending-pos-body'] - $partdata['starting-pos-body']));
+	$mail_body = substr($buffer, $partdata['starting-pos-body'], $partdata['ending-pos-body'] - $partdata['starting-pos-body']);
+
+	$transfer_encoding = isset($partdata['transfer-encoding']) ? $partdata['transfer-encoding'] : '';
+	switch ($transfer_encoding) {
+		case 'base64':
+			$mail_body = base64_decode($mail_body);
+			break;
+		case 'quoted-printable':
+			$mail_body = quoted_printable_decode($mail_body);
+			break;
+	}
+
+	$mail_body = iconv($charset, 'UTF-8', $mail_body);
 }
 
 mailparse_msg_free($mail);
@@ -320,7 +338,7 @@ $timestamp = time();
 */
 
 $prev_tid = 0;
-$inreplytoid = 0;
+$inreplytoid = null;
 $reftab = explode(' ', $mh_references);
 $lastref = array_pop($reftab);
 
@@ -490,6 +508,8 @@ if ($notify) {
 	$headers['From'] = $mailfname . ' <' . $mailfrom . '>';
 	$headers['Reply-To'] = $headers['From'];
 
+	$queuedata = $LMS->GetQueue($queue);
+
 	if ($ticket['customerid'] && $reqcustid) {
 		$info = $LMS->GetCustomer($ticket['customerid'], true);
 
@@ -512,7 +532,6 @@ if ($notify) {
 			$sms_customerinfo = $LMS->ReplaceNotificationCustomerSymbols(ConfigHelper::getConfig('phpui.helpdesk_customerinfo_sms_body'), $params);
 		}
 
-		$queuedata = $LMS->GetQueue($queue);
 		if ($new_ticket) {
 			$ticketsubject_variable = 'newticketsubject';
 			$ticketbody_variable = 'newticketbody';
@@ -547,12 +566,14 @@ if ($notify) {
 
 	$params = array(
 		'id' => $ticket_id,
+		'queue' => $queuedata['name'],
 		'messageid' => isset($msgid) ? $msgid : null,
 		'customerid' => $ticket['customerid'] && $reqcustid ? $ticket['customerid'] : null,
 		'status' => $ticket['status'],
 		'categories' => $ticket['categorynames'],
 		'subject' => $mh_subject,
 		'body' => $mail_body,
+		'url' => $lms_url,
 	);
 	$headers['Subject'] = $LMS->ReplaceNotificationSymbols(ConfigHelper::getConfig('phpui.helpdesk_notification_mail_subject'), $params);
 	$params['customerinfo'] = isset($mail_customerinfo) ? $mail_customerinfo : null;

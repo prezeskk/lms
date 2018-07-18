@@ -294,7 +294,7 @@ if (isset($_POST['message']) && !isset($_GET['sent'])) {
 	$msgtmplid = intval($message['tmplid']);
 	$msgtmploper = intval($message['tmploper']);
 	$msgtmplname = $message['tmplname'];
-	if ($msgtmploper > 1) {
+	if (!isset($_GET['count_recipients']) && $msgtmploper > 1) {
 		switch ($message['type']) {
 			case MSG_MAIL:
 				$msgtmpltype = TMPL_MAIL;
@@ -368,6 +368,13 @@ if (isset($_POST['message']) && !isset($_GET['sent'])) {
 
 		if(!$recipients)
 			$error['subject'] = trans('Unable to send message. No recipients selected!');
+	}
+
+	if (isset($_GET['count_recipients'])) {
+		header('Content-Type: application/json');
+		die(json_encode(array(
+			'recipients' => empty($error) ? count($recipients) : -1,
+		)));
 	}
 
 	if ($message['type'] == MSG_MAIL) {

@@ -42,6 +42,13 @@ if(isset($_POST['message']))
 	if($message['destination']!='' && $message['sender']=='customer')
 		$error['destination'] = trans('Customer cannot send message!');
 
+    if (ConfigHelper::checkConfig('phpui.helpdesk_block_ticket_close_with_open_events')) {
+    	$ticketcontent = $LMS->GetTicketContents($message['ticketid']);
+	$oec = $ticketcontent['openeventcount'];
+        if ($message['state'] == RT_RESOLVED && !empty($oec))
+            $error['state'] = trans('Ticket have open assigned events!');
+    }
+
 	$result = handle_file_uploads('files', $error);
 	extract($result);
 	$SMARTY->assign('fileupload', $fileupload);
@@ -122,9 +129,11 @@ if(isset($_POST['message']))
 				$message['replyto'] = '';
 			}
 
-			foreach ($files as &$file)
-				$file['name'] = $tmppath . DIRECTORY_SEPARATOR . $file['name'];
-			unset($file);
+			if (!empty($files)) {
+				foreach ($files as &$file)
+					$file['name'] = $tmppath . DIRECTORY_SEPARATOR . $file['name'];
+				unset($file);
+			}
 			$message['headers'] = $headers;
 			$msgid = $LMS->TicketMessageAdd($message, $files);
 		}
@@ -188,10 +197,8 @@ if(isset($_POST['message']))
 			rrmdir($tmppath);
 
 		// setting status and the ticket owner
-		if (isset($message['state']))
+		if (isset($message['resolve']))
 			$message['state'] = RT_RESOLVED;
-		else if (!$DB->GetOne('SELECT state FROM rttickets WHERE id = ?', array($message['ticketid'])))
-			$message['state'] = RT_OPEN;
 
 		if (!$DB->GetOne('SELECT owner FROM rttickets WHERE id = ?', array($message['ticketid'])))
 			$message['owner'] = Auth::GetCurrentUser();
@@ -200,7 +207,11 @@ if(isset($_POST['message']))
 			'queueid' => $message['queueid'],
 			'owner' => empty($message['owner']) ? null : $message['owner'],
 			'cause' => $message['cause'],
-			'state' => $message['state']
+			'state' => $message['state'],
+			'source' => $message['source'],
+			'priority' => $message['priority'],
+			'verifierid' => empty($message['verifierid']) ? null : $message['verifierid'],
+			'deadline' => $message['deadline'],
 		);
 		$LMS->TicketChange($message['ticketid'], $props);
 
@@ -290,11 +301,13 @@ if(isset($_POST['message']))
 
 			$params = array(
 				'id' => $message['ticketid'],
+				'queue' => $queue['name'],
 				'messageid' => isset($msgid) ? $msgid : null,
 				'customerid' => empty($message['customerid']) ? $ticketdata['customerid'] : $message['customerid'],
 				'status' => $ticketdata['status'],
 				'categories' => $ticketdata['categorynames'],
 				'priority' => $RT_PRIORITIES[$ticketdata['priority']],
+				'deadline' => $ticketdata['deadline'],
 				'subject' => $message['subject'],
 				'body' => $message['body'],
 			);
@@ -319,7 +332,7 @@ else
 {
 	if ($_GET['ticketid']) {
 		$queue = $LMS->GetQueueByTicketId($_GET['ticketid']);
-		$message = $DB->GetRow('SELECT id AS ticketid, subject, state, cause, queueid, owner FROM rttickets WHERE id = ?', array($_GET['ticketid']));
+		$message = $LMS->GetTicketContents($_GET['ticketid']);
 		if ($queue['newmessagesubject'] && $queue['newmessagebody'])
 			$message['customernotify'] = 1;
 		if (ConfigHelper::checkConfig('phpui.helpdesk_notify'))
@@ -327,7 +340,7 @@ else
 	}
 
 	$user = $LMS->GetUserInfo(Auth::GetCurrentUser());
-	
+
 	$message['ticketid'] = $_GET['ticketid'];
 	$message['customerid'] = $DB->GetOne('SELECT customerid FROM rttickets WHERE id = ?', array($message['ticketid']));
 	
@@ -373,11 +386,22 @@ $layout['pagetitle'] = trans('New Message');
 
 $SESSION->save('backto', $_SERVER['QUERY_STRING']);
 
-$SMARTY->assign('message', $message);
 $SMARTY->assign('error', $error);
-$SMARTY->assign('ticket', $LMS->GetTicketContents($message['ticketid']));
+
+$ticket = $LMS->GetTicketContents($message['ticketid']);
+$SMARTY->assign('ticket', $ticket);
+if (!isset($_POST['message'])) {
+	$message['source'] = $ticket['source'];
+	$message['priority'] = $ticket['priority'];
+	$message['verifierid'] = $ticket['verifierid'];
+	$message['deadline'] = $ticket['deadline'];
+	if ($message['state'] == RT_NEW)
+		$message['state'] = RT_OPEN;
+}
+
+$SMARTY->assign('message', $message);
 $SMARTY->assign('userlist', $LMS->GetUserNames());
-$SMARTY->assign('queuelist', $LMS->GetQueueList(false));
+$SMARTY->assign('queuelist', $LMS->GetQueueListByUser(Auth::GetCurrentUser(), false));
 $SMARTY->display('rt/rtmessageadd.html');
 
 ?>

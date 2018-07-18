@@ -7,11 +7,12 @@
 <script type="text/javascript" src="img/jquery-datetimepicker/build/jquery.datetimepicker.full.min.js"></script>
 <script type="text/javascript" src="img/jquery-datatables/media/js/jquery.dataTables.min.js"></script>
 <script type="text/javascript" src="img/tinymce3/tiny_mce.js"></script>
+<script type="text/javascript" src="img/clipboard.min.js"></script>
 <script type="text/javascript">
 <!--
 	var lmsSettings = {
 		language: '{$language}',
-		settingsTimeout: {intval(ConfigHelper::getConfig('phpui.settings_timout', 28800))},
+		settingsTimeout: {intval(ConfigHelper::getConfig('phpui.settings_timeout', 28800))},
 		wysiwygEditor: {if ConfigHelper::getConfig('phpui.default_editor') == 'wysiwyg'}true{else}false{/if},
 		quickSearchAutoSubmit: '{ConfigHelper::getConfig('phpui.quicksearch_autosubmit', 'true')}',
 		defaultTerytCity: '{ConfigHelper::getConfig('phpui.default_teryt_city')}',
@@ -40,7 +41,8 @@
         noAssignmentWarning: '{trans("No assignment selected, by at least one is recommended! Are you sure you want to continue despite of this?")}',
         allLocations: '{trans("- all -")}',
 	    noAddress: '{trans("none")}',
-        checkAll: '{trans("check all<!items>")}'
+        checkAll: '{trans("check all<!items>")}',
+	    clickCopiesToClipboard: '{trans("Click copies to clipboard")}'
 	}
 
 	{if ConfigHelper::checkValue(ConfigHelper::getConfig('phpui.disable_mobile_tooltips', true))}

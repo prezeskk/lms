@@ -324,10 +324,9 @@ function checkElement(id)
 
 function CheckAll(form, elem, excl)
 {
-    var i, len, n, e, f,
-        form = document.forms[form] ? document.forms[form] : document.getElementById(form),
-        //inputs = form.getElementsByTagName('INPUT');
-        inputs = form.elements;
+    var i, len, n, e, f;
+    var formelem = document.forms[form] ? document.forms[form] : document.getElementById(form);
+    var inputs = formelem.elements;
 
     for (i=0, len=inputs.length; i<len; i++) {
         e = inputs[i];
@@ -335,7 +334,7 @@ function CheckAll(form, elem, excl)
         if (e.tagName.toUpperCase() != 'INPUT' || e.type != 'checkbox' || e == elem)
             continue;
 
-        if (excl && excl.length) {
+        if (typeof(excl) !== 'undefined' && excl.length) {
             f = 0;
             for (n=0; n<excl.length; n++)
                 if (e.name == excl[n])
@@ -356,7 +355,9 @@ function start_login_timeout(sec)
 {
     if (!sec) sec = 600;
     lms_login_timeout_value = sec;
-    lms_login_timeout = window.setTimeout('window.location.reload(true)', (sec + 5) * 1000);
+    lms_login_timeout = window.setTimeout(function() {
+        window.location.reload(true)
+    }, (sec + 5) * 1000);
 }
 
 function reset_login_timeout()
@@ -372,8 +373,8 @@ function popup(content, frame, sticky, offset_x, offset_y)
 		return 0;
 
 	if (frame)
-		content = '<iframe id="autoiframe" width=100 height=10 frameborder=0 scrolling=no '
-			+'src="'+content+'&popup=1"></iframe>';
+		content = '<iframe id="autoiframe" width=100 height=10 frameborder=0 scrolling=no ' +
+			'src="'+content+'&popup=1"></iframe>';
 
 	if (!offset_x) offset_x = 15;
 	if (!offset_y) offset_y = 15;
@@ -595,13 +596,11 @@ if (typeof $ !== 'undefined') {
 			});
 		});
 
-		for (i in document.links) {
-			link = document.links[i];
-			if (link.rel && link.rel.indexOf('external') != -1) {
-				link.onclick = function() { window.open(this.href); return false; }
-				link.onkeypress = function() { window.open(this.href); return false; }
-			}
-		}
+		$('a[rel="external"]')
+			.on('click keypress', function() {
+				window.open(this.href);
+				return false;
+			});
 	});
 }
 
@@ -710,7 +709,7 @@ function _getAddressList( action, v, on_success ) {
         async  : async
     }).done(function(data) {
         $.each( data, function( i, v ) {
-            data[i]['location'] = $("<div/>").html( v['location'] ).text();
+            data[i].location = $("<div/>").html( v.location ).text();
         });
         if (async) {
             on_success(data);
@@ -817,15 +816,20 @@ function GusApiGetCompanyDetails(searchType, searchData, on_success) {
 function GusApiFinished(fieldPrefix, details) {
 	$.each(details, function(key, value) {
 		if (key == 'addresses') {
-			$.each(value, function(addressnr, address) {
-				$.each(address, function(addresskey, addressvalue) {
-					$('[name="' + fieldPrefix + '[addresses][' + addressnr + '][' + addresskey + ']"]').val(
-						typeof(addressvalue) == 'string' ? addressvalue : '');
-				});
-				if ((address.location_state > 0) != $('[name="' + fieldPrefix + '[addresses][' + addressnr + '][teryt]"]').prop('checked')) {
-					$('[name="' + fieldPrefix + '[addresses][' + addressnr + '][teryt]"]').click();
+			$.each(value, function(idx, addresses) {
+				if (!Array.isArray(addresses)) {
+					addresses = [ addresses ];
 				}
-				$('[name="' + fieldPrefix + '[addresses][' + addressnr + '][location_city_name]"]').trigger('input');
+				$.each(addresses, function(addressnr, address) {
+					$.each(address, function (addresskey, addressvalue) {
+						$('[name="' + fieldPrefix + '[addresses][' + addressnr + '][' + addresskey + ']"]').val(
+							typeof(addressvalue) == 'string' ? addressvalue : '');
+					});
+					if ((address.location_state > 0) != $('[name="' + fieldPrefix + '[addresses][' + addressnr + '][teryt]"]').prop('checked')) {
+						$('[name="' + fieldPrefix + '[addresses][' + addressnr + '][teryt]"]').click();
+					}
+					$('[name="' + fieldPrefix + '[addresses][' + addressnr + '][location_city_name]"]').trigger('input');
+				});
 			});
 		} else {
 			$('[name="' + fieldPrefix + '[' + key + ']"]').val(typeof(value) == 'string' ? value : '');
@@ -833,34 +837,32 @@ function GusApiFinished(fieldPrefix, details) {
 	});
 }
 
-function osm_get_zip_code(city, street, house, on_success) {
+function osm_get_zip_code(search, on_success) {
+	var data = {
+		format: 'json',
+		city: search.city,
+		street: search.house + (search.street.length ? ' ' + search.street : ''),
+		addressdetails: 1
+	}
+	if (search.countryid.length) {
+		data.country = search.country;
+	}
 	$.ajax({
 		url: 'https://nominatim.openstreetmap.org/search',
-		data: {
-			format: 'json',
-			"city": city,
-			"street": house + (street.length ? ' ' + street : ''),
-			addressdetails: 1
-		}
+		"data": data
 	}).done(function(data) {
 		if (typeof(on_success) == 'function') {
-			if (data[0].hasOwnProperty('address') && data[0].address.hasOwnProperty('postcode')) {
+			if (data.length && data[0].hasOwnProperty('address') && data[0].address.hasOwnProperty('postcode')) {
 				on_success(data[0].address.postcode);
 			}
 		}
 	});
 }
 
-function pna_get_zip_code(city, cityid, street, streetid, house, on_success) {
+function pna_get_zip_code(search, on_success) {
 	$.ajax({
 		url: '?m=zipcode&api=1',
-		data: {
-			"city": city,
-			"cityid": cityid,
-			"street": street,
-			"streetid": streetid,
-			"house": house
-		}
+		data: search
 	}).done(function(data) {
 		if (typeof(on_success) == 'function') {
 			on_success(data);

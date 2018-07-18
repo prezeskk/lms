@@ -43,8 +43,8 @@
                     {foreach from=$assignedevents item=event}
                     <TR class="fall {if $event.closed==1}blend{/if}">
                         <TD class="text-center"><IMG src="img/schedule.png" alt=""></TD>
-                        <TD class="nobr bold">
-                            {trans("Subject:")}: {$event.title}
+                        <TD class="bold">
+                            {trans("Subject:")} {$event.title}
                         </TD>
                         <TD class="bold nobr text-right">{trans("Assigned to:")}</TD>
                         <TD class="nobr text-right">
@@ -105,17 +105,6 @@
                         </TD>
                     </TR>
                     {/foreach}
-                    <TR>
-                        <TD class="fall text-center" colspan="11">
-                            {if !empty($ticket.next_ticketid)}
-                            <A href="?m=rtticketview&id={$ticket.prev_ticketid}">&laquo;&laquo;&laquo;&nbsp;{trans("Previous ticket")}</A>
-                            <A href="?m=rtticketview&id={$ticket.next_ticketid}">&nbsp;&nbsp; {trans("Next ticket")}&nbsp;&raquo;&raquo;&raquo;</A>
-                            {else}
-                            &laquo;&laquo;&nbsp;{trans("Previous ticket")}
-                            &nbsp;&nbsp;{trans("Next ticket")}&raquo;&raquo;&raquo;
-                            {/if}
-                        </TD>
-                    </TR>
                 </TBODY>
             </table>
         </TD>

@@ -222,7 +222,7 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
         $result['list'] = $this->db->GetAll(
             '(SELECT cash.id AS id, time, cash.type AS type,
                 cash.value AS value, taxes.label AS tax, cash.customerid AS customerid,
-                comment, docid, vusers.name AS username,
+                cash.comment, docid, vusers.name AS username,
                 documents.type AS doctype, documents.closed AS closed,
                 documents.published, cash.importid,
                 (CASE WHEN d2.id IS NULL THEN 0 ELSE 1 END) AS referenced
@@ -346,7 +346,7 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
             'cutoffstop'     => $customeradd['cutoffstop'],
             'consentdate'    => $customeradd['consentdate'],
             'einvoice'       => $customeradd['einvoice'],
-            SYSLOG::RES_DIV  => $customeradd['divisionid'],
+            SYSLOG::RES_DIV  => empty($customeradd['divisionid']) ? null : $customeradd['divisionid'],
             'paytime'        => $customeradd['paytime'],
             'paytype'        => !empty($customeradd['paytype']) ? $customeradd['paytype'] : null,
             'invoicenotice'  => $customeradd['invoicenotice'],
@@ -507,8 +507,11 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                     $withoutzip =1;
                     break;
             case 69:
-                    $withoutcity =1;
+                    $withoutcity = 1;
                     break;
+			case 70:
+				$withoutteryt = 1;
+				break;
         }
 
         switch($as){
@@ -521,10 +524,12 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                 $assigment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.suspended = 0 AND a.commited = 1 AND a.dateto = 0';
                 break;
             case -2:
-                $assigment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.suspended = 0 AND a.commited = 1 AND (a.dateto = 0 OR a.dateto > ' . time() . ')';
+                $assigment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.suspended = 0 AND a.commited = 1 '
+			.'AND (a.dateto = 0 OR a.dateto > ?NOW?) AND ((a.at + 86400) > ?NOW? or a.period != 0)';
                 break;
             case -3:
-                $assigment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.invoice = 1 AND a.suspended = 0 AND a.commited = 1 AND (a.dateto = 0 OR a.dateto > ' . time() . ')';
+                $assigment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.invoice = 1 AND a.suspended = 0 AND a.commited = 1 '
+			.'AND (a.dateto = 0 OR a.dateto > ?NOW?) AND ((a.at + 86400) > ?NOW? or a.period != 0)';
                 break;
             case -4:
                 $assigment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.suspended != 0';
@@ -563,11 +568,17 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
 							if (!isset($search['type']) || !strlen($search['addresstype']))
 								$searchargs[] = "(UPPER(c.$key) ?LIKE? UPPER(" . $this->db->Escape("%$value%") . ")
 									OR UPPER(post_$key) ?LIKE? UPPER(" . $this->db->Escape("%$value%") . ")
-									OR UPPER(ca2.$key) ?LIKE? UPPER(" . $this->db->Escape("%$value%") . "))";
+									OR EXISTS (SELECT 1 FROM customer_addresses ca2
+										JOIN vaddresses va ON va.id = ca2.address_id
+										WHERE ca2.customer_id = c.id
+											AND UPPER(va.$key) ?LIKE? UPPER(" . $this->db->Escape("%$value%") . ")))";
 							elseif ($search['addresstype'] == BILLING_ADDRESS)
 								$searchargs[] = "UPPER(c.$key) ?LIKE? UPPER(" . $this->db->Escape("%$value%") . ")";
 							elseif ($search['addresstype'] == LOCATION_ADDRESS)
-								$searchargs[] = "UPPER(ca2.$key) ?LIKE? UPPER(" . $this->db->Escape("%$value%") . ")";
+								$searchargs[] = "EXISTS (SELECT 1 FROM customer_addresses ca2
+									JOIN vaddresses va ON va.id = ca2.address_id
+									WHERE ca2.customer_id = c.id
+										AND UPPER(va.$key) ?LIKE? UPPER(" . $this->db->Escape("%$value%") . "))";
 							else
 								$searchargs[] = "UPPER(post_$key) ?LIKE? UPPER(" . $this->db->Escape("%$value%") . ")";
 							break;
@@ -632,8 +643,8 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                         case 'tariffs':
                             $searchargs[] = 'EXISTS (SELECT 1 FROM assignments a
 							WHERE a.customerid = c.id
-							AND datefrom <= ?NOW?
-							AND (dateto >= ?NOW? OR dateto = 0)
+							AND a.datefrom <= ?NOW?
+							AND (a.dateto >= ?NOW? OR a.dateto = 0)
 							AND (tariffid IN (' . $value . ')))';
                             break;
 						case 'addresstype':
@@ -642,10 +653,17 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                             $searchargs[] = 'EXISTS (SELECT 1 FROM assignments a
 							JOIN tariffs t ON t.id = a.tariffid
 							WHERE a.customerid = c.id
-							AND datefrom <= ?NOW?
-							AND (dateto >= ?NOW? OR dateto = 0)
+							AND a.datefrom <= ?NOW?
+							AND (a.dateto >= ?NOW? OR a.dateto = 0)
 							AND (t.type = ' . intval($value) . '))';
                             break;
+						case 'balance':
+						case 'balance_relation':
+							if ($key == 'balance' && isset($search['balance_relation'])) {
+								$balance_relation = intval($search['balance_relation']);
+								$searchargs[] = 'b.value' . ($balance_relation == -1 ? '<=' : '>=') . ' ' . floatval($value);
+							}
+							break;
                         default:
                             $searchargs[] = "$key ?LIKE? " . $this->db->Escape("%$value%");
                     }
@@ -666,7 +684,7 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
         } else {
             $sql .= 'SELECT DISTINCT c.id AS id, c.lastname, c.name, ' . $this->db->Concat('UPPER(lastname)', "' '", 'c.name') . ' AS customername,
             	c.type,
-                status, full_address, c.address, c.zip, c.city, countryid, countries.name AS country, cc.email, ccp.phone, ten, ssn, c.info AS info,
+                status, full_address, post_full_address, c.address, c.zip, c.city, countryid, countries.name AS country, cc.email, ccp.phone, ten, ssn, c.info AS info,
                 extid, message, c.divisionid, c.paytime AS paytime, COALESCE(b.value, 0) AS balance,
                 COALESCE(t.value, 0) AS tariffvalue, s.account, s.warncount, s.online,
                 (CASE WHEN s.account = s.acsum THEN 1
@@ -721,11 +739,7 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                     FROM nodes
                     WHERE ownerid > 0 AND ipaddr <> 0
                     GROUP BY ownerid
-                ) s ON (s.ownerid = c.id)
-		LEFT JOIN (
-			SELECT customer_id, address, zip, city FROM customer_addresses
-			JOIN vaddresses va ON va.id = address_id
-		) ca2 ON ca2.customer_id = c.id '
+                ) s ON (s.ownerid = c.id) '
                 . ($contracts == 1 ? '
                     LEFT JOIN (
                         SELECT COUNT(*), d.customerid FROM documents d
@@ -766,15 +780,20 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                 . ($withoutbuildingnumber ? ' AND c.building IS NULL' : '')
                 . ($withoutzip ? ' AND c.zip IS NULL' : '')
                 . ($withoutcity ? ' AND c.city IS NULL' : '')
+				. ($withoutteryt ? ' AND c.id IN (SELECT DISTINCT ca.customer_id
+					FROM customer_addresses ca
+					JOIN addresses a ON a.id = ca.address_id
+					WHERE a.city_id IS NULL)' : '')
                 . ($contracts == 1 ? ' AND d.customerid IS NULL' : '')
                 . ($assigment ? ' AND c.id IN ('.$assigment.')' : '')
                 . ($disabled ? ' AND s.ownerid IS NOT null AND s.account > s.acsum' : '')
                 . ($network ? ' AND (EXISTS (SELECT 1 FROM vnodes WHERE ownerid = c.id
-                		AND (netid = ' . $network . '
+                		AND (netid' . (is_array($network) ? ' IN (' . implode(',', $network) . ')' : ' = ' . $network) . '
                 		OR (ipaddr_pub > ' . $net['address'] . ' AND ipaddr_pub < ' . $net['broadcast'] . ')))
                 	OR EXISTS (SELECT 1 FROM netdevices
                 		JOIN vnodes ON vnodes.netdev = netdevices.id AND vnodes.ownerid IS NULL
-                		WHERE netdevices.ownerid = c.id AND (netid = ' . $network . '
+                		WHERE netdevices.ownerid = c.id AND (netid'
+							. (is_array($network) ? ' IN (' . implode(',', $network) . ')' : ' = ' . $network) . '
                 		OR (ipaddr_pub > ' . $net['address'] . ' AND ipaddr_pub < ' . $net['broadcast'] . '))))' : '')
                 . (!empty($customergroup) && $customergroup != -1 ? ' AND ca.gcount = ' . (is_array($customergroup) ? count($customergroup) : 1) : '')
                 . ($customergroup == -1 ? ' AND ca.gcount IS NULL ' : '')
@@ -1110,7 +1129,7 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
             'einvoice'       => $customerdata['einvoice'],
             'invoicenotice'  => $customerdata['invoicenotice'],
             'mailingnotice'  => $customerdata['mailingnotice'],
-            SYSLOG::RES_DIV  => $customerdata['divisionid'],
+            SYSLOG::RES_DIV  => empty($customerdata['divisionid']) ? null : $customerdata['divisionid'],
             'paytime'        => $customerdata['paytime'],
             'paytype'        => $customerdata['paytype'] ? $customerdata['paytype'] : null,
             SYSLOG::RES_CUST => $customerdata['id']
@@ -1127,7 +1146,7 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
             }
 
             // update country states
-            if ( $v['location_zip'] && $v['location_state'] ) {
+            if ( $v['location_zip'] && $v['location_state'] && !isset($v['teryt'])) {
                 $location_manager->UpdateCountryState( $v['location_zip'], $v['location_state'] );
             }
         }
@@ -1178,6 +1197,9 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
     public function deleteCustomer($id)
     {
         global $LMS;
+
+        $disable_customer_contacts = ConfigHelper::checkConfig('phpui.disable_contacts_during_customer_delete');
+
         $this->db->BeginTrans();
 
         $this->db->Execute('UPDATE customers SET deleted=1, moddate=?NOW?, modid=?
@@ -1229,6 +1251,18 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                             $this->syslog->AddMessage(SYSLOG::RES_NODEASSIGN, SYSLOG::OPER_DELETE, $args);
                         }
                 }
+
+			if ($disable_customer_contacts) {
+				$contacts = $this->db->GetCol('SELECT id FROM customercontacts WHERE customerid = ?', array($id));
+				if (!empty($contacts))
+					foreach ($contacts as $contact) {
+						$args = array(
+							SYSLOG::RES_CUSTCONTACT => $contact,
+							SYSLOG::RES_CUST => $id,
+						);
+						$this->syslog->AddMessage(SYSLOG::RES_CUSTCONTACT, SYSLOG::OPER_UPDATE, $args);
+					}
+			}
         }
 
         $liabs = $this->db->GetCol('SELECT liabilityid FROM assignments WHERE liabilityid IS NOT NULL AND customerid = ?', array($id));
@@ -1266,8 +1300,12 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
         }
 
         // hosting
-        $this->db->Execute('UPDATE passwd SET ownerid=0 WHERE ownerid=?', array($id));
-        $this->db->Execute('UPDATE domains SET ownerid=0 WHERE ownerid=?', array($id));
+        $this->db->Execute('UPDATE passwd SET ownerid=NULL WHERE ownerid=?', array($id));
+        $this->db->Execute('UPDATE domains SET ownerid=NULL WHERE ownerid=?', array($id));
+
+		if ($disable_customer_contacts)
+			$this->db->Execute('UPDATE customercontacts SET type = type | ? WHERE customerid = ?',
+				array(CONTACT_DISABLED, $id));
 
         // Remove Userpanel rights
         $userpanel_dir = ConfigHelper::getConfig('directories.userpanel_dir');

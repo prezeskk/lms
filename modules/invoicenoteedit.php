@@ -33,6 +33,9 @@ if (isset($_GET['id']) && $action == 'edit') {
 
 	$cnote = $LMS->GetInvoiceContent($_GET['id']);
 
+	if (!empty($cnote['cancelled']))
+		return;
+
 	$invoice = array();
 	foreach ($cnote['invoice']['content'] as $item)
 		$invoice[$item['itemid']] = $item;
@@ -140,7 +143,7 @@ switch ($action) {
 			if (checkdate($smonth, $sday, $syear)) {
 				$sdate = mktime(23, 59, 59, $smonth, $sday, $syear);
 				$cnote['sdate'] = mktime(date('G', $currtime), date('i', $currtime), date('s', $currtime), $smonth, $sday, $syear);
-				if ($sdate < $invoice['sdate'])
+				if ($sdate < $cnote['oldsdate'])
 					$error['sdate'] = trans('Credit note sale date cannot be earlier than invoice sale date!');
 			} else {
 				$error['sdate'] = trans('Incorrect date format! Using current date.');
@@ -153,7 +156,7 @@ switch ($action) {
 			list ($year, $month, $day) = explode('/', $cnote['cdate']);
 			if (checkdate($month, $day, $year)) {
 				$cnote['cdate'] = mktime(date('G', $currtime), date('i', $currtime), date('s', $currtime), $month, $day, $year);
-				if($cnote['cdate'] < $invoice['cdate'])
+				if($cnote['cdate'] < $cnote['oldcdate'])
 					$error['cdate'] = trans('Credit note date cannot be earlier than invoice date!');
 			} else {
 				$error['cdate'] = trans('Incorrect date format! Using current date.');
@@ -234,7 +237,7 @@ switch ($action) {
 			$contents[$idx]['valuenetto'] = $newcontents['valuenetto'][$idx] != '' ? $newcontents['valuenetto'][$idx] : $item['valuenetto'];
 			$contents[$idx]['valuebrutto'] = f_round($contents[$idx]['valuebrutto']);
 			$contents[$idx]['valuenetto'] = f_round($contents[$idx]['valuenetto']);
-			$contents[$idx]['count'] = f_round($contents[$idx]['count']);
+			$contents[$idx]['count'] = f_round($contents[$idx]['count'], 3);
 			$contents[$idx]['pdiscount'] = f_round($contents[$idx]['pdiscount']);
 			$contents[$idx]['vdiscount'] = f_round($contents[$idx]['vdiscount']);
 			$taxvalue = $taxeslist[$contents[$idx]['taxid']]['value'];
@@ -359,7 +362,7 @@ switch ($action) {
 					$args = array(
 						SYSLOG::RES_CASH => $cashid,
 						SYSLOG::RES_DOC => $iid,
-						SYSLOG::RES_CUST => $customer['id'],
+						SYSLOG::RES_CUST => $cnote['customerid'],
 					);
 					$SYSLOG->AddMessage(SYSLOG::RES_CASH, SYSLOG::OPER_DELETE, $args);
 				}
@@ -367,7 +370,7 @@ switch ($action) {
 				foreach ($itemids as $itemid) {
 					$args = array(
 						SYSLOG::RES_DOC => $iid,
-						SYSLOG::RES_CUST => $customer['id'],
+						SYSLOG::RES_CUST => $cnote['customerid'],
 						'itemid' => $itemid,
 					);
 					$SYSLOG->AddMessage(SYSLOG::RES_INVOICECONT, SYSLOG::OPER_DELETE, $args);
@@ -397,7 +400,7 @@ switch ($action) {
 					taxid, prodid, content, count, pdiscount, vdiscount, description, tariffid)
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', array_values($args));
 				if ($SYSLOG) {
-					$args[SYSLOG::RES_CUST] = $customer['id'];
+					$args[SYSLOG::RES_CUST] = $cnote['customerid'];
 					$SYSLOG->AddMessage(SYSLOG::RES_INVOICECONT, SYSLOG::OPER_ADD, $args);
 				}
 
@@ -405,7 +408,7 @@ switch ($action) {
 					'time' => $cdate,
 					'value' => $item['cash'],
 					'taxid' => $item['taxid'],
-					'customerid' => $customer['id'],
+					'customerid' => $cnote['customerid'],
 					'comment' => $item['name'],
 					'docid' => $iid,
 					'itemid' => $itemid
@@ -418,13 +421,13 @@ switch ($action) {
 					$args = array(
 						SYSLOG::RES_CASH => $cashid,
 						SYSLOG::RES_DOC => $iid,
-						SYSLOG::RES_CUST => $customer['id'],
+						SYSLOG::RES_CUST => $cnote['customerid'],
 					);
 					$SYSLOG->AddMessage(SYSLOG::RES_CASH, SYSLOG::OPER_UPDATE, $args);
 				}
 			}
 			$DB->Execute('UPDATE cash SET customerid = ? WHERE docid = ?',
-				array($customer['id'], $iid));
+				array($cnote['customerid'], $iid));
 		}
 
 		$DB->CommitTrans();

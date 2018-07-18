@@ -958,10 +958,16 @@ class LMS
         return $manager->GetCustomerTariffsValue($id);
     }
 
-    public function GetCustomerAssignments($id, $show_expired = false)
+	public function GetCustomerAssignmentValue($id)
+	{
+		$manager = $this->getFinanceManager();
+		return $manager->GetCustomerAssignmentValue($id);
+	}
+
+	public function GetCustomerAssignments($id, $show_expired = false, $show_approved = true)
     {
         $manager = $this->getFinanceManager();
-        return $manager->GetCustomerAssignments($id, $show_expired);
+        return $manager->GetCustomerAssignments($id, $show_expired, $show_approved);
     }
 
     public function DeleteAssignment($id)
@@ -1448,10 +1454,10 @@ class LMS
         return $manager->GetQueue($id);
     }
 
-    public function GetQueueContents($ids, $order = 'createtime,desc', $state = NULL, $owner = 0, $catids = NULL, $removed = NULL)
+    public function GetQueueContents($ids, $order = 'createtime,desc', $state = NULL, $priority = NULL, $owner = 0, $catids = NULL, $removed = NULL, $netdevids = NULL, $netnodeids = NULL, $deadline = NULL)
     {
         $manager = $this->getHelpdeskManager();
-        return $manager->GetQueueContents($ids, $order, $state, $owner, $catids, $removed);
+        return $manager->GetQueueContents($ids, $order, $state, $priority, $owner, $catids, $removed, $netdevids, $netnodeids, $deadline);
     }
 
     public function GetUserRightsRT($user, $queue, $ticket = NULL)
@@ -1465,6 +1471,11 @@ class LMS
         $manager = $this->getHelpdeskManager();
         return $manager->GetQueueList($stats);
     }
+
+	public function GetQueueListByUser($userid, $stats = true) {
+		$manager = $this->getHelpdeskManager();
+		return $manager->GetQueueListByUser($userid, $stats);
+	}
 
     public function GetQueueNames()
     {
@@ -1482,6 +1493,12 @@ class LMS
     {
         $manager = $this->getHelpdeskManager();
         return $manager->GetQueueIdByName($id);
+    }
+
+    public function GetQueueVerifier($id)
+    {
+        $manager = $this->getHelpdeskManager();
+        return $manager->GetQueueVerifier($id);
     }
 
     public function GetQueueNameByTicketId($id)
@@ -1856,6 +1873,7 @@ class LMS
 				$headers['X-HTTP-User-Agent'] = $_SERVER['HTTP_USER_AGENT'];
 			$headers['Mime-Version'] = '1.0';
 			$headers['Subject'] = qp_encode($headers['Subject']);
+			$headers['Precedence'] = 'bulk';
 
 			$debug_email = ConfigHelper::getConfig('mail.debug_email');
 			if (!empty($debug_email)) {
@@ -1952,6 +1970,7 @@ class LMS
 						$this->mail_object->MessageID = $headers[$header_name];
 					else
 						$this->mail_object->addCustomHeader($header_name . ': ' . $headers[$header_name]);
+			$this->mail_object->addCustomHeader('Precedence: bulk');
 
 			if (isset($headers['Disposition-Notification-To']))
 				$this->mail_object->ConfirmReadingTo = $headers['Disposition-Notification-To'];
@@ -1960,7 +1979,7 @@ class LMS
 
 			$this->mail_object->Dsn = isset($headers['Delivery-Status-Notification-To']);
 
-			preg_match('/^(?:(?<name>.*) )?<?(?<mail>[a-z0-9_\.-]+@[\da-z\.-]+\.[a-z\.]{2,6})>?$/A', $headers['From'], $from);
+			preg_match('/^(?:(?<name>.*) )?<?(?<mail>[a-z0-9_\.-]+@[\da-z\.-]+\.[a-z\.]{2,6})>?$/iA', $headers['From'], $from);
 			$this->mail_object->setFrom($from['mail'], isset($from['name']) ? trim($from['name'], "\"") : '');
 			$this->mail_object->addReplyTo($headers['Reply-To']);
 			$this->mail_object->CharSet = 'UTF-8';
@@ -2409,17 +2428,29 @@ class LMS
         return $manager->EventSearch($search, $order, $simple);
     }
 
+    public function GetEventList($year=NULL, $month=NULL, $day=NULL, $forward=0, $customerid=0, $userid=0, $type=0, $privacy=0, $closed = '')
+    {
+        $manager = $this->getEventManager();
+        return $manager->GetEventList($year, $month, $day, $forward, $customerid, $userid, $type, $privacy, $closed);
+    }
+
     public function GetCustomerIdByTicketId($id)
     {
         $manager = $this->getEventManager();
         return $manager->GetCustomerIdByTicketId($id);
     }
 
-    public function GetEventsByTicketId($id)
+	public function EventOverlaps(array $params) {
+		$manager = $this->getEventManager();
+		return $manager->EventOverlaps($params);
+	}
+
+	public function GetEventsByTicketId($id)
     {
          $manager = $this->getHelpdeskManager();
          return $manager->GetEventsByTicketId($id);
     }
+
     public function GetNumberPlans($properties)
     {
         $manager = $this->getDocumentManager();

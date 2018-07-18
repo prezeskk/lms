@@ -1,5 +1,5 @@
 {extends file="layout.html"}
-{block name=title}::: LMS :{$layout.pagetitle|striphtml} :::{/block}
+{block name=title}LMS: {$layout.pagetitle|striphtml}{/block}
 {block name=module_content}
 <!--// $Id$ //-->
 <H1>{$layout.pagetitle}</H1>
@@ -32,6 +32,22 @@
 					</TD>
 					<TD style="width: 97%;" class="nobr">
 						{trans("To")}&nbsp;<INPUT TYPE="text" NAME="to" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>	
+					</TD>
+				</TR>
+				<TR>
+					<TD>
+						<IMG src="img/division.gif" alt="">
+					</TD>
+					<TD class="bold">
+						{trans("Division:")}
+					</TD>
+					<TD colspan="2">
+						<SELECT size="1" name="division" {tip text="Select division"}>
+							<OPTION value="0">- {trans("all")} -</OPTION>
+							{foreach $divisions as $division}
+							<OPTION value="{$division.id}">{$division.shortname}</OPTION>
+							{/foreach}
+						</SELECT>
 					</TD>
 				</TR>
 			</TABLE>

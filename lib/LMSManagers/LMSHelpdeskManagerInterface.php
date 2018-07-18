@@ -27,24 +27,27 @@
 /**
  * LMSHelpdeskManagerInterface
  * 
- * @author Maciej Lew <maciej.lew.1987@gmail.com>
  */
 interface LMSHelpdeskManagerInterface
 {
 
     public function GetQueue($id);
 
-    public function GetQueueContents($ids, $order = 'createtime,desc', $state = NULL, $owner = 0, $catids = NULL, $removed = NULL);
+    public function GetQueueContents($ids, $order = 'createtime,desc', $state = NULL, $priority = NULL, $owner = 0, $catids = NULL, $removed = NULL, $netdevids = NULL, $netnodeids = NULL, $deadline = NULL);
 
     public function GetUserRightsRT($user, $queue, $ticket = NULL);
 
     public function GetQueueList($stats = true);
+
+	public function GetQueueListByUser($userid, $stats = true);
 
     public function GetQueueNames();
 
     public function QueueExists($id);
 
     public function GetQueueIdByName($queue);
+
+    public function GetQueueVerifier($id);
 
     public function GetQueueName($id);
 

@@ -1,4 +1,10 @@
 {box title="Information about the subscriber"}
+<style>
+	#updatepinbtn,
+	#updatedatabtn {
+		margin-left: 10px;
+	}
+</style>
 {if $fields_changed}
 	<div class="alert alert-info">{trans("WARNING! Some fields have been changed and changes must become accepted by admin")}.</div>
 {/if}
@@ -11,7 +17,7 @@
 		{/if}
 		{if $rights.info.edit_addr || $rights.info.edit_addr_ack || $rights.info.edit_contact || $rights.info.edit_contact_ack}
 			{if $rights.info.edit_addr || $rights.info.edit_addr_ack || $rights.info.edit_contact || $rights.info.edit_contact_ack}
-				<button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#updateuserinfobox" accesskey="A">
+				<button id="updatedatabtn" type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#updateuserinfobox" accesskey="A">
 					{trans("Actualize data")}
 				</button>
 			{/if}
@@ -21,6 +27,11 @@
 		<li class="list-group-item">
 			<strong>{trans("ID")}:</strong>
 			{$userinfo.id|string_format:"%04d"}
+			{if ConfigHelper::checkConfig('userpanel.pin_changes')}
+			<button id="updatepinbtn" type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#updatepinbox" accesskey="P">
+				{trans("Update PIN")}
+			</button>
+			{/if}
 		</li>
 		<li class="list-group-item">
 			<strong>{if $userinfo.type == 0}{trans("Last and first name")}{else}{trans("Company name")}{/if}:</strong>
@@ -147,17 +158,17 @@
 	{/if}
 </ul>
 </div>
-
 {/box}
+
 <!-- Modal -->
 <div class="modal fade" id="updateuserinfobox" tabindex="-1" role="dialog" aria-labelledby="updateuserinfobox" aria-hidden="true">
 	<div class="modal-dialog" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
+				<h4 class="modal-title">{trans("Information about the subscriber")}</h4>
 				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 					<span aria-hidden="true">&times;</span>
 				</button>
-				<h4 class="modal-title">{trans("Information about the subscriber")}</h4>
 			</div>
 			<div class="modal-body">
 				{if $error.ssn}
@@ -219,8 +230,8 @@
 
 						{foreach $userinfo.emails as $email}
 							<div class="form-group">
-								<label for="email">{trans("E-mail:")}</label>
-								<input id="email" class="form-control" type="email" name="userdata[email][{$email.id}]" value="{$email.email}" placeholder="{trans("Enter e-mail address")}">
+								<label for="email{$email.id}">{trans("E-mail:")}</label>
+								<input id="email{$email.id}" class="form-control" type="email" name="userdata[email][{$email.id}]" value="{$email.email}" placeholder="{trans("Enter e-mail address")}">
 							</div>
 						{foreachelse}
 							<div class="form-group">
@@ -303,3 +314,55 @@
 		</div>
 	</div>
 </div>
+
+<div class="modal fade" id="updatepinbox" tabindex="-1" role="dialog" aria-labelledby="updatepinbox" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">{trans("PIN Update")}</h4>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				{if $error.oldpin}
+				<div class="alert alert-danger">{$error.oldpin}</div>
+				{/if}
+				{if $error.pin}
+				<div class="alert alert-danger">{$error.pin}</div>
+				{/if}
+				<form name="userpin" method="post" action="?m=info&f=updatepin">
+					<div class="form-group">
+						<label for="oldpin">{trans("Current PIN")}:</label>
+						<input id="oldpin" type="password" class="form-control" name="userdata[oldpin]" placeholder="{trans("Enter current PIN")}">
+					</div>
+					<div class="form-group">
+						<label for="pin">{trans("New PIN")}:</label>
+						<input id="pin" type="password" class="form-control" name="userdata[pin]" placeholder="{trans("Enter new PIN")}">
+					</div>
+					<div class="form-group">
+						<label for="pin2">{trans("New PIN confirm")}:</label>
+						<input id="pin2" type="password" class="form-control" name="userdata[pin2]" placeholder="{trans("Enter new PIN (again)")}">
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-dismiss="modal">{trans("Close")}</button>
+				<a class="btn btn-danger" href="javascript:document.userpin.submit()" accesskey="A">{trans("Save")}</a>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+	$(function() {
+		$('[data-toggle="modal"]').click(function() {
+			$($(this).attr('data-target')).find('.alert').remove();
+		});
+
+		{if $error.oldpin || $error.pin || $error.pin2}
+		$('#updatepinbox').modal('show');
+		{elseif isset($error)}
+		$('#updateuserinfobox').modal('show');
+		{/if}
+	});
+</script>

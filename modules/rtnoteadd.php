@@ -47,7 +47,13 @@ if(isset($_GET['ticketid']))
 elseif(isset($_POST['note']))
 {
 	$note = $_POST['note'];
-	$ticket = $DB->GetRow('SELECT id AS ticketid, state, cause, queueid, owner, address_id FROM rttickets WHERE id = ?', array($note['ticketid']));
+	$ticketdata = $LMS->GetTicketContents($note['ticketid']);
+
+        if (ConfigHelper::checkConfig('phpui.helpdesk_block_ticket_close_with_open_events')) {
+            if($note['state'] == RT_RESOLVED && !empty($ticketdata['openeventcount'])) {
+                $error['state'] = trans('Ticket have open assigned events!');
+	    }
+	}
 
 	if($note['body'] == '')
 		$error['body'] = trans('Note body not specified!');
@@ -86,7 +92,11 @@ elseif(isset($_POST['note']))
 			'queueid' => $note['queueid'],
 			'owner' => empty($note['owner']) ? null : $note['owner'],
 			'cause' => $note['cause'],
-			'state' => $note['state']
+			'state' => $note['state'],
+			'source' => $note['source'],
+			'priority' => $note['priority'],
+			'verifierid' => empty($note['verifierid']) ? null : $note['verifierid'],
+			'deadline' => $note['deadline'],
 		);
 		$LMS->TicketChange($note['ticketid'], $props);
 
@@ -148,11 +158,13 @@ elseif(isset($_POST['note']))
 
 			$params = array(
 				'id' => $note['ticketid'],
+				'queue' => $queue['name'],
 				'messageid' => isset($msgid) ? $msgid : null,
 				'customerid' => $ticketdata['customerid'],
 				'status' => $ticketdata['status'],
 				'categories' => $ticketdata['categorynames'],
 				'priority' => $RT_PRIORITIES[$ticketdata['priority']],
+				'deadline' => $ticketdata['deadline'],
 				'subject' => $ticketdata['subject'],
 				'body' => $note['body'],
 			);
@@ -187,10 +199,20 @@ $layout['pagetitle'] = trans('New Note');
 
 $SESSION->save('backto', $_SERVER['QUERY_STRING']);
 
+$ticket = $LMS->GetTicketContents($note['ticketid']);
+$SMARTY->assign('ticket', $ticket);
+if (!isset($_POST['note'])) {
+	$note['source'] = $ticket['source'];
+	$note['priority'] = $ticket['priority'];
+	$note['verifierid'] = $ticket['verifierid'];
+	$note['deadline'] = $ticket['deadline'];
+	if ($note['state'] == RT_NEW)
+		$note['state'] = RT_OPEN;
+}
+
 $SMARTY->assign('note', $note);
-$SMARTY->assign('ticket', $LMS->GetTicketContents($note['ticketid']));
 $SMARTY->assign('userlist', $LMS->GetUserNames());
-$SMARTY->assign('queuelist', $LMS->GetQueueNames());
+$SMARTY->assign('queuelist', $LMS->GetQueueListByUser(Auth::GetCurrentUser(), false));
 $SMARTY->assign('error', $error);
 $SMARTY->display('rt/rtnoteadd.html');
 

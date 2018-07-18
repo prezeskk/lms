@@ -31,13 +31,6 @@ $result = $LMS->GetNetNode($id);
 if (!$result)
 	$SESSION->redirect('?m=netnodelist');
 
-$tmp = array('city_name'      => $result['location_city_name'],
-             'location_house' => $result['location_house'],
-             'location_flat'  => $result['location_flat'],
-             'street_name'    => $result['location_street_name']);
-
-$result['location'] = location_str( $tmp );
-
 $SESSION->save('backto', $_SERVER['QUERY_STRING']);
 
 $layout['pagetitle'] = trans('Net Device Node Info: $a', $info['name']);
@@ -47,6 +40,26 @@ $SMARTY->assign('objectid', $result['id']);
 
 $nlist = $DB->GetAll("SELECT * FROM netdevices WHERE netnodeid=? ORDER BY name", array($id));
 $SMARTY->assign('netdevlist', $nlist);
+
+$queue = $LMS->GetQueueContents(null, null, null, null, -1, null, null, null, $id);
+$queue_count = $queue['total'];
+unset($queue['total']);
+unset($queue['state']);
+unset($queue['order']);
+unset($queue['direction']);
+unset($queue['owner']);
+unset($queue['removed']);
+unset($queue['priority']);
+unset($queue['deadline']);
+
+$SMARTY->assign('queue', $queue);
+$SMARTY->assign('queue_count', $queue_count);
+$SMARTY->assign('queue_netnodeid', $id);
+
+$start = 0;
+$pagelimit = ConfigHelper::getConfig('phpui.ticketlist_pagelimit', $queue_count);
+$SMARTY->assign('start', $start);
+$SMARTY->assign('pagelimit', $pagelimit);
 
 $SMARTY->display('netnode/netnodeinfo.html');
 

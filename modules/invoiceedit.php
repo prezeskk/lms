@@ -39,6 +39,9 @@ if(isset($_GET['id']) && ($action == 'edit' || $action == 'convert'))
 
 	$invoice = $LMS->GetInvoiceContent($_GET['id']);
 
+	if (!empty($invoice['cancelled']))
+		return;
+
 	$invoice['proforma'] = isset($_GET['proforma']) ? $action : null;
 
 	$SESSION->remove('invoicecontents');
@@ -73,6 +76,7 @@ if(isset($_GET['id']) && ($action == 'edit' || $action == 'convert'))
 	$invoice['olddeadline'] = $invoice['deadline'] = $invoice['cdate'] + $invoice['paytime'] * 86400;
 	$invoice['oldnumber'] = $invoice['number'];
 	$invoice['oldnumberplanid'] = $invoice['numberplanid'];
+	$invoice['oldcomment'] = $invoice['comment'];
 
 	if ($invoice['proforma'] == 'convert') {
 		$currtime = time();
@@ -145,8 +149,9 @@ switch($action)
 		if ($error)
 			break;
 
-		foreach(array('count', 'discount', 'pdiscount', 'vdiscount', 'valuenetto', 'valuebrutto') as $key)
-			$itemdata[$key] = round((float) str_replace(',', '.', $itemdata[$key]), 2);
+		foreach (array('discount', 'pdiscount', 'vdiscount', 'valuenetto', 'valuebrutto') as $key)
+			$itemdata[$key] = f_round($itemdata[$key]);
+		$itemdata['count'] = f_round($itemdata['count'], 3);
 
 		if ($itemdata['count'] > 0 && $itemdata['name'] != '')
 		{
@@ -167,7 +172,7 @@ switch($action)
 			// str_replace here is needed because of bug in some PHP versions (4.3.10)
 			$itemdata['s_valuenetto'] = f_round($itemdata['s_valuebrutto'] / ($taxvalue / 100 + 1));
 			$itemdata['valuenetto'] = f_round($itemdata['valuenetto']);
-			$itemdata['count'] = f_round($itemdata['count']);
+			$itemdata['count'] = f_round($itemdata['count'], 3);
 			$itemdata['discount'] = f_round($itemdata['discount']);
 			$itemdata['pdiscount'] = f_round($itemdata['pdiscount']);
 			$itemdata['vdiscount'] = f_round($itemdata['vdiscount']);
@@ -194,6 +199,7 @@ switch($action)
 		$oldsdate = $invoice['oldsdate'];
 		$oldnumber = $invoice['oldnumber'];
 		$oldnumberplanid = $invoice['oldnumberplanid'];
+		$oldcomment = $invoice['oldcomment'];
 		$closed   = $invoice['closed'];
 		$divisionid = $invoice['divisionid'];
 		$name = $invoice['name'];
@@ -217,6 +223,7 @@ switch($action)
 		$invoice['oldsdate'] = $oldsdate;
 		$invoice['oldnumber'] = $oldnumber;
 		$invoice['oldnumberplanid'] = $oldnumberplanid;
+		$invoice['oldcomment'] = $oldcomment;
 		$invoice['divisionid'] = $divisionid;
 		$invoice['name'] = $name;
 		$invoice['address'] = $address;
@@ -339,11 +346,19 @@ switch($action)
 		$cdate = $invoice['cdate'] ? $invoice['cdate'] : $currtime;
 		$sdate = $invoice['sdate'] ? $invoice['sdate'] : $currtime;
 		$deadline = $invoice['deadline'] ? $invoice['deadline'] : $currtime;
+		$comment = $invoice['comment'] ? $invoice['comment'] : NULL;
 		$paytime = round(($deadline - $cdate) / 86400);
 		$iid   = $invoice['id'];
 
 		$DB->BeginTrans();
-		$DB->LockTables(array('documents', 'cash', 'invoicecontents', 'numberplans', 'divisions', 'vdivisions'));
+		$tables = array('documents', 'cash', 'invoicecontents', 'numberplans', 'divisions', 'vdivisions',
+			'customerview', 'customercontacts', 'netdevices', 'nodes',
+			'logtransactions', 'logmessages', 'logmessagekeys', 'logmessagedata');
+		if (ConfigHelper::getConfig('database.type') == 'postgres')
+			$tables = array_merge($tables, array('customers', 'customer_addresses'));
+		else
+			$tables = array_merge($tables, array('customers cv', 'customer_addresses ca'));
+		$DB->LockTables($tables);
 
 		$use_current_customer_data = isset($invoice['use_current_customer_data']) || $invoice['customerid'] != $customerid;
 		if ($use_current_customer_data)
@@ -392,7 +407,7 @@ switch($action)
 			SYSLOG::RES_CUST => $invoice['customerid'],
 			'name' => $use_current_customer_data ? $customer['customername'] : $invoice['name'],
 			'address' => $use_current_customer_data ? (($customer['postoffice'] && $customer['postoffice'] != $customer['city'] && $customer['street']
-				? $customer['postoffice'] . ', ' : '') . $customer['address']) : $invoice['address'],
+				? $customer['city'] . ', ' : '') . $customer['address']) : $invoice['address'],
 			'ten' => $use_current_customer_data ? $customer['ten'] : $invoice['ten'],
 			'ssn' => $use_current_customer_data ? $customer['ssn'] : $invoice['ssn'],
 			'zip' => $use_current_customer_data ? $customer['zip'] : $invoice['zip'],
@@ -415,6 +430,7 @@ switch($action)
 			'div_inv_footer' => ($division['inv_footer'] ? $division['inv_footer'] : ''),
 			'div_inv_author' => ($division['inv_author'] ? $division['inv_author'] : ''),
 			'div_inv_cplace' => ($division['inv_cplace'] ? $division['inv_cplace'] : ''),
+			'comment' => ($invoice['comment'] ? $invoice['comment'] : null),
 		);
 
 		$args['type'] = $invoice['proforma'] == 'edit' ? DOC_INVOICE_PRO : DOC_INVOICE;
@@ -435,7 +451,7 @@ switch($action)
 				name = ?, address = ?, ten = ?, ssn = ?, zip = ?, city = ?, countryid = ?, divisionid = ?,
 				div_name = ?, div_shortname = ?, div_address = ?, div_city = ?, div_zip = ?, div_countryid = ?,
 				div_ten = ?, div_regon = ?, div_account = ?, div_inv_header = ?, div_inv_footer = ?,
-				div_inv_author = ?, div_inv_cplace = ?, type = ?, number = ?, fullnumber = ?, numberplanid = ?
+				div_inv_author = ?, div_inv_cplace = ?, comment = ?, type = ?, number = ?, fullnumber = ?, numberplanid = ?
 				WHERE id = ?', array_values($args));
 		if ($SYSLOG)
 			$SYSLOG->AddMessage(SYSLOG::RES_DOC, SYSLOG::OPER_UPDATE, $args,

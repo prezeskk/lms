@@ -373,19 +373,19 @@ $query = "SELECT a.tariffid, a.liabilityid, a.customerid, a.recipient_address_id
 			OR (a.period = ? AND at = ?))
 			AND a.datefrom <= ? AND (a.dateto > ? OR a.dateto = 0)))"
 		.(!empty($groupnames) ? $customergroups : "")
-	." ORDER BY a.customerid, a.recipient_address_id, a.invoice,  a.paytype, a.numberplanid, value DESC";
+	." ORDER BY a.customerid, a.recipient_address_id, a.invoice,  a.paytype, a.numberplanid, a.separatedocument, value DESC";
 $assigns = $DB->GetAll($query, array(CSTATUS_CONNECTED, CSTATUS_DEBT_COLLECTION,
 	DISPOSABLE, $today, DAILY, WEEKLY, $weekday, MONTHLY, $dom, QUARTERLY, $quarter, HALFYEARLY, $halfyear, YEARLY, $yearday,
 	$currtime, $currtime));
 
-$billing_invoice_description = ConfigHelper::getConfig('payments.billing_invoice_description', 'Phone calls between %backward_periods');
+$billing_invoice_description = ConfigHelper::getConfig('payments.billing_invoice_description', 'Phone calls between %backward_periods (for %phones)');
 
 $query = "SELECT
 			a.tariffid, a.customerid, a.period, a.at, a.suspended, a.settlement, a.datefrom,
-			a.pdiscount, a.vdiscount, a.invoice, a.separatedocument, t.description AS description, a.id AS assignmentid,
+			0 AS pdiscount, 0 AS vdiscount, a.invoice, a.separatedocument, t.description AS description, a.id AS assignmentid,
 			c.divisionid, c.paytype, a.paytype AS a_paytype, a.numberplanid, a.attribute,
 			d.inv_paytype AS d_paytype, t.period AS t_period, t.numberplanid AS tariffnumberplanid,
-			t.type AS tarifftype, t.taxid AS taxid, '' as prodid, voipcost.value,
+			t.type AS tarifftype, t.taxid AS taxid, '' as prodid, voipcost.value, voipphones.phones,
 			'set' AS liabilityid, '$billing_invoice_description' AS name,
 			(SELECT COUNT(id)
 				FROM assignments
@@ -398,7 +398,8 @@ $query = "SELECT
 			FROM assignments a
 			JOIN customers c ON (a.customerid = c.id)
 			JOIN (
-				SELECT ROUND(sum(price), 2) AS value, va.ownerid AS customerid
+				SELECT ROUND(sum(price), 2) AS value, va.ownerid AS customerid,
+					a2.id AS assignmentid
 				FROM voip_cdr vc
 				JOIN voipaccounts va ON vc.callervoipaccountid = va.id
 				JOIN voip_numbers vn ON vn.voip_account_id = va.id AND vn.phone = vc.caller
@@ -419,8 +420,14 @@ $query = "SELECT
 						WHEN ' . MONTHLY    . ' THEN ' . mktime(0, 0, 0, $month, 0, $year) . '
 						WHEN ' . DISPOSABLE . ' THEN ' . ($currtime + 86400) . "
 					END)
-				GROUP BY va.ownerid
-			) voipcost ON voipcost.customerid = a.customerid
+				GROUP BY va.ownerid, a2.id
+			) voipcost ON voipcost.customerid = a.customerid AND voipcost.assignmentid = a.id
+			LEFT JOIN (
+				SELECT vna2.assignment_id, " . $DB->GroupConcat('vn2.phone') . " AS phones
+				FROM voip_number_assignments vna2
+				LEFT JOIN voip_numbers vn2 ON vn2.id = vna2.number_id
+				GROUP BY vna2.assignment_id
+			) voipphones ON voipphones.assignment_id = a.id
 			LEFT JOIN tariffs t ON (a.tariffid = t.id)
 			LEFT JOIN divisions d ON (d.id = c.divisionid)
 	    WHERE
@@ -437,7 +444,7 @@ $query = "SELECT
 		   a.datefrom <= ? AND
 		  (a.dateto > ? OR a.dateto = 0)))"
 		.(!empty($groupnames) ? $customergroups : "")
-	." ORDER BY a.customerid, a.invoice, a.paytype, a.numberplanid, voipcost.value DESC";
+	." ORDER BY a.customerid, a.invoice, a.paytype, a.numberplanid, a.separatedocument, voipcost.value DESC";
 
 $billings = $DB->GetAll($query, array(CSTATUS_CONNECTED, CSTATUS_DEBT_COLLECTION, TARIFF_PHONE,
 	DISPOSABLE, $today, DAILY, WEEKLY, $weekday, MONTHLY, $dom, QUARTERLY, $quarter, HALFYEARLY, $halfyear, YEARLY, $yearday,
@@ -470,7 +477,8 @@ foreach ($assigns as $assign) {
 	$cid = $assign['customerid'];
 	$divid = ($assign['divisionid'] ? $assign['divisionid'] : 0);
 
-	if ($assign['value'] == 0) continue;
+	$assign['value'] = str_replace(',', '.', floatval($assign['value']));
+	if (empty($assign['value'])) continue;
 
 	if (!$assign['suspended'] && $assign['allsuspended'])
 		$assign['value'] = $assign['value'] * $suspension_percentage / 100;
@@ -502,6 +510,10 @@ foreach ($assigns as $assign) {
 	$desc = preg_replace("/\%forward_period_aligned/"  , $forward_aligned_periods[$p] , $desc);
 	$desc = preg_replace("/\%period/"                  , $forward_periods[$p]         , $desc);
 	$desc = preg_replace("/\%aligned_period/"          , $forward_aligned_periods[$p] , $desc);
+
+	// for phone calls
+    if (isset($assign['phones']))
+        $desc = preg_replace('/\%phones/', $assign['phones'], $desc);
 
 	if ($suspension_percentage && ($assign['suspended'] || $assign['allsuspended']))
 		$desc .= " ".$suspension_description;
@@ -676,7 +688,7 @@ foreach ($assigns as $assign) {
 		{
 			$alldays = 1;
 
-			$diffdays = sprintf("%d", ($today - $assign['datefrom']) / 86400);
+			$diffdays = sprintf("%d", round(($today - $assign['datefrom']) / 86400));
 			$period_start = mktime(0, 0, 0, $month, $dom - $diffdays, $year);
 			$period_end = mktime(0, 0, 0, $month, $dom - 1, $year);
 			$period = strftime($date_format, $period_start) . " - " . strftime($date_format, $period_end);

@@ -197,8 +197,11 @@ function getIdentsWithSubcities($subcities, $street, $only_unique_city_matches) 
 	$DB = LMSDB::getInstance();
 
 	$idents = $DB->GetAll("
-		SELECT s.id as streetid, " . $subcities['cityid'] . " AS cityid
-		FROM location_streets s WHERE
+		SELECT s.id as streetid, " . $subcities['cityid'] . " AS cityid,
+			(" . $DB->Concat('t.name', "' '", '(CASE WHEN s.name2 IS NULL THEN s.name ELSE ' . $DB->Concat('s.name2', "' '", 's.name') . ' END)') . ") AS streetname
+		FROM location_streets s
+		JOIN location_street_types t ON t.id = s.typeid
+		WHERE
 			((CASE WHEN s.name2 IS NULL THEN s.name ELSE " . $DB->Concat('s.name2', "' '", 's.name') . " END) ?LIKE? ? OR s.name ?LIKE? ? )
 			AND s.cityid IN (" . $subcities['cities'] . ")",
 		array($street, $street));
@@ -224,14 +227,16 @@ function getIdents( $city = null, $street = null, $only_unique_city_matches = fa
 	$DB = LMSDB::getInstance();
 
     if ( $city && $street ) {
-        $idents = $DB->GetAll("
-            SELECT s.id as streetid, s.cityid
-            FROM location_streets s
-                JOIN location_cities c ON (s.cityid = c.id)
-            WHERE
-                ((CASE WHEN s.name2 IS NULL THEN s.name ELSE " . $DB->Concat('s.name2', "' '", 's.name') . " END) ?LIKE? ? OR s.name ?LIKE? ? )
-                AND c.name ?LIKE? ?
-            ORDER BY c.cityid", array($street, $street, $city));
+		$idents = $DB->GetAll("
+			SELECT s.id as streetid, s.cityid
+				(" . $DB->Concat('t.name', "' '", '(CASE WHEN s.name2 IS NULL THEN s.name ELSE ' . $DB->Concat('s.name2', "' '", 's.name') . ' END)') . ") AS streetname
+			FROM location_streets s
+			JOIN location_street_types t ON t.id = s.typeid
+			JOIN location_cities c ON (s.cityid = c.id)
+			WHERE
+				((CASE WHEN s.name2 IS NULL THEN s.name ELSE " . $DB->Concat('s.name2', "' '", 's.name') . " END) ?LIKE? ? OR s.name ?LIKE? ? )
+				AND c.name ?LIKE? ?
+			ORDER BY c.cityid", array($street, $street, $city));
 
 		if (empty($idents))
 			return array();
@@ -382,6 +387,9 @@ function get_teryt_file($ch, $type, $outfile) {
 }
 
 if ( isset($options['fetch']) ) {
+	if (!function_exists('curl_init'))
+		die('PHP CURL extension required!' . PHP_EOL);
+
 	if (!$quiet) {
 		echo 'Downloading TERYT files...' . PHP_EOL;
 	}
@@ -552,7 +560,7 @@ if ( isset($options['update']) ) {
 	// Read TERC xml file
 	//==============================================================================
 
-	if ($xml->open($teryt_dir . DIRECTORY_SEPARATOR . 'TERC.xml') === false) {
+	if (@$xml->open($teryt_dir . DIRECTORY_SEPARATOR . 'TERC.xml') === false) {
 		fwrite($stderr, "Error: can't open TERC.xml file." . PHP_EOL);
 		die;
 	}
@@ -756,7 +764,7 @@ if ( isset($options['update']) ) {
 	if (!$quiet)
 		echo 'Parsing SIMC.xml' . PHP_EOL;
 
-	if ($xml->open($teryt_dir . DIRECTORY_SEPARATOR . 'SIMC.xml') === false) {
+	if (@$xml->open($teryt_dir . DIRECTORY_SEPARATOR . 'SIMC.xml') === false) {
 		fwrite($stderr, "Error: can't open SIMC.xml file." . PHP_EOL);
 		die;
 	}
@@ -928,7 +936,7 @@ if ( isset($options['update']) ) {
 	if (!$quiet)
 		echo 'Parsing ULIC.xml' . PHP_EOL;
 
-	if ($xml->open($teryt_dir . DIRECTORY_SEPARATOR . 'ULIC.xml') === false) {
+	if (@$xml->open($teryt_dir . DIRECTORY_SEPARATOR . 'ULIC.xml') === false) {
 		fwrite($stderr, "Error: can't open ULIC.xml file." . PHP_EOL);
 		die;
 	}
@@ -1198,9 +1206,12 @@ if ( isset($options['merge']) ) {
 		echo 'Merging TERYT with LMS database...' . PHP_EOL;
     $updated = 0;
 
-    $addresses = $DB->GetAll("SELECT id, city, street
-        FROM addresses
-        WHERE city IS NOT NULL AND (city_id IS NULL OR (street IS NOT NULL AND street_id IS NULL))");
+	$addresses = $DB->GetAll("SELECT a.id, a.city, a.street
+		FROM addresses a
+		LEFT JOIN documents d ON (d.recipient_address_id = a.id OR d.post_address_id = a.id)
+		WHERE a.city IS NOT NULL
+			AND d.id IS NULL
+			AND (a.city_id IS NULL OR (a.street IS NOT NULL AND a.street_id IS NULL))");
 
     if ( !$addresses ) {
         $addresses = array();
@@ -1240,8 +1251,8 @@ if ( isset($options['merge']) ) {
 		if (!$quiet)
 			echo 'found' . PHP_EOL;
 
-		$DB->Execute("UPDATE addresses SET city_id = ?, street_id = ? WHERE id = ?",
-			array($idents['cityid'], $idents['streetid'], $a['id']));
+		$DB->Execute("UPDATE addresses SET city_id = ?, street_id = ?, street_name = ? WHERE id = ?",
+			array($idents['cityid'], $idents['streetid'], $idents['streetname'], $a['id']));
 
 		$updated++;
 	}

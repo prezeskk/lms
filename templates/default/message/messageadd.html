@@ -1,5 +1,5 @@
 {extends file="layout.html"}
-{block name=title}::: LMS :{$layout.pagetitle|striphtml} :::{/block}
+{block name=title}LMS: {$layout.pagetitle|striphtml}{/block}
 {block name=module_content}
 <!--// $Id$ //-->
 {$xajax}
@@ -126,6 +126,25 @@
 			tinyMCE.editors[0].setContent(message);
 		}
 		$('textarea[name="message[' + messageelem + ']"]').html(message);
+	}
+
+	function submit_try() {
+		$.ajax('?m=messageadd&count_recipients=1', {
+				method: "POST",
+				dataType: "json",
+				data: $('form[name="message"]').serialize()
+			}
+		).done(function (data) {
+			if (data.recipients <= 50) {
+				document.message.submit();
+			} else {
+				var message = '{t}Are you sure you want to send messages to $a customer(s)?{/t}'.replace('$a', data.recipients);
+				if (confirm(message)) {
+					document.message.submit();
+				}
+			}
+		});
+		return false;
 	}
 -->
 </SCRIPT>
@@ -323,7 +342,7 @@
 			{trans("Users:")}
 		</TD>
 		<TD style="width: 98%;">
-			<SELECT size="4" name="message[users][]" multiple class="lms-ui-multiselect" {tip text="Select users"} data-default-value="{trans("- none -")}">
+			<SELECT size="4" name="message[users][]" multiple class="lms-ui-multiselect" {tip text="Select users"} data-default-value="{trans("- none -")}" data-shoten-to-default-value="false">
 				{foreach $users as $user}
 				<OPTION value="{$user.phone}"{if isset($message.users) && in_array($user.phone, $message.users)} selected{/if}>{$user.name|truncate:30:"...":true}</OPTION>
 				{/foreach}
@@ -426,7 +445,7 @@
 	</TR>
 	<TR>
 		<TD class="text-right" colspan="3">
-			 <A href="javascript:document.message.submit();" accesskey="s">{trans("Send")} <IMG src="img/save.gif" alt=""></A>
+			 <A href="#" onClick="submit_try();" accesskey="s">{trans("Send")} <IMG src="img/save.gif" alt=""></A>
 		</TD>
 	</TR>
     </TBODY>

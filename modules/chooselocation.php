@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2013 LMS Developers
+ *  (C) Copyright 2001-2018 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -38,7 +38,7 @@ function get_loc_streets($cityid) {
 			WHERE ld.stateid = ? AND lb.districtid = ? AND (lb.type = 8 OR lb.type = 9)",
 			array($borough['stateid'], $borough['districtid']));
 		if (!empty($subcities)) {
-			$list = $DB->GetAll("SELECT s.id, (CASE WHEN s.name2 IS NOT NULL THEN " . $DB->Concat('s.name', "' '", 's.name2') . " ELSE s.name END) AS name, t.name AS typename
+			$list = $DB->GetAll("SELECT s.id, s.name AS name1, s.name2 AS name2, (CASE WHEN s.name2 IS NOT NULL THEN " . $DB->Concat('s.name', "' '", 's.name2') . " ELSE s.name END) AS name, t.name AS typename
 				FROM location_streets s
 				LEFT JOIN location_street_types t ON (s.typeid = t.id)
 				WHERE s.cityid IN (" . implode(',', $subcities) . ")
@@ -47,24 +47,19 @@ function get_loc_streets($cityid) {
 	}
 
 	if (!isset($list))
-		$list = $DB->GetAll("SELECT s.id, (CASE WHEN s.name2 IS NOT NULL THEN " . $DB->Concat('s.name', "' '", 's.name2') . " ELSE s.name END) AS name, t.name AS typename
+		$list = $DB->GetAll("SELECT s.id, s.name AS name1, s.name2 AS name2, (CASE WHEN s.name2 IS NOT NULL THEN " . $DB->Concat('s.name', "' '", 's.name2') . " ELSE s.name END) AS name, t.name AS typename
 			FROM location_streets s
 			LEFT JOIN location_street_types t ON (s.typeid = t.id)
 			WHERE s.cityid = ?
 			ORDER BY s.name", array($cityid));
 
 	if ($list)
-		foreach ($list as $idx => $row) {
-			if ($row['typename']) {
+		foreach ($list as &$row) {
+			if ($row['typename'])
 				$row['name'] .= ', ' . $row['typename'];
-				unset($row['typename']);
-				$list[$idx] = $row;
-			}
 		}
 	else
 		$list = array();
-
-	array_unshift($list, array('id' => 0, 'name' => ''));
 
 	return $list;
 }
@@ -107,20 +102,20 @@ if (isset($_GET['ajax']) && isset($_GET['what'])) {
 		WHERE c.name ?LIKE? ' . $DB->Escape("%$search%") . '
 		ORDER BY c.name, b.type LIMIT 10');
 
-	$eligible = $actions = array();
+	$result = array();
 	if ($list)
 		foreach ($list as $idx => $row) {
-			$name = sprintf('%s (%s%s, %s)', $row['name'], $row['btype'] < 4 ? trans('<!borough_abbr>') : '', $row['borough'], trans('<!district_abbr>') . $row['district']);
+			$name = sprintf('%s (%s%s, %s)', $row['name'], $row['btype'] < 4 ?
+				trans('<!borough_abbr>') : '', $row['borough'], trans('<!district_abbr>') . $row['district']);
+			$name_class = '';
+			$description = $description_class = '';
+			$action = sprintf("javascript: search_update(%d,%d,%d)", $row['id'], $row['districtid'], $row['stateid']);
 
-			$eligible[$idx] = escape_js($name);
-			$actions[$idx] = sprintf("javascript: search_update(%d,%d,%d)", $row['id'], $row['districtid'], $row['stateid']);
+			$result[$row['id']] = compact('name', 'name_class', 'description', 'description_class', 'action');
 		}
 
-	if ($eligible) {
-		print "this.eligible = [\"" . implode('","', $eligible) . "\"];\n";
-		print "this.actions = [\"" . implode('","', $actions) . "\"];\n";
-	} else
-		print "false;\n";
+	header('Content-Type: application/json');
+	echo json_encode(array_values($result));
 	die;
 }
 

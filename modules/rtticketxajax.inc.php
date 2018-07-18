@@ -56,8 +56,52 @@ function select_location($customerid, $address_id) {
 	return $JSResponse;
 }
 
+function netnode_changed($netnodeid, $netdevid) {
+	global $LMS, $SMARTY;
+
+	$JSResponse = new xajaxResponse();
+
+	$search = array();
+	if (!empty($netnodeid))
+		$search['netnode'] = $netnodeid;
+	$netdevlist = $LMS->GetNetDevList('name', $search);
+	unset($netdevlist['total']);
+	unset($netdevlist['order']);
+	unset($netdevlist['direction']);
+
+	$SMARTY->assign('netdevlist', $netdevlist);
+	$SMARTY->assign('ticket', array('netdevid' => $netdevid));
+	$SMARTY->assign('form', 'ticket');
+	$content = $SMARTY->fetch('rt' . DIRECTORY_SEPARATOR . 'rtnetdevs.html');
+	$JSResponse->assign('rtnetdevs', 'innerHTML', $content);
+
+	return $JSResponse;
+}
+
+function queue_changed($queue) {
+    global $LMS, $SMARTY;
+
+    $JSResponse = new xajaxResponse();
+    if(empty($queue))
+        return $JSResponse;
+
+    $vid = $LMS->GetQueueVerifier($queue);
+
+    if(empty($vid))
+        return $JSResponse;
+
+    $userlist = $LMS->GetUserNames();
+
+    $SMARTY->assign('userlist', $userlist);
+    $SMARTY->assign('ticket', array('verifierid'=>$vid));
+    $content = $SMARTY->fetch('rt/rtverifiers.html');
+
+	$JSResponse->assign('rtverifiers','innerHTML', $content);
+    return $JSResponse;
+}
+
 $LMS->InitXajax();
-$LMS->RegisterXajaxFunction(array('GetCategories', 'select_location'));
+$LMS->RegisterXajaxFunction(array('GetCategories', 'select_location', 'netnode_changed', 'queue_changed'));
 $SMARTY->assign('xajax', $LMS->RunXajax());
 
 ?>

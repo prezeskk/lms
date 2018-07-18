@@ -1,5 +1,5 @@
 {extends file="layout.html"}
-{block name=title}::: LMS :{$layout.pagetitle|striphtml} :::{/block}
+{block name=title}LMS: {$layout.pagetitle|striphtml}{/block}
 {block name=module_content}
 <!--// $Id$ //-->
 <H1>{$layout.pagetitle}</H1>
@@ -22,7 +22,7 @@
 	    </TD>
 	</TR>
     </THEAD>
-    <TBODY>
+    <TBODY class="lms-ui-multi-check">
 	<TR>
 	    <TD>
 		<IMG src="img/info1.gif" ALT="">
@@ -30,6 +30,16 @@
 	    <TD class="bold">{trans("Description")}:</TD>
 	    <TD>
 		<TEXTAREA NAME="category[description]" COLS="50" ROWS="2" {tip text="Enter additional information (optional)"}>{$category.description}</TEXTAREA>
+	    </TD>
+	</TR>
+	<TR>
+	    <TD>
+		<IMG src="img/queue.gif" ALT="">
+	    </TD>
+	    <TD class="bold">{trans("Category style:")}
+	    </TD>
+	    <TD class="bold">
+	        <TEXTAREA NAME="category[style]" COLS="50" ROWS="2" {tip text="Enter category CSS style (optional):"}>{$category.description}</TEXTAREA>
 	    </TD>
 	</TR>
 	<TR>
@@ -58,7 +68,7 @@
 				<A href="?m=userinfo&amp;id={$user.id}">{$user.name}</A>
 			    </TD>
 			    <TD class="text-center">
-				    <INPUT type="checkbox" name="category[users][{$user.id}]" value="1" {if $user.owner > 0}CHECKED{/if}>
+				    <INPUT type="checkbox" name="category[users][{$user.id}]" class="lms-ui-multi-check" value="1" {if $user.owner > 0}CHECKED{/if}>
 			    </TD>
 			</TR>
 			{/foreach}
@@ -67,7 +77,7 @@
                                         <label for="allbox">{trans("Check All")}</label>
                                 </TD>
 				<TD class="text-center">
-                                        <INPUT TYPE="checkbox" NAME="allbox" id="allbox" onchange="CheckAll('category', this)">
+                                        <INPUT TYPE="checkbox" NAME="allbox" id="allbox" class="lms-ui-multi-check-all">
                                 </TD>
                         </TR> 
                         </TBODY>

@@ -491,8 +491,22 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
 	foreach ($search as $key => $value)
 		switch ($key) {
 			case 'status':
-				if ($value != -1)
-					$where[] = 'd.status = ' . intval($value);
+				switch ($value) {
+					case -1:
+						break;
+					case 100:
+						$where[] = 'd.id IN (
+								SELECT netdevices.id FROM netdevices
+								LEFT JOIN vaddresses ON vaddresses.id = netdevices.address_id
+								LEFT JOIN netlinks ON netlinks.src = netdevices.id OR netlinks.dst = netdevices.id
+								WHERE address_id IS NULL OR vaddresses.city_id IS NULL
+								GROUP BY netdevices.id
+								HAVING COUNT(netlinks.id) >= 0
+							)';
+						break;
+					default:
+						$where[] = 'd.status = ' . intval($value);
+				}
 				break;
 			case 'project':
 				if ($value > 0)
@@ -618,6 +632,7 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
 				addr.zip as location_zip, addr.country_id as location_country,
 				addr.city as location_city_name, addr.street as location_street_name,
 				addr.city_id as location_city, addr.street_id as location_street,
+				addr.postoffice AS location_postoffice,
 				addr.house as location_house, addr.flat as location_flat, addr.location
 			FROM netdevices d
 				LEFT JOIN vaddresses addr          ON addr.id = d.address_id

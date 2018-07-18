@@ -30,7 +30,11 @@ if (isset($_GET['id']) && $action == 'init')
 {
 	if ($LMS->isDocumentReferenced($_GET['id']))
 		$SESSION->redirect('?m=invoicelist');
+
 	$invoice = $LMS->GetInvoiceContent($_GET['id']);
+
+	if (!empty($invoice['cancelled']))
+		$SESSION->redirect('?m=invoicelist');
 
 	$taxeslist = $LMS->GetTaxes($invoice['cdate'],$invoice['cdate']);
 
@@ -245,13 +249,15 @@ switch($action)
 			$contents[$idx]['valuenetto'] = $newcontents['valuenetto'][$idx] != '' ? $newcontents['valuenetto'][$idx] : $item['valuenetto'];
 			$contents[$idx]['valuebrutto'] = f_round($contents[$idx]['valuebrutto']);
 			$contents[$idx]['valuenetto'] = f_round($contents[$idx]['valuenetto']);
-			$contents[$idx]['count'] = f_round($contents[$idx]['count']);
+			$contents[$idx]['count'] = f_round($contents[$idx]['count'], 3);
 			$contents[$idx]['pdiscount'] = f_round($contents[$idx]['pdiscount']);
 			$contents[$idx]['vdiscount'] = f_round($contents[$idx]['vdiscount']);
 			$taxvalue = $taxeslist[$contents[$idx]['taxid']]['value'];
 
 			if ($contents[$idx]['valuenetto'] != $item['valuenetto'])
 				$contents[$idx]['valuebrutto'] = $contents[$idx]['valuenetto'] * ($taxvalue / 100 + 1);
+			elseif (f_round($contents[$idx]['valuebrutto']) == f_round($item['valuebrutto']))
+				$contents[$idx]['valuebrutto'] = $item['valuebrutto'];
 
 			if (isset($item['deleted']) && $item['deleted']) {
 				$contents[$idx]['valuebrutto'] = 0;

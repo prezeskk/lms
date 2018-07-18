@@ -203,8 +203,8 @@ $RT_PRIORITIES = array(
 );
 
 $RT_PRIORITY_STYLES = array(
-	RT_PRIORITY_VERYLOW => 'background-color: lightgreen; color: black;',
-	RT_PRIORITY_LOW => 'background-color: yellow; color: black;',
+	RT_PRIORITY_VERYLOW => 'background-color: blue; color: white;',
+	RT_PRIORITY_LOW => 'background-color: lightgreen; color: black;',
 	RT_PRIORITY_NORMAL => 'background-color: transparent; color: black;',
 	RT_PRIORITY_URGENT => 'background-color: orange; color: white;',
 	RT_PRIORITY_CRITICAL => 'background-color: red; color: white;',
@@ -234,6 +234,10 @@ define('RTMESSAGE_CATEGORY_CHANGE', 128);
 define('RTMESSAGE_LOCATION_CHANGE', 256);
 define('RTMESSAGE_NODE_CHANGE', 512);
 define('RTMESSAGE_NETNODE_CHANGE', 1024);
+define('RTMESSAGE_PRIORITY_CHANGE', 2048);
+define('RTMESSAGE_NETDEV_CHANGE', 4096);
+define('RTMESSAGE_VERIFIER_CHANGE', 8192);
+define('RTMESSAGE_DEADLINE_CHANGE', 16384);
 
 // Messages status and type
 define('MSG_NEW', 1);
@@ -337,6 +341,7 @@ define('DOC_PRICELIST', -11);
 define('DOC_PROMOTION', -12);
 define('DOC_WARRANTY', -13);
 define('DOC_REGULATIONS', -14);
+define('DOC_CONF_FILE', -15);
 
 
 $DOCTYPES = array(
@@ -361,6 +366,7 @@ $DOCTYPES = array(
     DOC_PROMOTION       =>  trans('promotion'), // promocja
     DOC_WARRANTY       =>  trans('warranty'), // gwarancja
     DOC_REGULATIONS       =>  trans('regulations'), // regulamin
+    DOC_CONF_FILE   =>  trans('configuration file'),
     DOC_OTHER       =>  trans('other')
 );
 
@@ -455,6 +461,8 @@ $PAYTYPES = array(
     6   => trans('barter'),
     7   => trans('contract'),
     8   => trans('paid'),
+    9   => trans('cash on delivery'),
+    10  => trans('instalments'),
 );
 
 // Contact types
@@ -699,11 +707,11 @@ $EVENTSTYLES = array(
 	EVENT_NETWORK => 'background-color: blue; color: white;',
 	EVENT_SERVICE => 'background-color: red; color: white;',
 	EVENT_INSTALLATION => 'background-color: green; color: white;',
-	EVENT_MEETING => 'background-color: yellow; color: black;',
+	EVENT_MEETING => 'background-color: gold; color: black;',
 	EVENT_VACATION => 'background-color: white; color: black;',
 	EVENT_DUTY => 'background-color: brown; color: white;',
-	EVENT_PHONE => 'background-color: white; color: black;',
-	EVENT_TV => 'background-color: white; color: blue;',
+	EVENT_PHONE => 'background-color: yellow; color: black;',
+	EVENT_TV => 'background-color: greenyellow; color: blue;',
 );
 
 define('SESSIONTYPE_PPPOE', 1);

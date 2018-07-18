@@ -51,17 +51,19 @@ if (isset($_GET['ajax'])) {
 		ORDER BY entries DESC, item ASC
 		LIMIT 15');
 
-	$eglible = array(); $descriptions = array();
+	$result = array();
 	if ($candidates)
 		foreach ($candidates as $idx => $row) {
-			$eglible[$row['item']] = escape_js($row['item']);
-			$descriptions[$row['item']] = escape_js($row['entries'] . ' ' . trans('entries'));
+			$name = $row['item'];
+			$name_class = '';
+			$description = $row['entries'] . ' ' . trans('entries');
+			$description_class = '';
+			$action = '';
+
+			$result[$row['item']] = compact('name', 'name_class', 'description', 'description_class', 'action');
 		}
-	if ($eglible) {
-		print "this.eligible = [\"" . implode('","', $eglible) . "\"];\n";
-		print "this.descriptions = [\"" . implode('","', $descriptions) . "\"];\n";
-	} else
-		print "false;\n";
+	header('Content-Type: application/json');
+	echo json_encode(array_values($result));
 	exit;
 }
 

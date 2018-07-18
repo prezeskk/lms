@@ -24,6 +24,24 @@
  *  $Id$
  */
 
+$_LANG['Overdue events'] = 'Zaległe zdarzenia';
+$_LANG['Only verifier can change this'] = 'Tylko weryfikator może to zmienić';
+$_LANG['<!rt>hours'] = 'godzin';
+$_LANG['Network node location:'] = 'Lokalizacja węzła sieciowego:';
+$_LANG['Ticket have open assigned events!'] = 'Zgłoszenie posiada otwarte zdarzenia!';
+$_LANG['Comment:'] = 'Komentarz:';
+$_LANG['Enter invoice comment'] = 'Wprowadz komenarz do faktury';
+$_LANG['<!rt>Expired'] = '<!rt>Przeterminowany';
+$_LANG['<!rt>Without deadline'] = '<!rt>Bez terminu ostatecznego';
+$_LANG['<!rt>With deadline'] = '<!rt>Z terminem ostatecznym';
+$_LANG['Ticket deadline could not be set in past'] = 'Termin ostateczny nie może być datą minioną';
+$_LANG['Ticket owner could not be the same as verifier'] = 'Właściciel zgłoszenia nie może być weryfikatorem';
+$_LANG['Ticket verifier could not be the same as owner'] = 'Weryfikator zgłoszenia nie może być właścicielem';
+$_LANG['<!rt>Deadline:'] = 'Termin ostateczny:';
+$_LANG['Deadline expired:'] = 'Zgłoszenie z przeterminowanym <br> terminem ostatecznym:';
+$_LANG['Ticket deadline has been set to $a:'] = 'Termin ostateczny zgłoszenia został ustawiony jako $a:';
+$_LANG['Verifier:'] = 'Weryfikator:';
+$_LANG['<!rt>Verifier:'] = 'Weryfikator:';
 $_LANG['Unassigned'] = 'Nieprzypisany';
 $_LANG['Requestor:'] = 'Zgłaszający';
 $_LANG['documents'] = 'dokumenty';
@@ -128,6 +146,7 @@ $_LANG['Add new queue'] = 'Utworzenie nowej kolejki';
 $_LANG['Add new standing payment'] = 'Dodanie nowej opłaty stałej';
 $_LANG['Add new subscription fee'] = 'Dodanie nowej taryfy abonamentowej';
 $_LANG['Add new ticket'] = 'Dodanie nowego zgłoszenia';
+$_LANG['Assigned tickets:'] = 'Powiązane zgłoszenia:';
 $_LANG['Ticket ID:'] = 'Nr zgłoszenia:';
 $_LANG['Ticket ID'] = 'Nr zgłoszenia';
 $_LANG['Add option'] = 'Dodaj opcję';
@@ -265,6 +284,8 @@ $_LANG['Begin of DHCP range:'] = 'Początek zakresu DHCP:';
 $_LANG['Enter customer ID, first/lastname, email or address and press Enter'] = 'Wprowadź identyfikator klienta, imię, nazwisko, adres lub email i naciśnij Enter';
 $_LANG['Enter phone number and press Enter'] = 'Wprowadź numer telefonu i naciśnij Enter';
 $_LANG['Enter node ID, name, IP address or MAC address and press Enter'] = 'Wprowadź identyfikator komputera, nazwę, adres IP lub adres MAC i naciśnij Enter';
+$_LANG['Enter netnode ID or name and press Enter'] = 'Wprowadź ID lub nazwę węzła i naciśnij Enter';
+$_LANG['Enter device ID, name or serial number and press Enter'] = 'Wprowadź ID, nazwę urządzenia lub numer seryjny i naciśnij Enter';
 $_LANG['Enter request tracker ID, subject or requestor name and press Enter'] = 'Wprowadź identyfikator zgłoszenia, temat lub nazwisko/nazwę zgłaszającego i naciśnij Enter';
 $_LANG['Both IP addresses for DHCP range are required!'] = 'Obydwa adresy IP są wymagane dla zakresu DHCP!';
 $_LANG['Browse'] = 'Przeglądaj';
@@ -272,12 +293,14 @@ $_LANG['Browse Configuration'] = 'Przeglądaj konfigurację';
 $_LANG['Bug Tracking System'] = 'System śledzenia błędów';
 $_LANG['bytes'] = 'bajtów';
 $_LANG['Incorrect IP address'] = 'Nieprawidłowy adres IP';
+$_LANG['Incorrect snat IP address'] = 'Nieprawidłowy adres snat IP';
 $_LANG['Cancel'] = 'Anuluj';
 $_LANG['Can\'t change value of tax rate which was used in the past!'] = 'Nie można zmienić wartości stawki podatkowej, która była już używana w przeszłości';
 $_LANG['No prefix groups assigned to tariff rule.'] = 'Nie przypisano grup do reguły taryfikacyjnej.';
 $_LANG['No prefix groups assigned to tariff.'] = 'Nie przypisano grup do taryfy.';
 $_LANG['Can\'t send message. PEAR::Mail not found!'] = 'Nie można wysłać wiadomości. Nie znaleziono PEAR::Mail!';
 $_LANG['Cash'] = 'Kasa';
+$_LANG['cash on delivery'] = 'pobranie';
 $_LANG['Cash Operations Import'] = 'Import operacji kasowych';
 $_LANG['Cash receipt'] = 'Dowód wpłaty';
 $_LANG['Cash Receipt No. $a'] = 'Dokument kasowy nr $a';
@@ -385,6 +408,7 @@ $_LANG['Customer Liabilities:'] = 'Zobowiązania klienta:';
 $_LANG['customer name'] = 'nazwisko klienta';
 $_LANG['Customer name'] = 'Nazwisko klienta';
 $_LANG['Customer No.: $a'] = 'Numer klienta: $a';
+$_LANG['Customer No.:'] = 'Numer klienta:';
 $_LANG['Customer Nodes ($a):'] = 'Komputery klienta ($a):';
 $_LANG['Customer Networks ($a):'] = 'Sieci klienta ($a):';
 $_LANG['Customer not selected!'] = 'Nie wybrano klienta!';
@@ -597,6 +621,7 @@ $_LANG['Enter invoice number. WARNING! Changing this number can be DANGEROUS! (l
 $_LANG['Enter IP address'] = 'Wprowadź adres IP';
 $_LANG['Enter IP address and select mask'] = 'Wprowadź adres IP i wybierz maskę';
 $_LANG['Enter IP address (optional)'] = 'Wprowadź adres IP (opcjonalnie)';
+$_LANG['Enter network snat address(optional)'] = 'Wprowadź adres SNAT IP dla sieci (opcjonalnie)';
 $_LANG['Enter item description'] = 'Wprowadź opis pozycji';
 $_LANG['Enter item value'] = 'Wprowadź kwotę';
 $_LANG['Enter last address of DHCP range (optional)'] = 'Wprowadź końcowy adres zakresu DHCP (opcjonalnie)';
@@ -846,6 +871,7 @@ $_LANG['indebted owner'] = 'zadłużony właściciel';
 $_LANG['Info'] = 'Informacje';
 $_LANG['Info Network: $a'] = 'Informacje o Sieci: $a';
 $_LANG['in it:'] = 'w tym:';
+$_LANG['instalments'] = 'raty';
 $_LANG['Instance Edit: $a'] = 'Edycja instancji: $a';
 $_LANG['Instance host is required!'] = 'Host instancji jest wymagany!';
 $_LANG['Instance module is required!'] = 'Moduł instancji jest wymagany!';
@@ -1048,6 +1074,7 @@ $_LANG['Network address:'] = 'Adres sieci:';
 $_LANG['Network Balance Sheet'] = 'Historia operacji finansowych';
 $_LANG['Network Devices'] = 'Urządzenia sieciowe';
 $_LANG['Network Devices:'] = 'Urządzenia sieciowe:';
+$_LANG['Assigned Network Device:'] = 'Przypisane urządzenie sieciowe:';
 $_LANG['Network Devices ($a):'] = 'Urządzenia sieciowe ($a):';
 $_LANG['Network devices list'] = 'Lista urządzeń sieciowych';
 $_LANG['Network Edit: $a'] = 'Edycja sieci: $a';
@@ -1200,6 +1227,7 @@ $_LANG['Password:'] = 'Hasło:';
 $_LANG['Password Change'] = 'Zmiana hasła';
 $_LANG['Password Change for Account: $a'] = 'Zmiana hasła dla konta: $a';
 $_LANG['Password Change for User $a'] = 'Zmiana hasła dla użytkownika $a';
+$_LANG['User $a has been set as verifier to ticket.'] = 'Użytkownik $a został przypisany jako werfikator zgłoszenia.';
 $_LANG['Password is too long (max.32 characters)!'] = 'Hasło jest za długie (max.32 znaki)!';
 $_LANG['Passwords does not match!'] = 'Hasła nie pasują do siebie!';
 $_LANG['Path to file was not specified: $a'] = 'Ścieżka do pliku nie została określona: $a';
@@ -1374,6 +1402,7 @@ $_LANG['Select IP address:'] = 'Wybierz adres IP:';
 $_LANG['Select IP network'] = 'Wybierz sieć IP';
 $_LANG['Select MAC address'] = 'Wybierz adres MAC';
 $_LANG['Select MAC address:'] = 'Wybierz adres MAC:';
+$_LANG['Select network node (optional)'] = 'Wybierz węzeł sieciowy (opcjonalnie)';
 $_LANG['Select net device from list'] = 'Wybierz urządzenie sieciowe z listy';
 $_LANG['Select network'] = 'Wybierz sieć';
 $_LANG['Select network device (optional)'] = 'Wybierz urządzenie sieciowe (opcjonalnie)';
@@ -2373,6 +2402,7 @@ $_LANG['comment'] = 'komentarz';
 $_LANG['$a records for deleted nodes have been removed.<BR>'] = '$a rekordów nieistniejących komputerów zostało usuniętych.<BR>';
 $_LANG['- select category -'] = '- wybierz kategorię -';
 $_LANG['Category style:'] = 'Styl kategorii:';
+$_LANG['Enter category CSS style (optional):'] = 'Wprowadź styl CSS kategorii (opcjonalnie):';
 $_LANG['Available<!plural>:'] = 'Dostępne:';
 $_LANG['Selected<!plural>:'] = 'Wybrane:';
 $_LANG['Avg [bit/s]'] = 'Średnio [bit/s]';
@@ -3145,6 +3175,7 @@ $_LANG['backup access forbidden'] = 'brak dostępu do kopii zapasowych';
 $_LANG['Tariff type:'] = 'Typ taryfy:';
 
 $_LANG['Consent required:'] = 'Wymagana zgoda:';
+$_LANG['Check if ticket is expired'] = 'Zaznacz jeśli zgłoszenie ma przekroczony termin ostateczny';
 $_LANG['Check if customer consent to messages delivery via e-mail or sms is required'] = 'Zaznacz jeśli wymagana jest zgoda klienta na dostarczanie informacji pocztą elektr. lub sms-em';
 
 $_LANG['Select link technology'] = 'Wybierz technologię łącza';
@@ -3193,7 +3224,8 @@ $_LANG['hide VoIP passwords'] = 'ukrywanie haseł VoIP';
 $_LANG['Nodes list'] = 'Lista węzłów';
 $_LANG['Network device nodes list'] = 'Lista węzłów sieciowych';
 $_LANG['Network Device Nodes'] = 'Węzły sieciowe';
-$_LANG['Network Device Node:'] = 'Węzeł sieciowy:';
+$_LANG['Network Device Node:'] = 'Węzeł sieciowy';
+$_LANG['Network node:'] = 'Węzeł sieciowy:';
 $_LANG['New node'] = 'Nowy węzeł';
 $_LANG['Add new network device node'] = 'Dodaj nowy węzeł sieciowy';
 $_LANG['There are no device nodes in your database.'] = 'Brak węzłów sieciowych w bazie.';
@@ -3203,7 +3235,6 @@ $_LANG['under construction'] = 'w realizacji';
 $_LANG['planned'] = 'planowane';
 $_LANG['Project:'] = 'Projekt:';
 $_LANG['without project'] = 'bez projektu';
-$_LANG['Network node:'] = 'Węzeł sieciowy:';
 $_LANG['Ownership:'] = 'Własność:';
 $_LANG['None'] = 'Brak';
 $_LANG['New project'] = 'Nowy projekt';
@@ -3541,6 +3572,7 @@ $_LANG['Prefix groups assigned to tariff rule'] = 'Grupy prefiksów przypisane d
 $_LANG['Allows you to search for IP address pools'] = 'Wyszukiwanie sieci';
 
 $_LANG['Total events:'] = 'Razem zdarzeń:';
+$_LANG['Today'] = 'Dziś';
 
 $_LANG['Begin time:'] = 'Czas rozpoczęcia:';
 $_LANG['Begin time:<!voip>'] = 'Czas rozpoczęcia:';
@@ -3841,15 +3873,63 @@ $_LANG['Check it if you want to use current customer data'] = 'Zaznacz, jeśli c
 $_LANG['Enter Telecom Registry Number (optional)'] = 'Podaj numer w RPT (opcjonalnie)';
 $_LANG['Telecom number:'] = 'Numer w RPT:';
 
-$_LANG["&nbsp; <BR> Scan and Pay <BR> You can make a transfer simply and quickly using your phone. <BR> To make a transfer, please scan QRcode on you smartphone in your bank's application."] = '&nbsp;<BR>Skanuj i Płać<BR>Możesz zrobić przelew prosto i szybko za pomocą swojego telefonu.<BR>Aby zrobić przelew proszę zeskanować smartfonem QRcode w aplikacji Twojego banku.';
-$_LANG["QR Payment for Internet Invoice no."] = 'QR Zaplata za Internet FV nr';
+$_LANG['&nbsp; <BR> Scan and Pay <BR> You can make a transfer simply and quickly using your phone. <BR> To make a transfer, please scan QRcode on you smartphone in your bank\'s application.'] = '&nbsp;<BR>Skanuj i Płać<BR>Możesz zrobić przelew prosto i szybko za pomocą swojego telefonu.<BR>Aby zrobić przelew proszę zeskanować smartfonem QRcode w aplikacji Twojego banku.';
+$_LANG['QR Payment for Internet Invoice no.'] = 'QR Zaplata za Internet FV nr';
 
 $_LANG['Click here to autocomplete company data from GUS REGON database'] = 'Kliknij tutaj, aby uzupelnić automatycznie dane firmy z bazy danych GUS REGON';
-$_LANG['Click here to autocomplete zip code'] = 'Kliknij tutaj, aby automatycznie uzupełnić kod pocztoey';
+$_LANG['Click here to autocomplete zip code'] = 'Kliknij tutaj, aby automatycznie uzupełnić kod pocztowy';
 
 $_LANG['settlement type of first deficient period:'] = 'sposób wyrównania początkowego okresu niepełnego:';
 $_LANG['<!settlement>- none -'] = '- brak -';
 $_LANG['<!settlement>next period'] = 'następny okres';
 $_LANG['<!settlement>current period'] = 'bieżący okres';
+
+$_LANG['Assign to node group'] = 'Przypisz do grupy komputerów';
+$_LANG['Unassign from node group'] = 'Usuń z grupy komputerów';
+$_LANG['Previous operation has not been finished yet!'] = 'Poprzednia operacja nie została jeszcze zakończona!';
+
+$_LANG['Download burst time:'] = 'Download burst time:';
+$_LANG['Download burst threshold:'] = 'Download burst threshold:';
+$_LANG['Download burst limit:'] = 'Download burst limit:';
+
+$_LANG['Enter download burst time (optional)'] = 'Wprowadź czas wzbudzenia downloadu (opcjonalnie)';
+$_LANG['Enter download burst threshold (optional)'] = 'Wprowadź wyzwalacz wzbudzenia downloadu (opcjonalnie)';
+$_LANG['Enter download burst limit (optional)'] = 'Wprowadź ograniczenie wzbudzenia downloadu (opcjonalnie)';
+
+$_LANG['Upload burst time:'] = 'Upload burst time:';
+$_LANG['Upload burst threshold:'] = 'Upload burst threshold:';
+$_LANG['Upload burst limit:'] = 'Upload burst limit:';
+
+$_LANG['Enter upload burst time (optional)'] = 'Wprowadź czas wzbudzenia uploadu (opcjonalnie)';
+$_LANG['Enter upload burst threshold (optional)'] = 'Wprowadź wyzwalacz wzbudzenia uploadu (opcjonalnie)';
+$_LANG['Enter upload burst limit (optional)'] = 'Wprowadź ograniczenie wzbudzenia uploadu (opcjonalnie)';
+
+$_LANG['This field must be less than download ceil!'] = 'To pole musi mieć wartość mniejszą niż górne ograniczenie downloadu!';
+$_LANG['This field must be greater then download ceil!'] = 'To pole musi mieć wartość większa niż górne ograniczenie downloadu!';
+$_LANG['This field must be less than upload ceil!'] = 'To pole musi mieć wartość mniejszą niż górne ograniczenie uploadu!';
+$_LANG['This field must be greater then upload ceil!'] = 'To pole musi mieć wartość większa niż górne ograniczenie uploadu!';
+
+$_LANG['Burst time, threshold and limit should not be empty values!'] = 'Czas, wyzwalacz i ograniczenie wzbudzenia nie powinny być pustymi wartościami!';
+
+$_LANG['Enter network device name or ip address'] = 'Wprowadź nazwę urządzenia lub jego adres IP';
+
+$_LANG['Event is assigned to users which already have assigned an event in the same time: $a!'] = 'Zdarzenie jest przypisane do użytkowników, którzy posiadają już przypisane zdarzenia w tym samym czasie: $a!';
+
+$_LANG['Transfer form:'] = 'Formularz przelewu:';
+$_LANG['<!transferform>assignments'] = 'zobowiązania';
+$_LANG['<!transferform>balance'] = 'saldo';
+$_LANG['<!transferform>custom'] = 'dowolne';
+
+$_LANG['less or equal'] = 'mniejsze lub równe';
+$_LANG['greater or equal'] = 'większe lub równe';
+
+$_LANG['configuration file'] = 'plik konfiguracyjny';
+
+$_LANG['Click copies to clipboard'] = 'Kliknięcie kopiuje do schowka';
+
+$_LANG['(payment without title)'] = '(płatność bez tytułu)';
+
+$_LANG['<!assignment>Expired'] = 'Przeterminowane';
+$_LANG['<!assignment>Commited'] = 'Zatwierdzone';
 
 ?>

@@ -1,5 +1,5 @@
 {extends file="layout.html"}
-{block name=title}::: LMS :{$layout.pagetitle|striphtml} :::{/block}
+{block name=title}LMS: {$layout.pagetitle|striphtml}{/block}
 {block name=module_content}
 <!--// $Id$ //-->
 {$xajax}
@@ -113,6 +113,7 @@
 										location_state       = "{$netdev.location_state}"
 										location_city_name   = "{$netdev.location_city_name}"
 										location_city        = "{$netdev.location_city}"
+										location_postoffice  = "{$netdev.location_postoffice}"
 										location_street_name = "{$netdev.location_street_name}"
 										location_street      = "{$netdev.location_street}"
 										location_house       = "{$netdev.location_house}"
@@ -236,7 +237,7 @@
 								</td>
 							</tr>
 							<tr>
-								<td><img src="img/netdev.gif" alt=""> {trans("Net node:")}</td>
+								<td><img src="img/netnode.png" alt=""> {trans("Net node:")}</td>
 								<td>
 									<select name="netdev[netnodeid]" {tip text="Select node"}>
 										<option value="-1">{trans("None")}</option>

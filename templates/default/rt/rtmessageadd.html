@@ -1,5 +1,5 @@
 {extends file="layout.html"}
-{block name=title}::: LMS :{$layout.pagetitle|striphtml} :::{/block}
+{block name=title}LMS: {$layout.pagetitle|striphtml}{/block}
 {block name=module_content}
 <!-- $Id$ -->
 <H1>{$layout.pagetitle}</H1>
@@ -111,10 +111,22 @@
 	<TR>
 		<TD class="bold nobr">
 			<IMG src="img/resolved.gif" alt="">
-			<label for="state">{trans("Resolve ticket:")}</label>
+			<label for="resolve">{trans("Resolve ticket:")}</label>
 		</TD>
 		<TD>
-			<INPUT type="checkbox" name="message[state]" id="state" value="{$smarty.const.RT_RESOLVED}"{if $message.state==$smarty.const.RT_RESOLVED} CHECKED{/if}>
+			<INPUT type="checkbox" name="message[resolve]" id="resolve" value="{$smarty.const.RT_RESOLVED}"{if isset($message.resolve) || $message.state==$smarty.const.RT_RESOLVED} CHECKED{/if}{tip trigger="resolve"}>
+		</TD>
+	</TR>
+	<TR>
+		<TD class="bold nobr">
+			<IMG src="img/dead.gif" alt=""> {trans("Status:")}
+		</TD>
+		<TD>
+			<SELECT SIZE="1" name="message[state]" {tip text="Select status" trigger="state"}>
+				{foreach $_RT_STATES as $stateidx => $state}
+				<OPTION value="{$stateidx}"{if $message.state == $stateidx} selected{/if}>{$state.label}</OPTION>
+				{/foreach}
+			</SELECT>
 		</TD>
 	</TR>
 	<TR>
@@ -135,11 +147,24 @@
 			<IMG src="img/volcano.png" alt="">{trans("Ticket source:")}
 		</TD>
 		<TD style="width: 99%;">
-                        <SELECT size="1" name="ticket[source]" {tip text="Select ticket source" trigger="source"}>
-                                {foreach $_RT_SOURCES as $sourceidx => $status}
-                                        <OPTION value="{$sourceidx}"{if $ticket.source == $sourceidx}selected {/if}>{$status}</OPTION>
-                                {/foreach}
-                        </SELECT>
+			<SELECT size="1" name="message[source]" {tip text="Select ticket source" trigger="source"}>
+				{foreach $_RT_SOURCES as $sourceidx => $status}
+				<OPTION value="{$sourceidx}"{if $message.source == $sourceidx} selected{/if}>{$status}</OPTION>
+				{/foreach}
+			</SELECT>
+		</TD>
+	</TR>
+	<TR>
+		<TD style="width: 1%;" class="bold nobr">
+			<IMG src="img/report.gif" alt="">
+			{trans("Priority:")}
+		</TD>
+		<TD style="width: 99%;">
+			<SELECT size="1" name="message[priority]" {tip text="Set ticket priority" trigger="priority"}>
+				{foreach $_RT_PRIORITIES as $priorityidx => $priority}
+				<OPTION value="{$priorityidx}"{if $message.priority == $priorityidx} selected{/if}>{$priority}</OPTION>
+				{/foreach}
+			</SELECT>
 		</TD>
 	</TR>
 	<TR>
@@ -162,13 +187,42 @@
 		</TD>
 		<TD>
 			<SELECT size="1" name="message[owner]" {tip text="Select user" trigger="owner"}>
-				{if $note.owner == 0}
-				<OPTION value="0" selected>- {trans("select user")} -</OPTION>
-				{/if}
+				<OPTION value="0">- {trans("select user")} -</OPTION>
 				{foreach $userlist as $user}
-				<OPTION value="{$user.id}"{if $user.id == $message.owner} selected{/if}>{$user.name}</OPTION>
+				{if !ConfigHelper::checkConfig('phpui.helpdesk_hide_disabled_users')
+					|| (ConfigHelper::checkConfig('phpui.helpdesk_hide_disabled_users') && $user.access)
+					|| $user.id == $message.owner}
+				<OPTION value="{$user.id}"{if !$user.access} class="blend"{/if}{if $user.id == $message.owner} selected{/if}>{$user.rname}</OPTION>
+				{/if}
 				{/foreach}
 			</SELECT>
+		</TD>
+	</TR>
+	<TR class="light">
+		<TD class="bold nobr">
+			<IMG src="img/verifier.png" alt="">
+			{trans("Verifier:")}
+		</TD>
+		<TD>
+			<SELECT size="1" name="message[verifierid]" {tip text="Select user" trigger="verifierid"}>
+				<OPTION value="0">- {trans("select user")} -</OPTION>
+				{foreach $userlist as $user}
+				{if !ConfigHelper::checkConfig('phpui.helpdesk_hide_disabled_users')
+					|| (ConfigHelper::checkConfig('phpui.helpdesk_hide_disabled_users') && $user.access)
+					|| $user.id == $message.verifierid}
+				<OPTION value="{$user.id}"{if !$user.access} class="blend"{/if}{if $user.id == $message.verifierid} selected{/if}>{$user.rname}</OPTION>
+				{/if}
+				{/foreach}
+			</SELECT>
+		</TD>
+	</TR>
+	<TR class="light">
+		<TD class="bold nobr">
+			<IMG src="img/calendar.gif" alt="">
+			{trans("<!rt>Deadline:")}
+		</TD>
+		<TD>
+			<INPUT TYPE="TEXT" NAME="message[deadline]" VALUE="{$message.deadline|date_format:"%Y/%m/%d %H:%M"}" SIZE="20" {tip text="Enter deadline in YYYY/MM/DD HH:MM format or click to select it from applet" class="calendar-time" trigger="deadline"}>
 		</TD>
 	</TR>
     </TBODY>

@@ -28,6 +28,7 @@
         }
     ],
     "require": {
+	"php" : ">=5.3",
         "phine/observer": "2.0",
         "phine/exception": "1.0",
         "phpmailer/phpmailer": "^5.2",
@@ -42,10 +43,14 @@
         "datatables/datatables": "^1.10",
         "setasign/fpdi-tcpdf": "^1.6",
         "pear/mail": "^1.3",
-        "gusapi/gusapi": "^3"
+        "gusapi/gusapi": "^3",
+        "erusev/parsedown": "^1",
+        "tecnickcom/tc-lib-barcode": "^1",
+        "zenorocha/clipboardjs": "^2.0"
     },
-    "require_dev": {
-        "phpunit/phpunit": "5.1.*"
+    "require-dev": {
+        "phpunit/phpunit": "^4",
+        "squizlabs/php_codesniffer": "*"
     },
     "autoload": {
         "classmap": ["lib/", "plugins/"]

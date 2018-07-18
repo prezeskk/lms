@@ -54,7 +54,8 @@ if (isset($_POST['netadd']))
 			$netadd['wins'] == '' &&
 			$netadd['dhcpstart'] == '' &&
 			$netadd['dhcpend'] == '' &&
-			$netadd['ownerid'] == ''
+			$netadd['ownerid'] == '' &&
+			$netadd['snat'] == ''
 	)
 		header('Location: ?m=netadd');
 
@@ -139,6 +140,14 @@ if (isset($_POST['netadd']))
 		foreach ($netadd['authtype'] as $idx)
 			$authtype |= intval($idx);
 	$netadd['authtype'] = $authtype;
+
+	if ($netadd['snat']) {
+		if (!check_ip($netadd['snat'])) {
+			$error['snat'] = trans('Incorrect snat IP address!');
+		}
+		else
+			$netadd['snatlong'] = ip_long($netadd['snatlong']);
+	}
 
 	if (!$error)
 	{

@@ -67,10 +67,10 @@ function getLatitudeDistDiff( $m ) {
 
     // distance in meters => degree
     $dist_tab = array(
-        1854.277 => 1/60,
-        100      => 1/1111.9662,
-        30.87    => 1/3600,
-        1        => 1/111132
+        '1854.277' => 1/60,
+        '100'      => 1/1111.9662,
+        '30.87'    => 1/3600,
+        '1'        => 1/111132
     );
 
     $degree = 0;
@@ -98,9 +98,9 @@ function getLongitudeDistDiff( $m, $lat ) {
 
     // distance in meters => degree
     $dist_tab = array(
-        (string) ($parallel_len / 21.6)  => 1/60,
-        (string) ($parallel_len / 1296)  => 1/3600,
-        (string) ($parallel_len / 77760) => 1/216000
+        str_replace(',', '.', (string) ($parallel_len / 21.6))  => 1/60,
+        str_replace(',', '.', (string) ($parallel_len / 1296))  => 1/3600,
+        str_replace(',', '.', (string) ($parallel_len / 77760)) => 1/216000
     );
 
     $degree = 0;
@@ -286,45 +286,67 @@ if (!empty($projects))
 
 $allradiosectors = $DB->GetAllByKey("SELECT * FROM netradiosectors ORDER BY id", "id");
 
+
+$teryt_cities = $DB->GetAllByKey("
+	SELECT lc.id AS cityid,
+			ls.name AS area_woj,
+			ld.name AS area_pow,
+			lb.name AS area_gmi,
+			(" . $DB->Concat('ls.ident', 'ld.ident', 'lb.ident', 'lb.type') . ") AS area_terc,
+			lc.name AS area_city,
+			lc.ident AS area_simc,
+			p.zip AS location_zip
+		FROM location_cities lc
+		LEFT JOIN location_boroughs lb ON lb.id = lc.boroughid
+		LEFT JOIN location_districts ld ON ld.id = lb.districtid
+		LEFT JOIN location_states ls ON ls.id = ld.stateid
+		LEFT JOIN location_streets lst ON lst.cityid = lc.id
+		LEFT JOIN (
+			SELECT pna.cityid, pna.streetid, " . $DB->GroupConcat('pna.zip', ',', true) . " AS zip FROM pna
+			WHERE pna.streetid IS NULL
+			GROUP BY pna.cityid, pna.streetid HAVING " . $DB->GroupConcat('pna.zip', ',', true) . " NOT ?LIKE? '%,%'
+		) p ON p.cityid = lc.id", 'cityid');
+
+$teryt_streets = $DB->GetAllByKey("SELECT lst.cityid, lst.id AS streetid,
+		tu.cecha AS address_cecha,
+		(CASE WHEN lst.name2 IS NOT NULL THEN " . $DB->Concat('lst.name2', "' '", 'lst.name') . " ELSE lst.name END) AS address_ulica,
+		tu.sym_ul AS address_symul,
+		p.zip AS location_zip
+	FROM location_streets lst
+	LEFT JOIN teryt_ulic tu ON tu.id = lst.id
+	LEFT JOIN (
+		SELECT pna.cityid, pna.streetid, " . $DB->GroupConcat('pna.zip', ',', true) . " AS zip FROM pna
+		GROUP BY pna.cityid, pna.streetid HAVING " . $DB->GroupConcat('pna.zip', ',', true) . " NOT ?LIKE? '%,%'
+	) p ON p.cityid = lst.cityid AND p.streetid = lst.id", 'streetid');
+
 $truenetnodes = $DB->GetAllByKey("SELECT nn.id, nn.name, nn.invprojectid, nn.type, nn.status, nn.ownership, nn.coowner,
-		nn.uip, nn.miar,
+		nn.uip, nn.miar, nn.longitude, nn.latitude,
 		a.city_id as location_city, a.street_id as location_street, a.house as location_house, a.flat as location_flat,
 		a.city as location_city_name, a.street as location_street_name,
-		(SELECT ls.name FROM location_cities lc
-			JOIN location_boroughs lb  ON lb.id = lc.boroughid
-			JOIN location_districts ld ON ld.id = lb.districtid
-			JOIN location_states ls ON ls.id = ld.stateid
-			WHERE lc.id = a.city_id) AS area_woj,
-		(SELECT ld.name FROM location_cities lc
-			JOIN location_boroughs lb ON lb.id = lc.boroughid
-			JOIN location_districts ld ON ld.id = lb.districtid
-			JOIN location_states ls ON ls.id = ld.stateid
-			WHERE lc.id = a.city_id) AS area_pow,
-		(SELECT lb.name FROM location_boroughs lb JOIN location_cities lc ON lc.boroughid = lb.id WHERE lc.id = a.city_id) AS area_gmi,
-		(SELECT ".$DB->Concat('ls.ident', "'_'", 'ld.ident', "'_'", 'lb.ident', "'_'", 'lb.type')." 
-			FROM location_cities lc 
-			JOIN location_boroughs lb  ON lb.id = lc.boroughid 
-			JOIN location_districts ld ON ld.id = lb.districtid 
-			JOIN location_states ls    ON ls.id = ld.stateid
-			WHERE lc.id = a.city_id) AS area_terc,
-		(SELECT lc.name  FROM location_cities lc WHERE lc.id = a.city_id) AS area_city,
-		(SELECT lc.ident FROM location_cities lc WHERE lc.id = a.city_id) AS area_simc,
-		(SELECT tu.cecha FROM teryt_ulic tu WHERE tu.id = a.street_id) AS address_cecha,
-		(SELECT (CASE WHEN ls.name2 IS NOT NULL THEN ".$DB->Concat('ls.name2' , "' '", 'ls.name')." ELSE ls.name END) AS name 
-			FROM location_streets ls WHERE ls.id = a.street_id) AS address_ulica,
-		(SELECT tu.sym_ul FROM teryt_ulic tu WHERE tu.id = a.street_id) AS address_symul,
-		(CASE WHEN (a.flat IS NULL OR a.flat = '') THEN a.house ELSE "
-			.$DB->Concat('a.house ', "'/'", 'a.flat')." END) AS address_budynek,
-		(SELECT zip FROM pna WHERE pna.cityid = a.city_id
-			AND (pna.streetid IS NULL OR (pna.streetid IS NOT NULL AND pna.streetid = a.street_id)) LIMIT 1) AS location_zip,
-		nn.longitude, nn.latitude
+		(CASE WHEN (a.flat IS NULL OR a.flat = '') THEN a.house ELSE " . $DB->Concat('a.house', "'/'", 'a.flat') . " END) AS address_budynek,
+		a.zip AS location_zip
 	FROM netnodes nn
-		LEFT JOIN addresses a ON nn.address_id = a.id
-	ORDER BY nn.id", "id");
+	LEFT JOIN addresses a ON nn.address_id = a.id
+	ORDER BY nn.id", 'id');
 
-if (empty($truenetnodes)) {
+// prepare info about network devices from lms database
+$netdevices = $DB->GetAllByKey("SELECT nd.id, nd.ownerid, ports,
+		nd.longitude, nd.latitude, nd.status, nd.netnodeid,
+		(CASE WHEN nd.invprojectid = 1 THEN nn.invprojectid ELSE nd.invprojectid END) AS invprojectid,
+		a.city_id AS location_city,
+		a.street_id AS location_street, a.house AS location_house, a.flat AS location_flat,
+		a.city AS location_city_name, a.street AS location_street_name,
+		(CASE WHEN (a.flat IS NULL OR a.flat = '') THEN a.house ELSE " . $DB->Concat('a.house', "'/'", 'a.flat') . " END) AS address_budynek,
+		a.zip AS location_zip
+	FROM netdevices nd
+	LEFT JOIN netnodes nn ON nn.id = nd.netnodeid
+	LEFT JOIN addresses a ON nd.address_id = a.id
+	WHERE EXISTS (SELECT id FROM netlinks nl WHERE nl.src = nd.id OR nl.dst = nd.id)
+	ORDER BY nd.name", 'id');
+
+if (empty($truenetnodes))
 	$truenetnodes = array();
-} else {
+else {
 	foreach ($truenetnodes as $k=>$v) {
         $tmp = array('city_name'      => $v['location_city_name'],
                      'location_house' => $v['location_house'],
@@ -344,45 +366,6 @@ if (empty($truenetnodes)) {
 //foreach ($truenetnodes as $idx => $netnode)
 //	echo "network node $idx: " . print_r($netnode, true) . '<br>';
 
-// prepare info about network devices from lms database
-$netdevices = $DB->GetAllByKey("SELECT nd.id, a.city_id as location_city, a.street_id as location_street, a.house as location_house, a.flat as location_flat,
-		a.city as location_city_name, a.street as location_street_name, nd.ownerid,
-		(SELECT ls.name FROM location_cities lc
-			JOIN location_boroughs lb  ON lb.id = lc.boroughid
-			JOIN location_districts ld ON ld.id = lb.districtid
-			JOIN location_states ls    ON ls.id = ld.stateid
-			WHERE lc.id = a.city_id) AS area_woj,
-		(SELECT ld.name FROM location_cities lc
-			JOIN location_boroughs lb  ON lb.id = lc.boroughid
-			JOIN location_districts ld ON ld.id = lb.districtid
-			JOIN location_states ls    ON ls.id = ld.stateid
-			WHERE lc.id = a.city_id) AS area_pow,
-		(SELECT lb.name FROM location_boroughs lb JOIN location_cities lc ON lc.boroughid = lb.id WHERE lc.id = a.city_id) AS area_gmi,
-		(SELECT ".$DB->Concat('ls.ident', "'_'", 'ld.ident', "'_'", 'lb.ident', "'_'", 'lb.type')."
-			FROM location_cities lc
-			JOIN location_boroughs lb  ON lb.id = lc.boroughid
-			JOIN location_districts ld ON ld.id = lb.districtid
-			JOIN location_states ls    ON ls.id = ld.stateid
-			WHERE lc.id = a.city_id) AS area_terc,
-		(SELECT lc.name FROM location_cities lc WHERE lc.id = a.city_id) AS area_city,
-		(SELECT lc.ident FROM location_cities lc WHERE lc.id = a.city_id) AS area_simc,
-		(SELECT tu.cecha FROM teryt_ulic tu WHERE tu.id = a.street_id) AS address_cecha,
-		(SELECT (CASE WHEN ls.name2 IS NOT NULL THEN ".$DB->Concat('ls.name2' , "' '", 'ls.name')." ELSE ls.name END) AS name
-			FROM location_streets ls WHERE ls.id = a.street_id) AS address_ulica,
-		(SELECT tu.sym_ul FROM teryt_ulic tu WHERE tu.id = a.street_id) AS address_symul,
-		(CASE WHEN (a.flat IS NULL OR a.flat = '') THEN a.house ELSE "
-			.$DB->Concat('a.house ', "'/'", 'a.flat')." END) AS address_budynek,
-		(SELECT zip FROM pna WHERE pna.cityid = a.city_id
-			AND (pna.streetid IS NULL OR (pna.streetid IS NOT NULL AND pna.streetid = a.street_id)) LIMIT 1) AS location_zip,
-		ports,
-		nd.longitude, nd.latitude, nd.status, nd.netnodeid,
-		(CASE WHEN nd.invprojectid = 1 THEN nn.invprojectid ELSE nd.invprojectid END) AS invprojectid
-	FROM netdevices nd
-		LEFT JOIN netnodes nn ON nn.id = nd.netnodeid
-		LEFT JOIN addresses a ON nd.address_id = a.id
-	WHERE EXISTS (SELECT id FROM netlinks nl WHERE nl.src = nd.id OR nl.dst = nd.id)
-		ORDER BY nd.name", "id");
-
 // get node gps coordinates which are used for network range gps calculation
 $nodecoords = $DB->GetAllByKey("SELECT id, longitude, latitude FROM nodes
 	WHERE longitude IS NOT NULL AND latitude IS NOT NULL", 'id');
@@ -401,7 +384,7 @@ if ($netdevices)
                      'location_flat'  => $netdevice['location_flat'],
                      'street_name'    => $netdevice['location_street_name']);
 
-        $location = location_str( $tmp );
+        $location = location_str($tmp);
 
         if ( $location ) {
             $netdevices[$netdevid]['location'] = $location;
@@ -502,7 +485,9 @@ if ($netdevices)
 				$netnode = $truenetnodes[$netdevice['netnodeid']];
 				$netnodes[$netnodename]['location'] = $netnode['location'];
 				$netnodes[$netnodename]['location_city'] = $netnode['location_city'];
+				$netnodes[$netnodename]['location_city_name'] = $netnode['location_city_name'];
 				$netnodes[$netnodename]['location_street'] = $netnode['location_street'];
+				$netnodes[$netnodename]['location_street_name'] = $netnode['location_street_name'];
 				$netnodes[$netnodename]['location_house'] = $netnode['location_house'];
 				$netnodes[$netnodename]['status'] = intval($netnode['status']);
 				$netnodes[$netnodename]['type'] = intval($netnode['type']);
@@ -523,25 +508,44 @@ if ($netdevices)
 						$foreigners[$coowner]['projects'][] = $prj;
 				}
 
-				if (isset($netnode['area_woj'])) {
-					$netnodes[$netnodename]['area_woj'] = $netnode['area_woj'];
-					$netnodes[$netnodename]['area_pow'] = $netnode['area_pow'];
-					$netnodes[$netnodename]['area_gmi'] = $netnode['area_gmi'];
-					list ($area_woj, $area_pow, $area_gmi, $area_rodz) = explode('_', $netnode['area_terc']);
-					$netnodes[$netnodename]['area_terc'] = sprintf("%02d%02d%02d%s", $area_woj, $area_pow, $area_gmi, $area_rodz);
-					$netnodes[$netnodename]['area_rodz_gmi'] = $borough_types[intval($area_rodz)];
-					$netnodes[$netnodename]['area_city'] = $netnode['area_city'];
-					$netnodes[$netnodename]['area_simc'] = sprintf("%07d", $netnode['area_simc']);
-					$netnodes[$netnodename]['address_cecha'] = $netnode['address_cecha'];
-					$netnodes[$netnodename]['address_ulica'] = $netnode['address_ulica'];
-					$netnodes[$netnodename]['address_symul'] = sprintf("%05d", $netnode['address_symul']);
-					$netnodes[$netnodename]['address_budynek'] = $netnode['address_budynek'];
-					$netnodes[$netnodename]['location_zip'] = $netnode['location_zip'];
+				if (isset($teryt_cities[$netnode['location_city']])) {
+					$teryt_city = $teryt_cities[$netnode['location_city']];
+
+					$netnodes[$netnodename]['area_woj'] = $teryt_city['area_woj'];
+					$netnodes[$netnodename]['area_pow'] = $teryt_city['area_pow'];
+					$netnodes[$netnodename]['area_gmi'] = $teryt_city['area_gmi'];
+					$netnodes[$netnodename]['area_terc'] = $teryt_city['area_terc'];
+					$netnodes[$netnodename]['area_rodz_gmi'] = $borough_types[intval(substr($teryt_city['area_terc'], 6, 1))];
+					$netnodes[$netnodename]['area_city'] = $teryt_city['area_city'];
+					$netnodes[$netnodename]['area_simc'] = $teryt_city['area_simc'];
+					$netnodes[$netnodename]['location_zip'] = empty($teryt_city['location_zip']) ? '' : $teryt_city['location_zip'];
+
+					if (!empty($netnode['location_street']) && isset($teryt_streets[$netnode['location_street']])) {
+						$teryt_street = $teryt_streets[$netnode['location_street']];
+
+						$netnodes[$netnodename]['address_cecha'] = $teryt_street['address_cecha'];
+						$netnodes[$netnodename]['address_ulica'] = $teryt_street['address_ulica'];
+						$netnodes[$netnodename]['address_symul'] = $teryt_street['address_symul'];
+						$netnodes[$netnodename]['location_zip'] = empty($teryt_street['location_zip'])
+							? $netnodes[$netnodename]['location_zip'] : $teryt_street['location_zip'];
+					}
+
+					if (!empty($netnode['location_zip']))
+						$netnodes[$netnodename]['location_zip'] = $netnode['location_zip'];
+				}
+
+				$netnodes[$netnodename]['address_budynek'] = $netnode['address_budynek'];
+
+				if (!empty($netnode['longitude']) && !empty($netnode['latitude'])) {
+					$netnodes[$netnodename]['longitude'] = $netnode['longitude'];
+					$netnodes[$netnodename]['latitude'] = $netnode['latitude'];
 				}
 			} else {
 				$netnodes[$netnodename]['location'] = $netdevice['location'];
 				$netnodes[$netnodename]['location_city'] = $netdevice['location_city'];
+				$netnodes[$netnodename]['location_city_name'] = $netdevice['location_city_name'];
 				$netnodes[$netnodename]['location_street'] = $netdevice['location_street'];
+				$netnodes[$netnodename]['location_street_name'] = $netdevice['location_street_name'];
 				$netnodes[$netnodename]['location_house'] = $netdevice['location_house'];
 				$netnodes[$netnodename]['status'] = 0;
 				$netnodes[$netnodename]['type'] = 8;
@@ -549,25 +553,43 @@ if ($netdevices)
 				$netnodes[$netnodename]['miar'] = 0;
 				$netnodes[$netnodename]['ownership'] = 0;
 				$netnodes[$netnodename]['coowner'] = '';
-				if (isset($netdevice['area_woj'])) {
-					$netnodes[$netnodename]['area_woj'] = $netdevice['area_woj'];
-					$netnodes[$netnodename]['area_pow'] = $netdevice['area_pow'];
-					$netnodes[$netnodename]['area_gmi'] = $netdevice['area_gmi'];
-					list ($area_woj, $area_pow, $area_gmi, $area_rodz) = explode('_', $netdevice['area_terc']);
-					$netnodes[$netnodename]['area_terc'] = sprintf("%02d%02d%02d%s", $area_woj, $area_pow, $area_gmi, $area_rodz);
-					$netnodes[$netnodename]['area_rodz_gmi'] = $borough_types[intval($area_rodz)];
-					$netnodes[$netnodename]['area_city'] = $netdevice['area_city'];
-					$netnodes[$netnodename]['area_simc'] = sprintf("%07d", $netdevice['area_simc']);
-					$netnodes[$netnodename]['address_cecha'] = $netdevice['address_cecha'];
-					$netnodes[$netnodename]['address_ulica'] = $netdevice['address_ulica'];
-					$netnodes[$netnodename]['address_symul'] = sprintf("%05d", $netdevice['address_symul']);
-					$netnodes[$netnodename]['address_budynek'] = $netdevice['address_budynek'];
-					$netnodes[$netnodename]['location_zip'] = $netdevice['location_zip'];
+
+				if (isset($teryt_cities[$netdevice['location_city']])) {
+					$teryt_city = $teryt_cities[$netdevice['location_city']];
+
+					$netnodes[$netnodename]['area_woj'] = $teryt_city['area_woj'];
+					$netnodes[$netnodename]['area_pow'] = $teryt_city['area_pow'];
+					$netnodes[$netnodename]['area_gmi'] = $teryt_city['area_gmi'];
+					$netnodes[$netnodename]['area_terc'] = $teryt_city['area_terc'];
+					$netnodes[$netnodename]['area_rodz_gmi'] = $borough_types[intval(substr($teryt_city['area_terc'], 6, 1))];
+					$netnodes[$netnodename]['area_city'] = $teryt_city['area_city'];
+					$netnodes[$netnodename]['area_simc'] = $teryt_city['area_simc'];
+					$netnodes[$netnodename]['location_zip'] = empty($teryt_city['location_zip']) ? '' : $teryt_city['location_zip'];
+
+					if (!empty($netdevice['location_street']) && isset($teryt_streets[$netdevice['location_street']])) {
+						$teryt_street = $teryt_streets[$netdevice['location_street']];
+
+						$netnodes[$netnodename]['address_cecha'] = $teryt_street['address_cecha'];
+						$netnodes[$netnodename]['address_ulica'] = $teryt_street['address_ulica'];
+						$netnodes[$netnodename]['address_symul'] = $teryt_street['address_symul'];
+						$netnodes[$netnodename]['location_zip'] = empty($teryt_street['location_zip'])
+							? $netnodes[$netnodename]['location_zip'] : $teryt_street['location_zip'];
+					}
+
+					if (!empty($netdevice['location_zip']))
+						$netnodes[$netnodename]['location_zip'] = $netdevice['location_zip'];
 				}
+
+				$netnodes[$netnodename]['address_budynek'] = $netdevice['address_budynek'];
 			}
+
 			$netnodes[$netnodename]['netdevices'] = array();
-			$netnodes[$netnodename]['longitudes'] = array();
-			$netnodes[$netnodename]['latitudes'] = array();
+
+			if (!isset($netnodes[$netnodename]['longitude']) && !isset($netnodes[$netnodename]['latitude'])) {
+				$netnodes[$netnodename]['longitudes'] = array();
+				$netnodes[$netnodename]['latitudes'] = array();
+			}
+
 			$netnodeid++;
 		}
 		$netdevices[$netdevid]['ownership'] = $netnodes[$netnodename]['ownership'];
@@ -712,10 +734,13 @@ if ($netdevices)
 			}
 
 		$netnodes[$netnodename]['netdevices'][] = $netdevice['id'];
-		if (isset($netdevice['longitude'])) {
+
+		if (!isset($netnodes[$netnodename]['longitutde']) && !isset($netnodes[$netnodename]['latitude'])
+			&& !empty($netdevice['longitude']) && !empty($netdevice['latitude'])) {
 			$netnodes[$netnodename]['longitudes'][] = $netdevice['longitude'];
 			$netnodes[$netnodename]['latitudes'][] = $netdevice['latitude'];
 		}
+
 		$netdevs[$netdevice['id']] = $netnodename;
 	}
 
@@ -761,6 +786,7 @@ $sradiosectors = '';
 $snetranges = '';
 $snetbuildings = '';
 $teryt_netranges = array();
+
 if ($netnodes)
 foreach ($netnodes as $netnodename => &$netnode) {
 	// if teryt location is not set then try to get location address from network node name
@@ -768,8 +794,9 @@ foreach ($netnodes as $netnodename => &$netnode) {
 		$address = mb_split("[[:blank:]]+", $netnodename);
 		$street = mb_ereg_replace("[[:blank:]][[:alnum:]]+$", "", $netnodename);
 	}
+
 	// count gps coordinates basing on average longitude and latitude of all network devices located in this network node
-	if (count($netnode['longitudes'])) {
+	if (isset($netnode['longitudes']) && count($netnode['longitudes'])) {
 		$netnode['longitude'] = $netnode['latitude'] = 0.0;
 		foreach ($netnode['longitudes'] as $longitude)
 			$netnode['longitude'] += floatval($longitude);
@@ -778,12 +805,13 @@ foreach ($netnodes as $netnodename => &$netnode) {
 		$netnode['longitude'] = to_wgs84($netnode['longitude'] / count($netnode['longitudes']));
 		$netnode['latitude'] = to_wgs84($netnode['latitude'] / count($netnode['latitudes']));
 	}
-	// save info about network nodes
-	if (empty($netnode['address_ulica'])) {
+
+	if (empty($netnode['location_street_name'])) {
+		// no street specified for address
 		$netnode['address_ulica'] = "BRAK ULICY";
 		$netnode['address_symul'] = "99999";
-	}
-	if (empty($netnode['address_symul'])) {
+	} elseif (!isset($netnode['address_symul'])) {
+		// specified street is from outside teryt
 		$netnode['address_ulica'] = "ul. SPOZA ZAKRESU";
 		$netnode['address_symul'] = "99998";
 	}
@@ -800,14 +828,14 @@ foreach ($netnodes as $netnodename => &$netnode) {
 			'ww_coloc' => '',
 			'ww_state' => isset($netnode['area_woj']) ? $netnode['area_woj']
 				: "LMS netdevinfo ID's:" . implode(' ', $netnode['netdevices']) . "," . implode(',', array_fill(0, 9, '')),
-			'ww_district' => $netnode['area_pow'],
-			'ww_borough' => $netnode['area_gmi'],
-			'ww_terc' => sprintf("%07d", $netnode['area_terc']),
-			'ww_city' => $netnode['area_city'],
-			'ww_simc' => sprintf("%07d", $netnode['area_simc']),
-			'ww_street' => (!empty($netnode['address_cecha']) && $netnode['address_cecha'] != 'inne'
-				? $netnode['address_cecha'] . ' ' : '') . $netnode['address_ulica'],
-			'ww_ulic' => sprintf("%05d", $netnode['address_symul']),
+			'ww_district' => isset($netnode['area_pow']) ? $netnode['area_pow'] : '',
+			'ww_borough' => isset($netnode['area_gmi']) ? $netnode['area_gmi'] : '',
+			'ww_terc' => isset($netnode['area_terc']) ? $netnode['area_terc'] : '',
+			'ww_city' => isset($netnode['area_city']) ? $netnode['area_city'] : $netnode['location_city_name'],
+			'ww_simc' => isset($netnode['area_simc']) ? $netnode['area_simc'] : '',
+			'ww_street' => isset($netnode['address_ulica']) ? ((!empty($netnode['address_cecha']) && $netnode['address_cecha'] != 'inne'
+				? $netnode['address_cecha'] . ' ' : '') . $netnode['address_ulica']) : $netnode['location_street_name'],
+			'ww_ulic' => isset($netnode['address_symul']) ? $netnode['address_symul'] : '',
 			'ww_house' => $netnode['address_budynek'],
 			'ww_zip' => $netnode['location_zip'],
 			'ww_latitude' =>  isset($netnode['latitude']) ? $netnode['latitude'] : '',
@@ -832,14 +860,14 @@ foreach ($netnodes as $netnodename => &$netnode) {
 			'wo_coowner' => $netnode['coowner'],
 			'wo_state' => isset($netnode['area_woj']) ? $netnode['area_woj']
 				: "LMS netdevinfo ID's:" . implode(' ', $netnode['netdevices']) . "," . implode(',', array_fill(0, 9, '')),
-			'wo_district' => $netnode['area_pow'],
-			'wo_borough' => $netnode['area_gmi'],
-			'wo_terc' => sprintf("%07d", $netnode['area_terc']),
-			'wo_city' => $netnode['area_city'],
-			'wo_simc' => sprintf("%07d", $netnode['area_simc']),
-			'wo_street' => (!empty($netnode['address_cecha']) && $netnode['address_cecha'] != 'inne'
-				? $netnode['address_cecha'] . ' ' : '') . $netnode['address_ulica'],
-			'wo_ulic' => sprintf("%05d", $netnode['address_symul']),
+			'wo_district' => isset($netnode['area_pow']) ? $netnode['area_pow'] : '',
+			'wo_borough' => isset($netnode['area_gmi']) ? $netnode['area_gmi'] : '',
+			'wo_terc' => isset($netnode['area_terc']) ? $netnode['area_terc'] : '',
+			'wo_city' => isset($netnode['area_city']) ? $netnode['area_city'] : $netnode['location_city_name'],
+			'wo_simc' => isset($netnode['area_simc']) ? $netnode['area_simc'] : '',
+			'wo_street' => isset($netnode['address_ulica']) ? ((!empty($netnode['address_cecha']) && $netnode['address_cecha'] != 'inne'
+				? $netnode['address_cecha'] . ' ' : '') . $netnode['address_ulica']) : $netnode['location_street_name'],
+			'wo_ulic' => isset($netnode['address_symul']) ? $netnode['address_symul'] : '',
 			'wo_house' => $netnode['address_budynek'],
 			'wo_zip' => $netnode['location_zip'],
 			'wo_latitude' =>  isset($netnode['latitude']) ? $netnode['latitude'] : '',
@@ -1059,11 +1087,13 @@ foreach ($netnodes as $netnodename => &$netnode) {
 
 	// save info about network ranges
 	$ranges = $DB->GetAll("SELECT n.linktype, n.linktechnology,
-			a.city_id as location_city, a.street_id as location_street, a.house as location_house
+			a.city_id AS location_city, a.city AS location_city_name,
+			a.street_id AS location_street, a.street AS location_street_name,
+			a.house AS location_house, a.zip AS location_zip
 		FROM nodes n
-			LEFT JOIN addresses a ON n.address_id = a.id
+		LEFT JOIN addresses a ON n.address_id = a.id
 		WHERE n.ownerid IS NOT NULL AND a.city_id <> 0 AND n.netdev IN (" . implode(',', $netnode['netdevices']) . ")
-		GROUP BY n.linktype, n.linktechnology, a.street_id, a.city_id, a.house");
+		GROUP BY n.linktype, n.linktechnology, a.street, a.street_id, a.city_id, a.city, a.house, a.zip");
 	if (empty($ranges))
 		continue;
 
@@ -1072,48 +1102,32 @@ foreach ($netnodes as $netnodename => &$netnode) {
 
 	$range_maxdownstream = 0;
 	foreach ($ranges as $range) {
+		$teryt = array();
+
 		// get teryt info for group of computers connected to network node
-		$teryt = $DB->GetRow("SELECT 
-			(SELECT ls.name FROM location_cities lc
-				JOIN location_boroughs lb ON lb.id = lc.boroughid
-				JOIN location_districts ld ON ld.id = lb.districtid
-				JOIN location_states ls ON ls.id = ld.stateid
-				WHERE lc.id = ?) AS area_woj,
-			(SELECT ld.name FROM location_cities lc
-				JOIN location_boroughs lb ON lb.id = lc.boroughid
-				JOIN location_districts ld ON ld.id = lb.districtid
-				JOIN location_states ls ON ls.id = ld.stateid
-				WHERE lc.id = ?) AS area_pow,
-			(SELECT lb.name FROM location_boroughs lb JOIN location_cities lc ON lc.boroughid = lb.id WHERE lc.id = ?) AS area_gmi, 
-			(SELECT ".$DB->Concat('ls.ident', "'_'", 'ld.ident', "'_'", 'lb.ident', "'_'", 'lb.type')." 
-				FROM location_cities lc 
-				JOIN location_boroughs lb ON lb.id = lc.boroughid 
-				JOIN location_districts ld ON ld.id = lb.districtid 
-				JOIN location_states ls ON ls.id = ld.stateid 
-				WHERE lc.id = ?) AS area_terc, 
-			(SELECT lc.name FROM location_cities lc WHERE lc.id = ?) AS area_city, 
-			(SELECT lc.ident FROM location_cities lc WHERE lc.id = ?) AS area_simc, 
-			(SELECT tu.cecha FROM teryt_ulic tu WHERE tu.id = ?) AS address_cecha, 
-			(SELECT (CASE WHEN ls.name2 IS NOT NULL THEN ".$DB->Concat('ls.name2', "' '", 'ls.name')." ELSE ls.name END) AS name 
-				FROM location_streets ls WHERE ls.id = ?) AS address_ulica, 
-			(SELECT tu.sym_ul FROM teryt_ulic tu WHERE tu.id = ?) AS address_symul,
-			(SELECT zip FROM pna WHERE pna.cityid = ?
-				AND (pna.streetid IS NULL OR (pna.streetid IS NOT NULL AND pna.streetid = ?)) LIMIT 1) AS location_zip",
-			array($range['location_city'],  $range['location_city'], $range['location_city'],
-				$range['location_city'], $range['location_city'], $range['location_city'],
-				$range['location_street'], $range['location_street'], $range['location_street'],
-				$range['location_city'], $range['location_street']));
+		if (isset($teryt_cities[$range['location_city']])) {
+			$teryt = $teryt_cities[$range['location_city']];
 
-			list ($area_woj, $area_pow, $area_gmi, $area_rodz) = explode('_', $teryt['area_terc']);
-		$teryt['area_terc'] = sprintf("%02d%02d%02d%s", $area_woj, $area_pow, $area_gmi, $area_rodz);
-		$teryt['area_simc'] = sprintf("%07d", $teryt['area_simc']);
+			$teryt['location_zip'] = empty($teryt['location_zip']) ? '' : $teryt['location_zip'];
+
+			if (!empty($range['location_street']) && isset($teryt_streets[$range['location_street']])) {
+				$teryt_street = $teryt_streets[$range['location_street']];
+
+				$teryt['address_cecha'] = $teryt_street['address_cecha'];
+				$teryt['address_ulica'] = $teryt_street['address_ulica'];
+				$teryt['address_symul'] = $teryt_street['address_symul'];
+				$teryt['location_zip'] = empty($teryt_street['location_zip']) ? '' : $teryt_street['location_zip'];
+			}
+		}
+
 		$teryt['address_budynek'] = $range['location_house'];
+		$teryt['location_zip'] = empty($range['location_zip']) ? $teryt['location_zip'] : $range['location_zip'];
 
-		if (empty($teryt['address_ulica'])) {
+		if (empty($range['location_street_name'])) {
 			$teryt['address_ulica'] = "BRAK ULICY";
 			$teryt['address_symul'] = "99999";
 		} else {
-			if (empty($teryt['address_symul'])) {
+			if (!isset($teryt['address_symul'])) {
 				if ($DB->GetOne("SELECT COUNT(*) FROM location_streets WHERE cityid = ?", array($range['location_city']))) {
 					$teryt['address_ulica'] = "ul. SPOZA ZAKRESU";
 					$teryt['address_symul'] = "99998";
@@ -1123,7 +1137,6 @@ foreach ($netnodes as $netnodename => &$netnode) {
 				}
 			}
 		}
-		$teryt['address_symul'] = sprintf("%05d", $teryt['address_symul']);
 
 		if ($range['linktechnology']) {
 			if ($range['linktechnology'] < 50 || $range['linktechnology'] >= 100)
@@ -1174,8 +1187,8 @@ foreach ($netnodes as $netnodename => &$netnode) {
 			$range_netbuilding = true;
 
 		$netrange = array(
-			'longitude' => 0,
-			'latitude' => 0,
+			'longitude' => '',
+			'latitude' => '',
 			'count' => 0,
 		);
 
@@ -1193,6 +1206,10 @@ foreach ($netnodes as $netnodename => &$netnode) {
 			$prjnodes[$prj][$status][] = $node;
 
 			if (isset($nodecoords[$node['nodeid']])) {
+				if (!strlen($netrange['longitude']))
+					$netrange['longitude'] = 0;
+				if (!strlen($netrange['latitude']))
+					$netrange['latitude'] = 0;
 				$netrange['longitude'] += $nodecoords[$node['nodeid']]['longitude'];
 				$netrange['latitude'] += $nodecoords[$node['nodeid']]['latitude'];
 				$netrange['count']++;
@@ -1262,19 +1279,21 @@ foreach ($netnodes as $netnodename => &$netnode) {
 					'zas_leasetype' => '',
 					'zas_foreignerid' => '',
 					'zas_nodeid' => $netnode['id'],
-					'zas_state' => $teryt['area_woj'],
-					'zas_district' => $teryt['area_pow'],
-					'zas_borough' => $teryt['area_gmi'],
-					'zas_terc' => $teryt['area_terc'],
-					'zas_city' => $teryt['area_city'],
-					'zas_simc' => sprintf("%07d", $teryt['area_simc']),
-					'zas_street' => (!empty($teryt['address_cecha']) && $teryt['address_cecha'] != 'inne'
-						? $teryt['address_cecha'] . ' ' : '') . $teryt['address_ulica'],
-					'zas_ulic' => sprintf("%05d", $teryt['address_symul']),
+					'zas_state' => isset($teryt['area_woj']) ? $teryt['area_woj'] : '',
+					'zas_district' => isset($teryt['area_pow']) ? $teryt['area_pow'] : '',
+					'zas_borough' => isset($teryt['area_gmi']) ? $teryt['area_gmi'] : '',
+					'zas_terc' => isset($teryt['area_terc']) ? $teryt['area_terc'] : '',
+					'zas_city' => isset($teryt['area_city']) ? $teryt['area_city'] : $range['location_city_name'],
+					'zas_simc' => isset($teryt['area_simc']) ? $teryt['area_simc'] : '',
+					'zas_street' => isset($teryt['address_ulica']) ? ((!empty($teryt['address_cecha']) && $teryt['address_cecha'] != 'inne'
+						? $teryt['address_cecha'] . ' ' : '') . $teryt['address_ulica']) : $range['location_street_name'],
+					'zas_ulic' => $teryt['address_symul'],
 					'zas_house' => $teryt['address_budynek'],
 					'zas_zip' => $teryt['location_zip'],
-					'zas_latitude' => str_replace(',', '.', sprintf('%.6f', empty($netrange['latitude']) ? $netnode['latitude'] : $netrange['latitude'])),
-					'zas_longitude' => str_replace(',', '.', sprintf('%.6f', empty($netrange['longitude']) ? $netnode['longitude'] : $netrange['longitude'])),
+					'zas_latitude' => !strlen($netrange['latitude']) && !strlen($netnode['latitude'])
+						? '' : str_replace(',', '.', sprintf('%.6f', !strlen($netrange['latitude']) ? $netnode['latitude'] : $netrange['latitude'])),
+					'zas_longitude' => !strlen($netrange['longitude']) && !strlen($netnode['longitude'])
+						? '' : str_replace(',', '.', sprintf('%.6f', !strlen($netrange['longitude']) ? $netnode['longitude'] : $netrange['longitude'])),
 					'zas_tech' => $technology,
 					'zas_ltech' => $linktechnology,
 				);
@@ -1404,15 +1423,15 @@ foreach ($netnodes as $netnodename => &$netnode) {
 			'zas_leasetype' => '',
 			'zas_foreignerid' => '',
 			'zas_nodeid' => $netnode['id'],
-			'zas_state' => $netnode['area_woj'],
-			'zas_district' => $netnode['area_pow'],
-			'zas_borough' => $netnode['area_gmi'],
-			'zas_terc' => $netnode['area_terc'],
-			'zas_city' => $netnode['area_city'],
-			'zas_simc' => sprintf("%07d", $netnode['area_simc']),
-			'zas_street' => (!empty($netnode['address_cecha']) && $netnode['address_cecha'] != 'inne'
-				? $netnode['address_cecha'] . ' ' : '') . $netnode['address_ulica'],
-			'zas_ulic' => sprintf("%05d", $netnode['address_symul']),
+			'zas_state' => isset($netnode['area_woj']) ? $netnode['area_woj'] : '',
+			'zas_district' => isset($netnode['area_pow']) ? $netnode['area_pow'] : '',
+			'zas_borough' => isset($netnode['area_gmi']) ? $netnode['area_gmi'] : '',
+			'zas_terc' => isset($netnode['area_terc']) ? $netnode['area_terc'] : '',
+			'zas_city' => isset($netnode['area_city']) ? $netnode['area_city'] : $range['location_city_name'],
+			'zas_simc' => isset($netnode['area_simc']) ? $netnode['area_simc'] : '',
+			'zas_street' => isset($netnode['address_ulica']) ? ((!empty($netnode['address_cecha']) && $netnode['address_cecha'] != 'inne'
+				? $netnode['address_cecha'] . ' ' : '') . $netnode['address_ulica']) : $range['location_street_name'],
+			'zas_ulic' => isset($netnode['address_symul']) ? $netnode['address_symul'] : '',
 			'zas_house' => $netnode['address_budynek'],
 			'zas_zip' => $netnode['location_zip'],
 			'zas_latitude' => $netnode['latitude'],
@@ -1443,6 +1462,8 @@ foreach ($netnodes as $netnodename => &$netnode) {
 	}
 }
 unset($netnode);
+unset($teryt_cities);
+unset($teryt_streets);
 
 $max_range = 0;
 
@@ -1456,23 +1477,29 @@ if ( !empty($_POST['uke']['linktypes']) ) {
 
 if ( $max_range > 0 ) {
 
-    $top    = -1;
-    $right  = -1;
-    $bottom = PHP_INT_MAX;
     $left   = PHP_INT_MAX;
+    $top    = PHP_INT_MAX;
+    $right  = -PHP_INT_MAX;
+    $bottom = -PHP_INT_MAX;
 
     // find extreme points
     foreach ($netnodes as $v) {
-        if ( $v['latitude'] > $top ) {
-            $top = $v['latitude'];
-        } else if ( $v['latitude'] < $bottom ) {
-            $bottom = $v['latitude'];
+        if ( !empty($v['latitude']) ) {
+            if ( $v['latitude'] < $top ) {
+                $top = $v['latitude'];
+            }
+            if ( $v['latitude'] > $bottom ) {
+                $bottom = $v['latitude'];
+            }
         }
 
-        if ( $v['longitude'] < $left ) {
-            $left = $v['longitude'];
-        } else if ( $v['longitude'] > $right ) {
-            $right = $v['longitude'];
+        if ( !empty($v['longitude']) ) {
+            if ($v['longitude'] < $left ) {
+                $left = $v['longitude'];
+            }
+            if ( $v['longitude'] > $right ) {
+                $right = $v['longitude'];
+            }
         }
     }
 
@@ -1480,10 +1507,10 @@ if ( $max_range > 0 ) {
     $max_range = intval($max_range * 1.05);
 
     // enlarge searched area
-    $top    = ceil(  ($top    + getLatitudeDistDiff($max_range)) * 10000 ) / 10000;
-    $right  = ceil(  ($right  + getLongitudeDistDiff($max_range, ($top+$bottom)/2)) * 10000 ) / 10000;
-    $bottom = floor( ($bottom - getLatitudeDistDiff($max_range)) * 10000 ) / 10000;
-    $left   = floor( ($left   - getLongitudeDistDiff($max_range, ($top+$bottom)/2)) * 10000 ) / 10000;
+    $left   = floor( ($left   - getLongitudeDistDiff($max_range, ($bottom - $top) / 2)) * 10000 ) / 10000;
+    $top    = floor( ($top    - getLatitudeDistDiff($max_range)) * 10000 ) / 10000;
+    $right  = ceil( ($right  + getLongitudeDistDiff($max_range, ($bottom - $top) / 2)) * 10000 ) / 10000;
+    $bottom = ceil( ($bottom + getLatitudeDistDiff($max_range)) * 10000 ) / 10000;
 
     $top    = str_replace(',', '.', $top);
     $right  = str_replace(',', '.', $right);
@@ -1506,9 +1533,9 @@ if ( $max_range > 0 ) {
             LEFT JOIN location_states lsta      ON lsta.id = ldist.stateid
         WHERE
             longitude > ? AND longitude < ? AND
-            latitude  < ? AND latitude  > ?
+            latitude  > ? AND latitude  < ?
         ORDER BY
-            ls.name;',
+            ls.name',
         array($left, $right, $top, $bottom)
     );
 
