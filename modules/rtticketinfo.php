@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2017 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -26,33 +26,27 @@
 
 $id = $_GET['id'];
 
-if(! $LMS->TicketExists($id))
-{
-	$SESSION->redirect('?m=rtqueuelist');
+if (! $LMS->TicketExists($id)) {
+    $SESSION->redirect('?m=rtqueuelist');
 }
 
-$rights = $LMS->GetUserRightsRT(Auth::GetCurrentUser(), 0, $id);
-$catrights = $LMS->GetUserRightsToCategory(Auth::GetCurrentUser(), 0, $id);
-if(!$rights || !$catrights)
-{
-	$SMARTY->display('noaccess.html');
-	$SESSION->close();
-	die;
+if (!$LMS->CheckTicketAccess($id)) {
+    access_denied();
 }
 
-$SESSION->save('backto', $_SERVER['QUERY_STRING']);
+//$SESSION->save('backto', $_SERVER['QUERY_STRING']);
 
 $ticket = $LMS->GetTicketContents($id);
-
-$ticket['message'] = $DB->GetOne('SELECT body FROM rtmessages
+$ticket['relatedtickets'] = $LMS->GetRelatedTicketIds($id);
+$ticket['message'] = $DB->GetOne(
+    'SELECT body FROM rtmessages
 		    WHERE ticketid = ?
-		    ORDER BY createtime DESC LIMIT 1', 
-		    array($id));
+		    ORDER BY createtime DESC LIMIT 1',
+    array($id)
+);
 
 $ticket['uptime'] = uptimef($ticket['resolvetime'] ? $ticket['resolvetime'] - $ticket['createtime'] : time() - $ticket['createtime']);
 
 $SMARTY->assign('ticket', $ticket);
 
 $SMARTY->display('rt/rtticketinfoshort.html');
-
-?>

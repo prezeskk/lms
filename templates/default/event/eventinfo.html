@@ -32,7 +32,7 @@
 		</TD>
 		<TD>
 			{$event.date|date_format:"%x (%A)"}
-			{math equation="floor(x/100)" x=$event.begintime format="%02d"}:{math equation="x % 100" x=$event.begintime format="%02d"}
+			{($event.date + $event.begintime)|date_format:"%H:%M"}
 		</TD>
 	</TR>
 	{if $event.begintime != $event.endtime || $event.enddate > $event.date}
@@ -46,10 +46,11 @@
 		<TD>
 			{if $event.enddate}
 			{$event.enddate|date_format:"%x (%A)"}
+			{($event.enddate + $event.endtime)|date_format:"%H:%M"}
 			{else}
 			{$event.date|date_format:"%x (%A)"}
+			{($event.date + $event.endtime)|date_format:"%H:%M"}
 			{/if}
-			{math equation="floor(x/100)" x=$event.endtime format="%02d"}:{math equation="x % 100" x=$event.endtime format="%02d"}
 		</TD>
 	</TR>
 	{/if}
@@ -254,7 +255,7 @@
 {/if}
 	<TR>
 		<TD class="text-right" colspan="3">
-			<a href="?m=eventdel&id={$event.id}" OnClick="return confirmLink(this, '{trans("Are you sure, you want to delete that event?")}')"><img src="img/delete.gif" alt=""> {trans("Delete")}</A>
+			<a id="delete-event" href="?m=eventdel&id={$event.id}"><img src="img/delete.gif" alt=""> {trans("Delete")}</A>
 			<A href="?m=eventedit&id={$event.id}"><IMG src="img/edit.gif" alt=""> {trans("Edit")}</A>
 			{if !$event.closed}
 			<A href="?m=eventedit&id={$event.id}&action=close"><IMG src="img/dead.gif" alt=""> {trans("Close")}</A>
@@ -265,4 +266,12 @@
 	</TR>
     </TBODY>
 </TABLE>
+	<script>
+		$('#delete-event').click(function() {
+			confirmDialog($t("Are you sure, you want to delete that event?"), this).done(function() {
+				location.href = $(this).attr('href');
+			});
+			return false;
+		});
+	</script>
 {/block}

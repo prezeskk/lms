@@ -1,8 +1,9 @@
 <?php
+
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2013 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -22,28 +23,25 @@
  *
  *  $Id$
  */
-/**
- * @author Maciej_Wawryk
- */
+
 $id = ($_GET['id']);
 $DB->Execute('INSERT INTO promotions (name, description, disabled)
-	SELECT ' . $DB->Concat('name',"' (".trans('copy').")'"). ', description, disabled
+	SELECT ' . $DB->Concat('name', "' (".trans('copy').")'"). ', description, disabled
 	FROM promotions WHERE id = ?', array($id));
 $newid = $DB->GetLastInsertID('promotions');
 $schemas = $DB->GetAll('SELECT * FROM promotionschemas WHERE promotionid = ?', array($id));
-if($schemas) foreach ($schemas as $schema) {
-    $DB->Execute('INSERT INTO promotionschemas (name, description, data, promotionid, disabled, continuation, ctariffid) VALUES (?, ?, ?, ?, ?, ?, ?)
+if ($schemas) {
+    foreach ($schemas as $schema) {
+        $DB->Execute('INSERT INTO promotionschemas (name, description, data, promotionid, disabled) VALUES (?, ?, ?, ?, ?)
     ', array(
         $schema['name'], $schema['description'],
         $schema['data'], $newid, $schema['disabled'],
-        $schema['continuation'], $schema['ctariffid']
-    ));
-    $schemaid = $DB->GetLastInsertID('promotionschemas');
-    $DB->Execute('INSERT INTO promotionassignments (promotionschemaid, tariffid, data)
-        SELECT ?, tariffid, data
+        ));
+            $schemaid = $DB->GetLastInsertID('promotionschemas');
+            $DB->Execute('INSERT INTO promotionassignments (promotionschemaid, tariffid, data, optional, label, orderid)
+        SELECT ?, tariffid, data, optional, label, orderid
         FROM promotionassignments WHERE promotionschemaid = ?', array($schemaid, $schema['id']));
+    }
 }
 
 $SESSION->redirect('?m=promotionlist');
-
-?>

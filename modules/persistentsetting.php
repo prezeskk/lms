@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2015 LMS Developers
+ *  (C) Copyright 2001-2018 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -24,11 +24,11 @@
  *  $Id$
  */
 
-if (isset($_POST) && !empty($_POST))
-	foreach ($_POST as $variable => $value)
-		$SESSION->save_persistent_setting($variable, $value);
+if (isset($_POST) && !empty($_POST)) {
+    foreach ($_POST as $variable => $value) {
+        $SESSION->save_persistent_setting($variable, $value);
+    }
+}
 
 header('Content-type: application/json');
 print '[]';
-
-?>

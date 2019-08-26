@@ -17,6 +17,9 @@
 //-->
 </script>
 
+{$speed_unit_type = ConfigHelper::getConfig('phpui.speed_unit_type', 1000)}
+{$speed_unit_aggregation_threshold = ConfigHelper::getConfig('phpui.speed_unit_aggregation_threshold', 5)}
+
 <STYLE>
     .tariff_tab tr td {
         white-space: nowrap;
@@ -30,11 +33,11 @@
 </STYLE>
 
 {function bitrate_restrictions}
-    {if $day}{$day} kbit/s{else}{trans("no limits")}{/if}
+    {if $day}{convert_to_units($day * $speed_unit_type, $speed_unit_aggregation_threshold, $speed_unit_type)}/s{else}{trans("no limits")}{/if}
 
     ({trans("night:")}
 
-    {if $night}{$night|default:0} kbit/s{else}{trans("not defined")}{/if})
+    {if $night}{convert_to_units($night * $speed_unit_type, $speed_unit_aggregation_threshold, $speed_unit_type)}/s{else}{trans("not defined")}{/if})
 {/function}
 
 {function restrictions}
@@ -92,7 +95,7 @@
                                     {if $tariff.period}
                                         {assign var=tperiod value=$tariff.period}({$_PERIODS.$tperiod})
                                     {else}
-                                        <font class="blend">({trans("period undefined")})</font>
+                                        <span class="blend">({trans("period undefined")})</span>
                                     {/if}
                                 </TD>
                             </TR>
@@ -104,7 +107,7 @@
                             <TR>
                                 <TD><IMG SRC="img/money.gif" ALT=""></TD>
                                 <TD>{trans("Type:")}</TD>
-                                <TD>{$_TARIFFTYPES[$tariff.type]}</TD>
+                                <TD>{$_SERVICETYPES[$tariff.type]}</TD>
                             </TR>
 
                             {if isset($tariff.numberplan)}
@@ -142,7 +145,11 @@
                             <TR>
                                 <TD><IMG SRC="img/customers.gif" ALT=""></TD>
                                 <TD>{trans("Number of customers:")}</TD>
-                                <TD>{$tariff.customerscount|default:0} ({$tariff.count|default:0},{$tariff.activecount|default:0})</TD>
+                                <TD>
+                                    <span title="<span class=&quot;bold&quot;</span>{trans("Customer count")}">{$tariff.customerscount|default:0}</span>
+                                    (<span title="<span class=&quot;bold&quot;</span>{trans("Assignment count")}">{$tariff.count|default:0}</span>,
+                                    <span title="<span class=&quot;bold&quot;>{trans("Active assignment count")}</span>">{$tariff.activecount|default:0}</span>)
+                                </TD>
                             </TR>
                             <TR>
                                 <TD><IMG SRC="img/values.gif" ALT=""></TD>
@@ -195,7 +202,7 @@
 
                         </TABLE>
                     </TD>
-                    {if $tariff.type != $smarty.const.TARIFF_PHONE}
+                    {if $tariff.type != $smarty.const.SERVICE_PHONE}
                     <TD WIDTH="50%" CLASS="valign-top">
                         <TABLE CLASS="tariff_tab bold-second">
                             <TR>
@@ -270,7 +277,7 @@
             </TABLE>
         </TD>
     </TR>
-    {if $tariff.type != $smarty.const.TARIFF_PHONE && $tariff.type != $smarty.const.TARIFF_TV && $tariff.type != $smarty.const.TARIFF_INTERNET}
+    {if $tariff.type != $smarty.const.SERVICE_PHONE && $tariff.type != $smarty.const.SERVICE_TV && $tariff.type != $smarty.const.SERVICE_INTERNET}
     <TR>
         <TD COLSPAN="2">
             <TABLE CLASS="tariff_tab bold-first">
@@ -304,7 +311,7 @@
             </TABLE>
         </TD>
     </TR>
-    {else if $tariff.type == $smarty.const.TARIFF_PHONE}
+    {else if $tariff.type == $smarty.const.SERVICE_PHONE}
     <TR>
         <TD COLSPAN="2">
             <TABLE CLASS="tariff_tab bold-first">
@@ -345,7 +352,7 @@
             </A>
 
             {if $tariff.count == 0}
-            <A HREF="?m=tariffdel&id={$tariff.id}" onclick="return confirmLink(this,'{trans("Are you sure, you want to delete that tariff?")}');">
+            <A id="delete-tariff" HREF="?m=tariffdel&id={$tariff.id}">
                 {trans("Delete")} <IMG SRC="img/delete.gif" ALT="">
             </A>
             {/if}
@@ -384,7 +391,7 @@
                     {section name=l2 loop=$tariff.customers start=$smarty.section.l1.index step=$tariff.rows}
                      <TD WIDTH="33%" class="highlight {cycle}" {cycle print=false} onclick="return self.location.href='?m=customerinfo&id={$tariff.customers[l2].id}'">
                         <IMG SRC="img/customer.gif" ALT="">
-                        <A HREF="?m=customerinfo&id={$tariff.customers[l2].id}">
+                        <A HREF="?m=customerinfo&id={$tariff.customers[l2].id}"{if !$tariff.customers[l2].active} class="blend"{/if}>
                             ({$tariff.customers[l2].id|string_format:"%04d"})
                             {$tariff.customers[l2].customername|truncate:50:" ..."}
                             {if $tariff.customers[l2].cnt > 1}({$tariff.customers[l2].cnt}){/if}
@@ -432,5 +439,12 @@
     </TR>
     </TBODY>
 </TABLE>
-
+    <script>
+        $('#delete-tariff').click(function() {
+            confirmDialog($t("Are you sure, you want to delete that tariff?"), this).done(function() {
+                location.href = $(this).attr('href');
+            });
+            return false;
+        });
+    </script>
 {/block}

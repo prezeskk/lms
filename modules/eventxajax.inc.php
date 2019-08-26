@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2017 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -24,35 +24,28 @@
  *  $Id$
  */
 
-function select_location($customerid, $address_id) {
-	global $LMS;
+function getUsersForGroup($groupid)
+{
+    $DB = LMSDB::getInstance();
 
-	$JSResponse = new xajaxResponse();
-	$nodes = $LMS->GetNodeLocations($customerid, !empty($address_id) && intval($address_id) > 0 ? $address_id : null);
-	if (empty($nodes))
-		$nodes = array();
-	$JSResponse->call('update_nodes', array_values($nodes));
-	return $JSResponse;
-}
+    $JSResponse = new xajaxResponse();
 
-function getUsersForGroup($groupid) {
-	$JSResponse = new xajaxResponse();
-
-	if (empty($groupid))
-		$users = null;
-	else
-		$users = LMSDB::getInstance()->GetCol('SELECT u.id FROM users u
+    if (empty($groupid)) {
+        $users = null;
+    } elseif (intval($groupid) == -1) {
+        $users = array(Auth::GetCurrentUser());
+    } else {
+        $users = $DB->GetCol(
+            'SELECT u.id FROM users u
 			JOIN userassignments ua ON ua.userid = u.id
 			WHERE u.deleted = 0 AND u.access = 1 AND ua.usergroupid = ?',
-			array($groupid));
+            array($groupid)
+        );
+    }
 
-	$JSResponse->call('update_user_selection', $users);
+    $JSResponse->call('update_user_selection', $users);
 
-	return $JSResponse;
+    return $JSResponse;
 }
 
-$LMS->InitXajax();
-$LMS->RegisterXajaxFunction(array('select_location', 'getUsersForGroup'));
-$SMARTY->assign('xajax', $LMS->RunXajax());
-
-?>
+$LMS->RegisterXajaxFunction(array('getUsersForGroup'));

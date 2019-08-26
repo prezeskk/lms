@@ -1,68 +1,100 @@
 {block name="eventlistboxrow"}
-<TR class="highlight {cycle}{if $event.closed} blend{/if}"  >
-    <TD style="min-width: 90px; {if isset($_EVENTSTYLES[$event.type])} {$_EVENTSTYLES[$event.type]}{/if}" class="text-center bold">
-        {$_EVENTTYPES[$event.type]}<BR>
-        {if $event.ticketid}
-            <A href="?m=rtticketview&id={$event.ticketid}">{$event.ticketid|string_format:"%06d"}</A>
-        {/if}
+<TR class="highlight event-single{if $event.closed} blend{/if}{if $event.wholeday} event-whole-day{/if}{if $event.multiday} event-multi-day{/if}" data-event-id="{$event.id}">
+    <TD style="min-width: 90px; {if isset($_EVENTSTYLES[$event.type])} {$_EVENTSTYLES[$event.type]}{/if}" class="text-center bold event-single-sortable-handler">
+    	{$_EVENTTYPES[$event.type]}{if $_EVENTTYPES[$event.type]}<br>{/if}{if $event.ticketid}<a href="?m=rtticketview&id={$event.ticketid}" style="color: black">{$event.ticketid|string_format:"%06d"}</a>{/if}
     </TD>
-    <TD class="text-left nobr" onClick="return self.location.href = '?m=eventinfo&amp;id={$event.id}'">
-                <span class="bold">
-                    {if $overdue == 1}
-                        {math equation="floor(x/100)" x=$event.begintime format="%02d"}:{math equation="x % 100" x=$event.begintime format="%02d"}
-                        {if $event.begintime != $event.endtime}
-                        - {math equation="floor(x/100)" x=$event.endtime format="%02d"}:{math equation="x % 100" x=$event.endtime format="%02d"}
-                        {/if}<br>
-                        {$event.date|date_format:"%x"}
-                    {else}
-                        {math equation="floor(x/100)" x=$event.begintime format="%02d"}:{math equation="x % 100" x=$event.begintime format="%02d"}
-                        {if $event.begintime != $event.endtime}
-                        - {math equation="floor(x/100)" x=$event.endtime format="%02d"}:{math equation="x % 100" x=$event.endtime format="%02d"}
-                        {/if}
-                    {/if}
-                </span><BR>
+    <TD class="text-left nobr bold" style="min-width:100px" data-target-url="?m=eventinfo&id={$event.id}">
+        {if $event.endtime == 86400}
+            {trans("whole day")}
+        {else}
+            {($day + $event.begintime)|date_format:"%H:%M"}
+            {if $event.begintime != $event.endtime}
+                - {($day + $event.endtime)|date_format:"%H:%M"}
+            {/if}
+            {if $event.multiday}<br>{trans("multi day")}{/if}
+        {/if}
+        {if $overdue == 1}
+            <br>{$event.date|date_format:"%x"}
+        {/if}
+        {$imadded=0}
         {foreach $event.userlist as $user}
-            <A href="?m=userinfo&amp;id={$user.id}">{$user.name|truncate:"25":"...":true}</A><BR>
+		{if $layout.logid == $user.id}
+			{$imadded=1}
+		{/if}
+		<br><a href="?m=userinfo&amp;id={$user.id}" style="font-weight: normal">{$user.name|truncate:"25":"...":true}</a>
         {/foreach}
     </TD>
-    <TD onClick="return self.location.href = '?m=eventinfo&amp;id={$event.id}'">
-        <IMG src="img/calendar.gif" alt=""> <span class="bold">{$event.title}</span>
-        &nbsp;<a href="?m=eventinfo&id={$event.id}">&raquo;&raquo;&raquo;</a><BR>
-        {if $event.description != ''}<IMG src="img/info1.gif" alt=""> {$event.description}{/if}<br>
-        {if $event.note != ''}<span{if !$event.closed} style="color: red;"{/if}><IMG src="img/note.gif" alt=""> {$event.note}</span>{/if}
+    <TD data-target-url="?m=eventinfo&id={$event.id}">
+        <a href="?m=eventinfo&id={$event.id}"><i class="lms-ui-icon-timetable"></i> <span class="bold" {if !$event.closed}style="color:black"{/if}>{$event.title}</span></a>
+        {if $event.description != ''}<br><i class="lms-ui-icon-description"></i> {$event.description}{/if}
+        {if $event.note != ''}<span{if !$event.closed} style="color: red;"{/if}><br><i class="lms-ui-icon-note"></i> {$event.note}</span>{/if}
     </TD>
-    <TD class="nobr" colspan="2">
-        {if $event.customername}
-        <A href="?m=customerinfo&amp;id={$event.customerid}">{$event.customername|truncate:"30":"...":true}</A><br>
-        {if !empty($event.address_id)}
-        {$event.location}
-        {elseif !empty($event.nodeid)}
-        <a href="?m=nodeinfo&id={$event.nodeid}">{$event.nodelocation}</a>
+    <TD class="nobr" colspan="2" data-target-url="?m=eventinfo&id={$event.id}">
+        {if $event.netnode_name}
+        <i class="lms-ui-icon-netnode"></i> <a href="?m=netnodeinfo&id={$event.netnode_id}">{$event.netnode_name}</a>
+            {if !empty($event.netnode_location)}<br><i class="lms-ui-icon-location"></i> {$event.netnode_location}{/if}
         {else}
-        {$event.customerlocation}
+        {if $event.customername}
+        <i class="lms-ui-icon-customer"></i> <A href="?m=customerinfo&amp;id={$event.customerid}">{$event.customername|truncate:"30":"...":true}</A><br>
+        {if !empty($event.address_id)}
+        <i class="lms-ui-icon-location"></i> {$event.location}
+        {elseif !empty($event.nodeid)}
+        <a href="?m=nodeinfo&id={$event.nodeid}"> {$event.nodelocation}</a>
+        {else}
+        <i class="lms-ui-icon-location"></i> {$event.customerlocation}
+        {/if}
         {/if}
         {/if}
     </TD>
-    <TD class="text-right nobr">
+    <TD class="text-right nobr" data-target-url="?m=eventinfo&id={$event.id}">
         <div class="no-print">
+            {if !isset($eventlist_mode)}
+            <a href="#" class="lms-ui-button-timetable" title="{trans("Show in timetable")}"
+                    onclick="location.href = '?m=eventlist&year={strftime('%Y', $event.date)}&month={strftime('%m', $event.date)}&day={strftime('%d', $event.date)}';">
+                <i></i>
+            </a>
+            {/if}
+            <a href="#" class="lms-ui-button-clipboard" data-clipboard-text="{$url}?m=eventinfo&id={$event.id}">
+                <i></i>
+            </a>
+            {if $imadded}
+            <a href="#" onclick="location.href = '?m=eventedit&id={$event.id}&action=unassign&backid=' + $(this).closest('.event-day-table').attr('id');">
+                <img src="img/users.gif" alt="{trans("<!event>Unassign")}" title=" {trans("<!event>Unassign")} ">
+            </a>
+            {else}
+            <a href="#" onclick="location.href = '?m=eventedit&id={$event.id}&action=assign&backid=' + $(this).closest('.event-day-table').attr('id');">
+                <img src="img/users.gif" alt="{trans("<!event>Assign")}" title=" {trans("<!event>Assign")} ">
+            </a>
+            {/if}
             {if ConfigHelper::checkPrivilege('timetable_management')}
             {if $event.closed}
-            <A href="?m=eventedit&amp;id={$event.id}&amp;action=open"><IMG src="img/resolved.gif" alt="{trans("Open")}"title="&nbsp;{trans("Open")}&nbsp;"></A>
-            {else}
-            <A href="?m=eventedit&amp;id={$event.id}&amp;action=close"><IMG src="img/open.gif" alt="{trans("Close")}"title="&nbsp;{trans("Close")}&nbsp;"></A>
-            {/if}
-            <A href="?m=eventdel&amp;id={$event.id}" OnClick="return confirmLink(this, '{trans("Are you sure, you want to delete that event?")}')">
-                <IMG src="img/delete.gif" alt="{trans("Delete")}"title="&nbsp;{trans("Delete")}&nbsp;">
+            <A href="#" onclick="location.href = '?m=eventedit&id={$event.id}&action=open&backid=' + $(this).closest('.event-day-table').attr('id');">
+                <IMG src="img/resolved.gif" alt="{trans("Open")}" title="&nbsp;{trans("Open")}&nbsp;">
             </A>
-            <A href="?m=eventedit&amp;id={$event.id}"><IMG src="img/edit.gif" alt="{trans("Edit")}"title="&nbsp;{trans("Edit")}&nbsp;"></A>
+            {else}
+            <A href="#" onclick="location.href = '?m=eventedit&id={$event.id}&action=close&backid=' + $(this).closest('.event-day-table').attr('id');">
+                <IMG src="img/open.gif" alt="{trans("Close")}" title="&nbsp;{trans("Close")}&nbsp;">
+            </A>
             {/if}
-            {if $event.note == ''}
-                {foreach item=user from=$event.userlist}
-                    {if $layout.logid == $user.id}
-                    <A href="?m=eventnote&id={$event.id}">
-                    <IMG src="img/note.gif" alt="{trans("Add Note")}" title="{trans("Add Note")}"></A>
-                    {/if}
-                {/foreach}
+            <a href="?m=eventadd&id={$event.id}">
+                <IMG src="img/clone.gif" alt="{trans("Clone")}" title="&nbsp;{trans("Clone")}&nbsp;">
+            </a>
+                {textformat assign="onclick" wrap=5000}
+                    confirmDialog($t('Are you sure, you want to delete that event?'), this).done(function() {
+                    location.href = '?m=eventdel&id={$event.id}&backid=' + $(this).closest('.event-day-table').attr('id');
+                    });
+                {/textformat}
+            <A href="#" OnClick="{$onclick}">
+                <IMG src="img/delete.gif" alt="{trans("Delete")}" title="&nbsp;{trans("Delete")}&nbsp;">
+            </A>
+            <A href="#" onclick="location.href = '?m=eventedit&id={$event.id}&backid=' + $(this).closest('.event-day-table').attr('id');">
+                <IMG src="img/edit.gif" alt="{trans("Edit")}" title="&nbsp;{trans("Edit")}&nbsp;">
+            </A>
+            {/if}
+            {if $imadded && $event.note == ''}
+            <A href="#" onclick="location.href = '?m=eventnote&id={$event.id}&backid=' + $(this).closest('.event-day-table').attr('id');">
+                <IMG src="img/note.gif" alt="{trans("Add Note")}" title="{trans("Add Note")}">
+            </A>
             {/if}
         </div>
     </TD>

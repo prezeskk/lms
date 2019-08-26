@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2016 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -26,29 +26,28 @@
 
 $id = intval($_GET['id']);
 
-if ($id && $_GET['is_sure'] == '1') {
-	$args = array(SYSLOG::RES_PROMO => $id);
-	if ($SYSLOG) {
-		$SYSLOG->AddMessage(SYSLOG::RES_PROMO, SYSLOG::OPER_DELETE, $args);
-		$schemas = $DB->GetAll('SELECT id, ctariffid FROM promotionschemas
+if ($id) {
+    $args = array(SYSLOG::RES_PROMO => $id);
+    if ($SYSLOG) {
+        $SYSLOG->AddMessage(SYSLOG::RES_PROMO, SYSLOG::OPER_DELETE, $args);
+        $schemas = $DB->GetCol('SELECT id FROM promotionschemas
 			WHERE promotionid = ?', array_values($args));
-		if (!empty($schemas))
-			foreach ($schemas as $schema) {
-				$args[SYSLOG::RES_PROMOSCHEMA] = $schema['id'];
-				$args[SYSLOG::RES_TARIFF] = $schema['ctariffid'];
-				$SYSLOG->AddMessage(SYSLOG::RES_PROMOSCHEMA, SYSLOG::OPER_DELETE, $args);
-				$assigns = $DB->GetCol('SELECT id FROM promotionassignments
-					WHERE promotionschemaid = ?', array($schema['id']));
-				if (!empty($assigns))
-					foreach ($assigns as $assign) {
-						$args[SYSLOG::RES_PROMOASSIGN] = $assign;
-						$SYSLOG->AddMessage(SYSLOG::RES_PROMOASSIGN, SYSLOG::OPER_DELETE, $args);
-					}
-			}
-	}
-	$DB->Execute('DELETE FROM promotions WHERE id = ?', array($id));
+        if (!empty($schemas)) {
+            foreach ($schemas as $schemaid) {
+                $args[SYSLOG::RES_PROMOSCHEMA] = $schemaid;
+                $SYSLOG->AddMessage(SYSLOG::RES_PROMOSCHEMA, SYSLOG::OPER_DELETE, $args);
+                $assigns = $DB->GetCol('SELECT id FROM promotionassignments
+					WHERE promotionschemaid = ?', array($schemaid));
+                if (!empty($assigns)) {
+                    foreach ($assigns as $assign) {
+                        $args[SYSLOG::RES_PROMOASSIGN] = $assign;
+                        $SYSLOG->AddMessage(SYSLOG::RES_PROMOASSIGN, SYSLOG::OPER_DELETE, $args);
+                    }
+                }
+            }
+        }
+    }
+    $DB->Execute('DELETE FROM promotions WHERE id = ?', array($id));
 }
 
 $SESSION->redirect('?m=promotionlist');
-
-?>

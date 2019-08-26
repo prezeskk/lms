@@ -44,7 +44,7 @@
 		        {$_NETELEMENTSTATUSES[$nodeinfo.status]}
 		</TD>
 	</TR>
-	
+
 	<TR>
 		<TD WIDTH="1%">
 			<IMG SRC="img/producer.gif" ALT="">
@@ -107,6 +107,19 @@
 			{$_NETELEMENTOWNERSHIPS[$nodeinfo.ownership]} {if ($nodeinfo.ownership >= 1)} ({$nodeinfo.coowner}) {/if}
 		</TD>
 	</TR>
+	{if $nodeinfo.ownerid != null}
+	<tr>
+		<td>
+			<img src="img/customer.gif" alt="">
+		</td>
+		<td class="bold">
+			{trans("Owner:")}
+		</td>
+		<td>
+			<a href="?m=customerinfo&id={$nodeinfo.ownerid}">{$nodeinfo.owner}</a>
+		</td>
+	</tr>
+	{/if}
 	<TR>
 		<TD WIDTH="1%">
 			<IMG SRC="img/producer.gif" ALT="">
@@ -133,12 +146,14 @@
         <TR>
                 <TD WIDTH="1%"><IMG SRC="img/users.gif" ALT=""></TD>
                 <TD width="1%" class="bold">{trans('Created:')}</TD>
-                <TD width="98%">{$nodeinfo.createtime|date_format:"%x (%A)"}</TD>
+                <TD width="98%">{$nodeinfo.createtime|date_format:"%Y/%m/%d (%A)"}</TD>
         </TR>
         <TR>
                 <TD WIDTH="1%"><IMG SRC="img/calendar.gif" ALT=""></TD>
                 <TD width="1%" class="bold">{trans('Last inspection:')}</TD>
-                <TD width="98%">{$nodeinfo.lastinspectiontime|date_format:"%x (%A)"}</TD>
+                <TD width="98%">
+					{if $nodeinfo.lastinspectiontime}{$nodeinfo.lastinspectiontime|date_format:"%Y/%m/%d (%A)"}{else}-{/if}
+				</TD>
         </TR>
         <TR>
                 <TD WIDTH="1%"><IMG SRC="img/phone.gif" ALT=""></TD>
@@ -156,18 +171,25 @@
 	        <TD WIDTH="100%" COLSPAN="2" ALIGN="RIGHT">
 {/if}
 			<A href="?m=netnodeedit&id={$nodeinfo.id}" ACCESSKEY="E">{trans("Edit")} <IMG src="img/edit.gif" ALT="{trans("Edit")}"></A>
-			<A href="?m=netnodedel&id={$nodeinfo.id}" OnClick="return confirmLink(this, '{t a=$nodeinfo.name}Are you sure, you want to remove net device node \'$a\' from database?{/t}');">{trans("Delete")} <img src="img/delete.gif" ALT=""></A>
+			<A id="delete-netnode" href="?m=netnodedel&id={$nodeinfo.id}" data-name="{$nodeinfo.name}">{trans("Delete")} <img src="img/delete.gif" ALT=""></A>
 		</TD>
 	</TR>
     </TBODY>
 </TABLE>
 {if $devicepanel}
-<SCRIPT type="text/javascript">
-<!--
+<SCRIPT>
 if (getCookie('devicepanel') == '1')
 {
 	document.getElementById('devicepanel').style.display = '';
 }
-//-->
 </SCRIPT>
 {/if}
+<script>
+	$('#delete-netnode').click(function() {
+		var name = $(this).attr('data-name');
+		confirmDialog($t("Are you sure, you want to remove net device node '$a' from database?", name), this).done(function() {
+			location.href = $(this).attr('href');
+		});
+		return false;
+	});
+</script>

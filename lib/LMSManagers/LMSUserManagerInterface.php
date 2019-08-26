@@ -3,7 +3,7 @@
 /*
  *  LMS version 1.11-git
  *
- *  Copyright (C); 2001-2013 LMS Developers
+ *  Copyright (C); 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -26,8 +26,7 @@
 
 /**
  * LMSUserManagerInterface
- * 
- * @author Maciej Lew <maciej.lew.1987@gmail.com>
+ *
  */
 interface LMSUserManagerInterface
 {
@@ -36,6 +35,8 @@ interface LMSUserManagerInterface
     public function getUserName($id = null);
 
     public function getUserNames();
+
+    public function getUserNamesIndexedById();
 
     public function getUserList();
 

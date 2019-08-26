@@ -34,7 +34,7 @@
 			<B>{trans("Value:")}</B>
 		</TD>
 		<TD width="98%">
-			<TEXTAREA rows="5" cols="50" name="config[value]"{if $config.type == $smarty.const.CONFIG_TYPE_RICHTEXT} class="lms-ui-wysiwyg-editor"{/if} {tip text="Enter option value" trigger="value"}{if isset($config.wysiwyg.value)} data-wysiwyg="{$config.wysiwyg.value}"{/if}>{$config.value}</TEXTAREA>
+			<TEXTAREA rows="5" cols="50" name="config[value]" {tip class="lms-ui-wysiwyg-editor" text="Enter option value" trigger="value"} data-wysiwyg="{if $config.type == $smarty.const.CONFIG_TYPE_RICHTEXT || (isset($config.wysiwyg.value) && ConfigHelper::checkValue($config.wywiwyg.value))}true{else}false{/if}">{$config.value}</TEXTAREA>
 		</TD>
 	</TR>
 	<TR>
@@ -79,18 +79,31 @@
 	<TR>
 		<TD align="right" colspan="3">
 			<A href="javascript:document.config.submit();" accesskey="s">{trans("Submit")} <img src="img/save.gif" alt=""></A>
-			<A href="?m=configdel&id={$config.id}" OnClick="return confirmLink(this, '{t a=$config.var}Are you sure, you want to delete option \'$a\' from database?{/t}')">{trans("Delete")} <img src="img/delete.gif" alt=""></A>
+			<A id="delete-config" href="?m=configdel&id={$config.id}&globalconf=1" data-name="{$config.section}.{$config.var}">{trans("Delete")} <img src="img/delete.gif" alt=""></A>
 			<A href="?m=configlist">{trans("Cancel")} <img src="img/cancel.gif" alt=""></A>
 		</TD>
 	</TR>
     </TBODY>
 </TABLE>
-</P>
-<SCRIPT type="text/javascript">
-<!--
+</FORM>
+	{include file="/config/configusers.html"}
+<SCRIPT>
 	$(function() {
 		$('form[name="config"] [name="config[var]"]').focus();
+
+		$('[name="config[type]"]').change(function(e) {
+			$('[name="config[value]"]').trigger('lms:visual_editor_change_required', {
+				ifShow: $(this).val() == '{$smarty.const.CONFIG_TYPE_RICHTEXT}'
+			});
+		});
 	});
-//-->
+
+	$('#delete-config').click(function() {
+		var name = $(this).attr('data-name');
+		confirmDialog($t("Are you sure, you want to delete option '$a' from database?\n\nThis action will remove this option for all users.", name), this).done(function() {
+			location.href = $(this).attr('href');
+		});
+		return false;
+	});
 </SCRIPT>
 {/block}

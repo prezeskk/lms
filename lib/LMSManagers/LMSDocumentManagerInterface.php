@@ -3,7 +3,7 @@
 /*
  *  LMS version 1.11-git
  *
- *  Copyright (C) 2001-2017 LMS Developers
+ *  Copyright (C) 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -26,29 +26,39 @@
 
 /**
  * LMSDocumentManagerInterface
- * 
+ *
  */
 interface LMSDocumentManagerInterface
 {
-    public function GetDocuments($customerid = NULL, $limit = NULL);
+    public function GetDocuments($customerid = null, $limit = null);
 
-	public function GetDocumentList($order='cdate,asc', $search);
+    public function GetDocumentList(array $params);
 
-	public function GetNumberPlans($properties);
+    public function GetNumberPlans($properties);
 
     public function GetNewDocumentNumber($properties);
 
     public function DocumentExists($properties);
 
-	public function CommitDocuments(array $ids);
+    public function CommitDocuments(array $ids);
 
-	public function UpdateDocumentPostAddress($docid, $customerid);
+    public function ArchiveDocuments(array $ids);
 
-	public function DeleteDocumentAddresses($docid);
+    public function UpdateDocumentPostAddress($docid, $customerid);
 
-	public function DocumentAttachmentExists($md5sum);
+    public function DeleteDocumentAddresses($docid);
 
-	public function GetDocumentFullContents($id);
+    public function isArchiveDocument($id);
 
-	public function SendDocuments($docs, $type, $params);
+    public function AddArchiveDocument($docid, $file);
+
+    public function GetArchiveDocument($docid);
+
+    public function AddDocumentFileAttachments(array $files);
+
+    public function DocumentAttachmentExists($md5sum);
+
+    public function GetDocumentFullContents($id);
+
+    public function SendDocuments($docs, $type, $params);
 }

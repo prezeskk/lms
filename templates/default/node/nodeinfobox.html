@@ -9,6 +9,28 @@
         font-weight: bold;
         white-space: nowrap;
     }
+
+	.node-data {
+		width: 100%;
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-start;
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.node-data > div {
+		flex-grow: 1;
+	}
+
+	#node-left-panel {
+		margin-right: 10em;
+	}
+
+	#node-right-panel {
+		margin-right: 2em;
+	}
+
 </style>
 
 <table class="lmsbox">
@@ -27,8 +49,9 @@
 			<td width="100%" colspan="3" class="container">
 				<table style="width: 100%;" cellpadding="0">
 					<tr>
-						<td width="50%" class="valign-top">
-							<table style="width: 100%" class="tab-beautify">
+						<td class="tab-beautify node-data">
+							<div id="node-left-panel">
+								<table class="tab-beautify">
 								<colgroup>
 									<col style="width: 1%;">
 									<col style="width: 1%;">
@@ -49,7 +72,7 @@
 								</tr>
 								<tr>
 									<TD style="width: 1%;">
-				                       <img src="img/ip.gif" class="lms-ui-clipboard-button" data-clipboard-text="{$nodeinfo.ip}" alt="">
+				                       <img src="img/ip.gif" class="lms-ui-button-clipboard" data-clipboard-text="{$nodeinfo.ip}" alt="">
 									</td>
 									<td>
 										{trans("IP address:")}
@@ -62,7 +85,7 @@
 								{if $nodeinfo.ip_pub != "0.0.0.0"}
 								<tr>
 									<td>
-										<img src="img/ip_pub.gif" class="lms-ui-clipboard-button" data-clipboard-text="{$nodeinfo.ip_pub}"s alt="">
+										<img src="img/ip_pub.gif" class="lms-ui-button-clipboard" data-clipboard-text="{$nodeinfo.ip_pub}" alt="">
 									</td>
 									<td>
 										{trans("Pub. IP address:")}
@@ -94,13 +117,17 @@
 								{if $nodeinfo.passwd}
 								<tr>
 									<td>
-										<img src="img/passwd.gif" class="lms-ui-clipboard-button" data-clipboard-text="{$nodeinfo.passwd}" alt="">
+										<img src="img/passwd.gif" alt="">
 									</td>
 									<td>
 										{trans("Password:")}
 									</td>
 									<td>
-										{if ConfigHelper::checkConfig('phpui.protect_passwords')}{$nodeinfo.passwd|regex_replace:"/./":"*"}{else}{$nodeinfo.passwd}{/if}
+										{if ConfigHelper::checkConfig('phpui.protect_passwords')}
+										<button class="lms-ui-button-clipboard lms-ui-button" data-clipboard-text="{$nodeinfo.passwd}">{trans("Copy")}</button>
+										{else}
+											{$nodeinfo.passwd}
+										{/if}
 									</td>
 								</tr>
 								{/if}
@@ -273,9 +300,9 @@
 								{/if}
 								{/block}
 							</table>
-						</td>
-						<td width="50%" class="valign-top">
-							<table width="100%" id="nodeinfo" class="tab-beautify">
+							</div>
+							<div id="node-right-panel">
+								<table id="nodeinfo" class="tab-beautify">
 							{block name="nodeinfobox-rightcolumn"}
                                 <colgroup>
                                     <col style="width: 1%;">
@@ -402,28 +429,25 @@
 								</tr>
 							{/block}
 						</table>
+							</div>
 					</td>
 				</tr>
 			</TABLE>
 		</td>
 	</tr>
 	<tr>
-		<td style="width: 100%; text-align: right;" colspan="3">
+		<td style="width: 100%;" colspan="3" class="lms-ui-box-buttons">
 			{block name="nodeinfobox-buttons"}
-			<a href="?m=nodeadd&ownerid={$nodeinfo.ownerid}&premac[]={implode('&premac[]=', $macs)}&prename={t a=$nodeinfo.name}$a_clone{/t}{if $nodeinfo.address_id}&pre_address_id={$nodeinfo.address_id}{/if}">{trans("Clone")} <img src="img/clone.gif" alt="{trans("Clone")}" title="{trans("Clone")}"></a>
-			<a href="?m=nodeedit&amp;id={$nodeinfo.id}" ACCESSKEY="E">{trans("Edit")} <img src="img/edit.gif" alt=""></A>
-			<a href="?m=nodedel&amp;id={$nodeinfo.id}" onClick="return confirmLink(this, '{t a=$nodeinfo.name}Are you sure, you want to remove node \'$a\' from database?{/t}')">
-				{trans("Delete")}
-				<img src="img/delete.gif" alt="">
-			</a>
+				{button id="clone-button" icon="clone" label="Clone" onclick="location.href = '?m=nodeadd&ownerid={$nodeinfo.ownerid}&premac[]={implode('&premac[]=', $macs)}&prename={t a=$nodeinfo.name}$a_clone{/t}{if $nodeinfo.address_id}&pre_address_id={$nodeinfo.address_id}{/if}';"}
+				{button id="edit-button" icon="edit" label="Edit" onclick="location.href = '?m=nodeedit&id={$nodeinfo.id}';"}
+				{button id="delete-node" icon="delete" label="Delete" onclick="javascript:delete_node('{$nodeinfo.id}', '{$nodeinfo.name}');"}
 			{/block}
 		</td>
 	</tr>
     </tbody>
 </table>
 
-<script type="text/javascript">
-<!--
+<script>
     xajax_getNodeStats({$nodeinfo.id});
 
     {if !$disable_active_links}
@@ -542,5 +566,12 @@
 	}
 
 	xajax_getRadioSectors({$nodeinfo.netdev}, {$nodeinfo.linktechnology});
-//-->
+
+	function delete_node(nodeid, nodename) {
+		confirmDialog($t("Are you sure, you want to remove node '$a' from database?", nodename), $('#delete-node')).done(function() {
+			location.href = '?m=nodedel&id='+nodeid;
+		});
+		return false;
+	}
+
 </script>

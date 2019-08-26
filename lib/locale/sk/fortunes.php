@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2013 LMS Developers
+ *  (C) Copyright 2001-2018 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -99,7 +99,5 @@ $fortunes[] = "Pravdepodobnosť, že novo inštalovaný software nebude fungova�
 $fortunes[] = "Buzerácie, čo sa sem píšu sú priamo úmerné s tým, kolko debilov túto stránku navštevuje.";
 $fortunes[] = "Pekný deň Vám praje pavel3.";
 
-mt_srand ((double) microtime()* 100000000);
-$layout[fortune] = $fortunes[mt_rand(0,sizeof($fortunes)-1)];
-
-?>
+mt_srand((double) microtime()* 100000000);
+$layout['fortune'] = $fortunes[mt_rand(0, count($fortunes)-1)];

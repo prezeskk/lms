@@ -3,7 +3,7 @@
 /*
  *  LMS version 1.11-git
  *
- *  (C) Copyright 2001-2013 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -37,6 +37,7 @@ $_LANG['Default user:'] = 'Domyślny użytkownik:';
 $_LANG['Details'] = 'Szczegóły';
 $_LANG['Enter request contents'] = 'Wprowadź treść zgłoszenia';
 $_LANG['Enter request subject'] = 'Wprowadź temat zgłoszenia';
+$_LANG['No subject'] = 'Brak tematu';
 $_LANG['From:'] = 'Od:';
 $_LANG['Helpdesk'] = 'Helpdesk';
 $_LANG['Helpdesk queues for tickets requested in Userpanel'] = 'Kolejki Helpdesku dla zgłoszeń z Userpanela';
@@ -51,14 +52,15 @@ $_LANG['Number:'] = 'Numer:';
 $_LANG['open'] = 'otwarty';
 $_LANG['Request history'] = 'Historia zgłoszeń';
 $_LANG['Request No. $a / Queue: $b'] = 'Zgłoszenie Nr $a / Kolejka: $b';
+$_LANG['Request No. $a'] = 'Zgłoszenie Nr $a';
 $_LANG['resolved'] = 'rozwiązany';
 $_LANG['- select queues -'] = '- wybierz kolejki -';
 $_LANG['- select user -'] = '- wybierz użytkownika -';
 $_LANG['Sender of new request notifications and his email. If not specified notifications goes from queue address.'] = 'Nadawca powiadomień o nowych zgłoszeniach (i jego email). Jeśli nie podano zostanie użyty adres kolejki.';
 $_LANG['Status:'] = 'Status:';
 $_LANG['Subject:'] = 'Temat:';
-$_LANG['Submit'] = 'Zapisz';
-$_LANG['[ Submit ]'] = '[ Zapisz ]';
+$_LANG['<!helpdesk>Submit'] = 'Wyślij';
+$_LANG['[ Submit ]'] = '[ Wyślij ]';
 $_LANG['This module allows your customers to contact with you'] = 'Ten moduł pozwala Twoim klientom na kontakt z Tobą';
 $_LANG['Ticket must have its body!'] = 'Musisz podać treść zgłoszenia!';
 $_LANG['Ticket must have its title!'] = 'Zgłoszenie musi mieć tytuł!';
@@ -74,4 +76,9 @@ $_LANG['Helpdesk visible ticket sources in Userpanel'] = 'Widoczne źródła zg�
 
 $_LANG['Allow to reopen tickets newer than:'] = 'Pozwól na ponowne otwieranie zgłoszeń nowszych niż:';
 
-?>
+$_LANG['Maximum total file size: $a'] = 'Maksymalny całkowity rozmiar plików: $a';
+$_LANG['Maximum single file size: $a'] = 'Maksymalny rozmiar pojedynczego pliku: $a';
+$_LANG['(unlimited)'] = '(nieograniczony)';
+$_LANG['One from files is too large!'] = 'Zbyt duży rozmiar jednego z plików!';
+$_LANG['Total file size is too large!'] = 'Zbyt duży całkowity rozmiar plików!';
+$_LANG['Request list:'] = 'Lista zgłoszeń:';

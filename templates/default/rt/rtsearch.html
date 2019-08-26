@@ -30,6 +30,19 @@
 	</TR>
 	<TR>
 		<TD class="bold nobr">
+			<IMG src="img/mail.gif" alt="">
+			{trans("Body:")}
+		</TD>
+		<TD>
+			<INPUT type="search" size="50" name="search[body][pattern]" value="{$search.body.pattern}" {tip text="Enter body fragment"}>
+			<label>
+				<input type="checkbox" name="search[body][regexp]" value="1"{if isset($search.body.regexp)} checked{/if}>
+				{trans("treat as regular expression")}
+			</label>
+		</TD>
+	</TR>
+	<TR>
+		<TD class="bold nobr">
 			<IMG src="img/customer.gif" alt="">
 			{trans("Requestor:")}
 		</TD>
@@ -53,6 +66,17 @@
 	</TR>
 	<TR>
 		<TD class="bold nobr">
+			<IMG src="img/home.gif" alt="">
+			{trans("Address:")}
+		</TD>
+		<TD class="nobr">
+			<INPUT type="text" name="search[address]" VALUE="{$search.address}">
+			<span class="bold">{trans("City:")}</span> <INPUT type="text" name="search[city]" VALUE="{$search.city}">
+			<span class="bold">{trans("Postcode:")}</span> <INPUT type="text" name="search[zip]" VALUE="{$search.zip}" SIZE="10">
+		</TD>
+	</TR>
+	<TR>
+		<TD class="bold nobr">
 			<IMG src="img/users.gif" alt="">
 			{trans("Owner:")}
 		</TD>
@@ -60,7 +84,7 @@
 			<SELECT size="1" name="search[owner]" {tip text="Select user/owner of the ticket"}>
 				<OPTION value="0">{trans("- all owners -")}</OPTION>
 				{foreach $userlist as $item}
-				<OPTION value="{$item.id}" {if $item.id == $search.owner}SELECTED{/if}>{$item.name}</OPTION>
+				<OPTION value="{$item.id}" {if $item.id == $search.owner}SELECTED{/if}>{$item.rname}</OPTION>
 				{/foreach}
 			</SELECT>
 		</TD>
@@ -90,6 +114,32 @@
 			{foreach $_RT_STATES as $idx => $s}
 				<OPTION value="{$idx}" {if is_array($queuedata.state) && in_array($idx, $queuedata.state)} SELECTED{/if}>{$s.label}</OPTION>
 			{/foreach}
+			</SELECT>
+		</TD>
+	<TR>
+		<TD class="bold nobr">
+			<IMG src="img/service-type.png" alt="">
+			{trans("Service:")}
+		</TD>
+		<TD>
+			<SELECT SIZE="1" name="search[service]" {tip text="Select ticket service" }>
+				<OPTION value="" {if $search.state==""}SELECTED{/if}>{trans("- all -")}</OPTION>
+				{foreach $_SERVICETYPES as $key => $ts}
+				<OPTION value="{$key}" {if is_array($queuedata.service) && in_array($key, $queuedata.service)} SELECTED{/if}>{$ts}</OPTION>
+				{/foreach}
+			</SELECT>
+		</TD>
+	<TR>
+		<TD class="bold nobr">
+			<IMG src="img/ticket-type.png" alt="">
+			{trans("Ticket type:")}
+		</TD>
+		<TD>
+			<SELECT SIZE="1" name="search[type]" {tip text="Select ticket type" }>
+				<OPTION value="" {if $search.type==""}SELECTED{/if}>{trans("- all -")}</OPTION>
+				{foreach $_RT_TYPES as $key => $tt}
+				<OPTION value="{$key}" {if is_array($queuedata.type) && in_array($key, $queuedata.type)} SELECTED{/if}>{$tt.label}</OPTION>
+				{/foreach}
 			</SELECT>
 		</TD>
 	</TR>
@@ -174,7 +224,7 @@
                         <SELECT size="1" name="search[verifierid]" {tip text="Select user/owner of the ticket"}>
                                 <OPTION value="0">{trans("- all owners -")}</OPTION>
                                 {foreach $userlist as $item}
-                                <OPTION value="{$item.id}" {if $item.id == $search.verifierid}SELECTED{/if}>{$item.name}</OPTION>
+                                <OPTION value="{$item.id}" {if $item.id == $search.verifierid}SELECTED{/if}>{$item.rname}</OPTION>
                                 {/foreach}
                         </SELECT>
 		</TD>

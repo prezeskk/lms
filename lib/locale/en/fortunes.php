@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2013 LMS Developers
+ *  (C) Copyright 2001-2018 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -95,7 +95,5 @@ $fortunes[] = "For every action there is an equal and opposite criticism.";
 $fortunes[] = "The bigger they are, the harder they hit.";
 $fortunes[] = "When somebody drops something, everyone will kick it around instead of picking it up.";
 
-mt_srand ((double) microtime()* 100000000);
-$layout[fortune] = $fortunes[mt_rand(0,sizeof($fortunes)-1)];
-
-?>
+mt_srand((double) microtime()* 100000000);
+$layout['fortune'] = $fortunes[mt_rand(0, count($fortunes)-1)];

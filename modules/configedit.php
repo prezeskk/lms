@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2013 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -24,112 +24,157 @@
  *  $Id$
  */
 
-function ConfigOptionExists($params) {
-	extract($params);
-	$DB = LMSDB::getInstance();
-	if (isset($section))
-		return $DB->GetOne('SELECT id FROM uiconfig WHERE section = ? AND var = ?',
-			array($section, $variable));
-	else
-		return $DB->GetOne('SELECT id FROM uiconfig WHERE id = ?', array($id));
+function ConfigOptionExists($params)
+{
+    extract($params);
+    $DB = LMSDB::getInstance();
+    if (isset($section)) {
+        return $DB->GetOne(
+            'SELECT id FROM uiconfig WHERE section = ? AND var = ?',
+            array($section, $variable)
+        );
+    } else {
+        return $DB->GetOne('SELECT id FROM uiconfig WHERE id = ?', array($id));
+    }
 }
 
-if (isset($_GET['s']) && isset($_GET['v']))
-	$params = array(
-		'section' => $_GET['s'],
-		'variable' => $_GET['v'],
-	);
-else
-	$params['id'] = $_GET['id'];
+if (isset($_GET['s']) && isset($_GET['v'])) {
+    $params = array(
+        'section' => $_GET['s'],
+        'variable' => $_GET['v'],
+    );
+} else {
+    $params['id'] = $_GET['id'];
+}
 
 $id = ConfigOptionExists($params);
-if (empty($id))
-	$SESSION->redirect('?m=configlist');
+if (empty($id)) {
+    $SESSION->redirect('?m=configlist');
+}
 
 if (isset($_GET['statuschange'])) {
-	if ($SYSLOG) {
-		$disabled = $DB->GetOne('SELECT disabled FROM uiconfig WHERE id = ?', array($id));
-		$args = array(
-			SYSLOG::RES_UICONF => $id,
-			'disabled' => $disabled ? 0 : 1
-		);
-		$SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_UPDATE, $args);
-	}
-	$DB->Execute('UPDATE uiconfig SET disabled = CASE disabled WHEN 0 THEN 1 ELSE 0 END WHERE id = ?',array($id));
-	$SESSION->redirect('?m=configlist');
+    if ($SYSLOG) {
+        $disabled = $DB->GetOne('SELECT disabled FROM uiconfig WHERE id = ?', array($id));
+        $args = array(
+            SYSLOG::RES_UICONF => $id,
+            'disabled' => $disabled ? 0 : 1
+        );
+        $SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_UPDATE, $args);
+    }
+    $DB->Execute('UPDATE uiconfig SET disabled = CASE disabled WHEN 0 THEN 1 ELSE 0 END WHERE id = ?', array($id));
+    $SESSION->redirect('?m=configlist');
 }
 
 $config = $DB->GetRow('SELECT * FROM uiconfig WHERE id = ?', array($id));
 $option = $config['section'] . '.' . $config['var'];
 $config['type'] = ($config['type'] == CONFIG_TYPE_AUTO) ? $LMS->GetConfigDefaultType($option) : $config['type'];
 
-if(isset($_POST['config']))
-{
-	$cfg = $_POST['config'];
-	$cfg['id'] = $id;
+$configusers = $DB->GetAll('SELECT c.*, u.login, u.firstname, u.lastname
+    FROM uiconfig c
+    LEFT JOIN users u on c.userid = u.id
+    WHERE c.configid = ?', array($config['id']));
 
-	foreach ($cfg as $key => $val)
-		if ($key != 'wysiwyg')
-			$cfg[$key] = trim($val);
+if (isset($_POST['config'])) {
+    $cfg = $_POST['config'];
+    $cfg['id'] = $id;
 
-	if(!ConfigHelper::checkPrivilege('superuser'))
-		$cfg['type'] = $config['type'];
+    foreach ($cfg as $key => $val) {
+        if ($key != 'wysiwyg') {
+            $cfg[$key] = trim($val);
+        }
+    }
 
-	if($cfg['var']=='')
-		$error['var'] = trans('Option name is required!');
-	elseif(strlen($cfg['var'])>64)
-		$error['var'] = trans('Option name is too long (max.64 characters)!');
-	elseif(!preg_match('/^[a-z0-9_-]+$/', $cfg['var']))
-		$error['var'] = trans('Option name contains forbidden characters!');
+    if (!ConfigHelper::checkPrivilege('superuser')) {
+        $cfg['type'] = $config['type'];
+    }
 
-	if(($cfg['var']!=$config['var'] || $cfg['section']!=$config['section'])
-		&& $LMS->GetConfigOptionId($cfg['var'], $cfg['section'])
-	)
-		$error['var'] = trans('Option exists!');
+    if ($cfg['var']=='') {
+        $error['var'] = trans('Option name is required!');
+    } elseif (strlen($cfg['var'])>64) {
+        $error['var'] = trans('Option name is too long (max.64 characters)!');
+    } elseif (!preg_match('/^[a-z0-9_-]+$/', $cfg['var'])) {
+        $error['var'] = trans('Option name contains forbidden characters!');
+    }
 
-	if(!preg_match('/^[a-z0-9_-]+$/', $cfg['section']) && $cfg['section']!='')
-		$error['section'] = trans('Section name contains forbidden characters!');
+    if (($cfg['var']!=$config['var'] || $cfg['section']!=$config['section'])
+        && $LMS->GetConfigOptionId($cfg['var'], $cfg['section'])
+    ) {
+        $error['var'] = trans('Option exists!');
+    }
 
-	$option = $cfg['section'] . '.' . $cfg['var'];
-	if($cfg['type'] == CONFIG_TYPE_AUTO)
-		$cfg['type'] = $LMS->GetConfigDefaultType($option);
+    if (!preg_match('/^[a-z0-9_-]+$/', $cfg['section']) && $cfg['section']!='') {
+        $error['section'] = trans('Section name contains forbidden characters!');
+    }
 
-	if($msg = $LMS->CheckOption($option, $cfg['value'], $cfg['type']))
-		$error['value'] = $msg;
+    $option = $cfg['section'] . '.' . $cfg['var'];
+    if ($cfg['type'] == CONFIG_TYPE_AUTO) {
+        $cfg['type'] = $LMS->GetConfigDefaultType($option);
+    }
 
-	if(!isset($cfg['disabled'])) $cfg['disabled'] = 0;
+    if ($msg = $LMS->CheckOption($option, $cfg['value'], $cfg['type'])) {
+        $error['value'] = $msg;
+    }
 
-	if (!$error) {
-		if(isset($_POST['richtext']))
-			$cfg['type'] = CONFIG_TYPE_RICHTEXT;
+    if (!isset($cfg['disabled'])) {
+        $cfg['disabled'] = 0;
+    }
 
-		$args = array(
-			'section' => $cfg['section'],
-			'var' => $cfg['var'],
-			'value' => $cfg['value'],
-			'description' => $cfg['description'],
-			'disabled' => $cfg['disabled'],
-			'type' => $cfg['type'],
-			SYSLOG::RES_UICONF => $cfg['id']
-		);
-		$DB->Execute('UPDATE uiconfig SET section = ?, var = ?, value = ?, description = ?, disabled = ?, type = ? WHERE id = ?',
-			array_values($args));
+    if (!$error) {
+        if (isset($_POST['richtext'])) {
+            $cfg['type'] = CONFIG_TYPE_RICHTEXT;
+        }
 
-		if ($SYSLOG)
-			$SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_UPDATE, $args);
+        $args = array(
+            'section' => $cfg['section'],
+            'var' => $cfg['var'],
+            'value' => $cfg['value'],
+            'description' => $cfg['description'],
+            'disabled' => $cfg['disabled'],
+            'type' => $cfg['type'],
+            SYSLOG::RES_UICONF => $cfg['id']
+        );
 
-		$SESSION->redirect('?m=configlist');
-	}
-	$config = $cfg;
+        $DB->BeginTrans();
+        $DB->Execute(
+            'UPDATE uiconfig SET section = ?, var = ?, value = ?, description = ?, disabled = ?, type = ? WHERE id = ?',
+            array_values($args)
+        );
+
+        if ($SYSLOG) {
+            $SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_UPDATE, $args);
+        }
+
+        if ($cfg['section'] != $config['section'] || $cfg['var'] != $config['var'] || $cfg['type'] != $config['type']) {
+            $userargs = array(
+                'newsection' => $cfg['section'],
+                'newvar' => $cfg['var'],
+                'type' => $cfg['type'],
+                'oldsection' => $config['section'],
+                'oldvar' => $config['var'],
+                SYSLOG::RES_UICONF => $cfg['id']
+            );
+
+            $DB->Execute(
+                'UPDATE uiconfig SET section = ?, var = ? , type = ? WHERE section = ? AND var = ?',
+                array_values($userargs)
+            );
+
+            if ($SYSLOG) {
+                $SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_UPDATE, $userargs);
+            }
+        }
+        $DB->CommitTrans();
+        $SESSION->redirect('?m=configlist');
+    }
+    $config = $cfg;
 }
 
-$layout['pagetitle'] = trans('Option Edit: $a',$option);
+$layout['pagetitle'] = trans('Option Edit: $a', $option);
 
 $SESSION->save('backto', $_SERVER['QUERY_STRING']);
 
 $SMARTY->assign('sections', $LMS->GetConfigSections());
 $SMARTY->assign('error', $error);
 $SMARTY->assign('config', $config);
+$SMARTY->assign('configusers', $configusers);
 $SMARTY->display('config/configedit.html');
-
-?>

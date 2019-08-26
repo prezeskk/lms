@@ -23,6 +23,17 @@
 		</TD>
 	</TR>
 	{/if}
+	{if $ticket.invprojectid}
+	<TR>
+		<TD class="bold nobr">
+			<IMG src="img/money.gif" alt="">
+			{trans("Investment project:")}
+		</TD>
+		<TD>
+			{$ticket.invproject_name} ({$ticket.invprojectid})
+		</TD>
+	</TR>
+	{/if}
 	<TR>
 		<TD class="bold nobr">
 			<IMG src="img/time.gif" alt="">
@@ -51,14 +62,37 @@
 		<TD>
 			{$_RT_PRIORITIES[$ticket.priority]}
 		</TD>
-	{if $ticket.message}
+	</TR>
+        {if $ticket.parentid}
+        <TR>
+                <TD class="bold nobr">
+                        <i class="lms-ui-icon-content lms-ui-icon-parentticket"></i>{trans("Parent ticket:")}
+                </TD>
+                <TD>
+                        <A href="?m=rtticketview&amp;id={$ticket.parentid}">{t a=$ticket.parentid|string_format:"%06d"}$a{/t}</A><br>
+                </TD>
+        </TR>
+        {/if}
+	{if $ticket.relatedtickets}
 	<TR>
 		<TD class="bold nobr">
+			<i class="lms-ui-icon-content lms-ui-icon-relatedticket"></i>{trans("Related tickets:")}
+		</TD>
+		<TD>
+			{foreach $ticket.relatedtickets as $i}
+			<A href="?m=rtticketview&amp;id={$i.id}">{t a=$i.id|string_format:"%06d"}$a{/t}</A><br>
+			{/foreach}
+		</TD>
+	</TR>
+	{/if}
+	{if $ticket.message}
+	<TR>
+		<TD class="bold">
 			<IMG src="img/info.gif" alt="">
 			{trans("Body:")}
 		</TD>
 		<TD>
-			<TABLE width="{if strlen($ticket.message)<50}100%{else}300{/if}" cellpadding="5">
+			<TABLE width="{if strlen($ticket.message)<50}100%{/if}" cellpadding="5">
 				<TR>
 					<TD class="fall superlight">
 						{$ticket.message|replace:"\n":"<BR>"}

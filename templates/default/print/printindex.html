@@ -180,7 +180,7 @@
 								<TD style="width: 1%;"><IMG src="img/calendar.gif" alt=""></TD>
 								<TD style="width: 1%;" class="bold nobr">{trans("Balance date:")}</TD>
 								<TD style="width: 98%;" class="nobr">
-									<INPUT type="text" name="day" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
+									<INPUT type="text" name="day" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
 								</TD>
 							</TR>
 							<TR>
@@ -194,8 +194,8 @@
 										{/foreach}
 									</SELECT>
 									<span class="bold nobr">{trans("in date:")}</span>
-									{trans("From")}&nbsp;<INPUT type="text" name="docfrom" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
-									{trans("To")}&nbsp;<INPUT type="text" name="docto" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
+									{trans("From")}&nbsp;<INPUT type="text" name="docfrom" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
+									{trans("To")}&nbsp;<INPUT type="text" name="docto" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
 								</TD>
 							</TR>
                                                         <TR>
@@ -365,8 +365,9 @@
 					</TD>
 					<TD style="width: 95%;" class="nobr">
 						<span class="bold nobr">{trans("Period:")}</span>
-						{trans("From")}&nbsp;<INPUT type="text" name="balancefrom" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
-						{trans("To")}&nbsp;<INPUT type="text" name="balanceto" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+						{date_period_preset from="#printbalancelist [name=\"balancefrom\"]" to="#printbalancelist [name=\"balanceto\"]"}
+						{trans("From")}&nbsp;<INPUT type="text" name="balancefrom" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
+						{trans("To")}&nbsp;<INPUT type="text" name="balanceto" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
 					</TD>
 				</TR>
 			</TABLE>
@@ -418,8 +419,26 @@
 					</TD>
 					<TD style="width: 96%;" class="nobr">
 						<span class="bold nobr">{trans("Period:")}</span>&nbsp;
-						{trans("From")}&nbsp;<INPUT type="text" name="from" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means 1970/01/01) or click to choose it from calendar"}>
-						{trans("To")}&nbsp;<INPUT type="text" name="to" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+						{date_period_preset from="#printcustomerbalance [name=\"from\"]" to="#printcustomerbalance [name=\"to\"]"}
+						{trans("From")}&nbsp;<INPUT type="text" name="from" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means 1970/01/01) or click to choose it from calendar"}>
+						{trans("To")}&nbsp;<INPUT type="text" name="to" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+					</TD>
+				</TR>
+			</TABLE>
+		</TD>
+	</TR>
+	<TR>
+		<TD style="width: 100%;" class="container" colspan="2">
+			<TABLE width="100%" cellpadding="3">
+				<TR>
+					<TD style="width: 1%;">
+						<img src="img/group.gif" alt="">
+					</TD>
+					<TD style="width: 99%;" colspan="4">
+						<label>
+							{trans("Aggregate documents")}
+							<input type="checkbox" name="aggregate_documents" value="1"{if ConfigHelper::checkConfig('phpui.aggregate_documents')} checked{/if}>
+						</label>
 					</TD>
 				</TR>
 			</TABLE>
@@ -550,10 +569,11 @@
 						            {trans("Period:")}
 					            </TD>
 					            <TD style="width: 1%;" class="nobr">
-						            {trans("From")}&nbsp;<INPUT type="text" name="from" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+									{date_period_preset from="#invoicereport [name=\"from\"]" to="#invoicereport [name=\"to\"]"}
+									{trans("From")}&nbsp;<INPUT type="text" name="from" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
 					            </TD>
 					            <TD style="width: 98%;" class="nobr">
-						            {trans("To")}&nbsp;<INPUT type="text" name="to" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+						            {trans("To")}&nbsp;<INPUT type="text" name="to" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
 					            </TD>
 					        </TR>
 						    <TR>
@@ -576,9 +596,10 @@
 									{trans("Type:")}
 								</TD>
 								<TD colspan="2">
-									<SELECT name="doctype" {tip text="Select document type"}>
+									<SELECT name="doctype[]" {tip class="lms-ui-multiselect" text="Select document type"} multiple data-default-value="{trans("- all -")}">
 										<OPTION value="invoices">{trans("invoices")}</OPTION>
-										<OPTION value="notes">{trans("debit notes")}</OPTION>
+										<OPTION value="cnotes">{trans("credit notes")}</OPTION>
+										<OPTION value="dnotes" data-exclusive>{trans("debit notes")}</OPTION>
 									</SELECT>
 								</TD>
 					        </TR>
@@ -680,8 +701,9 @@
 					</TD>
 					<TD style="width: 1%;" class="nobr">
 						<span class="bold nobr">{trans("Period:")}</span>&nbsp;
-						{trans("From")}&nbsp;<INPUT type="text" name="from" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
-						{trans("To")}&nbsp;<INPUT type="text" name="to" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+						{date_period_preset from="#printreceiptlist [name=\"from\"]" to="#printreceiptlist [name=\"to\"]"}
+						{trans("From")}&nbsp;<INPUT type="text" name="from" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+						{trans("To")}&nbsp;<INPUT type="text" name="to" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
 					</TD>
 					<TD style="width: 97%;" class="nobr">
 						<input type="checkbox" name="extended" value="1" id="receiptlist-extended"><label for="receiptlist-extended">{trans("extended format")}</label>
@@ -720,10 +742,12 @@
 
 	function export_to_jpk(type) {
 		if ($('form[name="printinvoices"] select[name="division"]').val() == '0') {
-			alert('{trans("Division not selected!")}');
+			alertDialog($t("Division not selected!"), $(".export_to_jpk"));
 			return;
 		}
-		document.printinvoices.action = "?m=print&type=invoices&jpk=" + type;
+
+		document.printinvoices.action = "?m=print&type=invoices&jpk=" + type + '&jpk_format='
+			+ $('form[name="printinvoices"] select[name="format"]').val();
 		document.printinvoices.submit();
 	}
 //-->
@@ -831,9 +855,10 @@
 									<IMG src="img/calendar.gif" alt="">
 								</TD>
 								<TD style="width: 1%;" class="nobr">
-									<span class="bold nobr">{trans("Period:")}</span>&nbsp;
-									{trans("From")}&nbsp;<INPUT type="text" name="invoicefrom" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
-									{trans("To")}&nbsp;<INPUT type="text" name="invoiceto" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+									<span class="bold nobr">{trans("Period:")}</span>
+									{date_period_preset from="#printinvoices [name=\"invoicefrom\"]" to="#printinvoices [name=\"invoiceto\"]"}
+									{trans("From")}&nbsp;<INPUT type="text" name="invoicefrom" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+									{trans("To")}&nbsp;<INPUT type="text" name="invoiceto" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
 								</TD>
 								<TD style="width: 1%;">
 									<IMG src="img/info.gif" alt="">
@@ -876,8 +901,15 @@
 	</TR>
 	<TR>
 		<TD style="width: 100%;" colspan="2" align="right">
-			<a href="javascript:export_to_jpk('fa');">{trans("Export to JPK-FA format")} <img src="img/docum.gif" alt=""></a>
-			<a href="javascript:export_to_jpk('vat');">{trans("Export to JPK-VAT format")} <img src="img/docum.gif" alt=""></a>
+			<label>
+				{trans("JPK format:")}
+				<SELECT name="format">
+					<OPTION value="xml">{trans("XML")}</OPTION>
+					<OPTION value="csv">{trans("CSV")}</OPTION>
+				</SELECT>
+			</label>
+			<a class="export_to_jpk" href="javascript:export_to_jpk('fa');">{trans("Export to JPK-FA format")} <img src="img/docum.gif" alt=""></a>
+			<a class="export_to_jpk" href="javascript:export_to_jpk('vat');">{trans("Export to JPK-VAT format")} <img src="img/docum.gif" alt=""></a>
 			<a href="javascript:print_forms();">{trans("Print form of cash transfer")} <img src="img/print.gif" alt=""></a>
 			<A href="javascript:print();">{trans("Print")} <IMG src="img/print.gif" alt="" hspace="2"></A>
 		</TD>
@@ -988,8 +1020,9 @@
 					</TD>
 					<TD style="width: 99%;" class="nobr">
 						<span class="bold nobr">{trans("Period:")}</span>&nbsp;
-						{trans("From")}&nbsp;<INPUT type="text" name="from" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
-						{trans("To")}&nbsp;<INPUT type="text" name="to" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+						{date_period_preset from="#printincomereport [name=\"from\"]" to="#printincomereport [name=\"to\"]"}
+						{trans("From")}&nbsp;<INPUT type="text" name="from" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
+						{trans("To")}&nbsp;<INPUT type="text" name="to" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
 					</TD>
 				</TR>
 			</TABLE>
@@ -1080,7 +1113,7 @@
 								</TD>
 								<TD class="bold nobr">
 									{trans("Day:")}&nbsp;
-									<INPUT type="text" name="day" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+									<INPUT type="text" name="day" size="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
 								</TD>
 								<TD>
 									<IMG src="img/view.gif" alt="">
@@ -1166,8 +1199,9 @@
 					</TD>
 					<TD style="width: 96%;" class="nobr">
 						<span class="bold nobr">{trans("Period:")}</span>
-						{trans("From")}&nbsp;<INPUT type="text" name="importfrom" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
-						{trans("To")}&nbsp;<INPUT type="text" name="importto" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="calendar" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+						{date_period_preset from="#printimportlist [name=\"importfrom\"]" to="#printimportlist [name=\"importto\"]"}
+						{trans("From")}&nbsp;<INPUT type="text" name="importfrom" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
+						{trans("To")}&nbsp;<INPUT type="text" name="importto" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
 					</TD>
 				</TR>
 			</TABLE>
@@ -1344,7 +1378,7 @@
 </FORM>
 {/if}
 {if $printmenu=="netdev"}
-<form method="post" name="printnetdev" id="printnetdev" action="?m=netdevprint&type=uke">
+<form method="post" name="uke-siis" id="uke-siis" action="?m=netdevprint&type=uke-siis">
 <input type="submit" class="hiddenbtn">
 <table class="lmsbox">
     <colgroup>
@@ -1355,49 +1389,12 @@
     <thead>
 	<tr>
 		<th scope="col" colspan="3" class="bold nobr">
-		    <img src="img/netdev.gif" alt=""> {trans("UKE report")}
+		    <img src="img/netdev.gif" alt=""> {trans("UKE SIIS report")}
 		</th>
 	</tr>
     </thead>
     <tbody>
-{*
-		<TD class="fleft container">
-			<TABLE width="100%" cellpadding="3">
-				<TR>
-					<TD style="width: 1%;">
-						<IMG src="img/money.gif" alt="">
-					</TD>
-					<TD style="width: 1%;" class="bold nobr">
-						{trans("Investment project:")}
-					</TD>
-					<TD style="width: 98%;">
-						{if $invprojects}
-						<SELECT name="invprojects[]" class="lms-ui-multiselect" {tip text="Select investment projects"} multiple data-default-value="{trans("- all -")}">
-							{foreach $invprojects as $invproject}
-							<OPTION value="{$invproject.id}">{$invproject.name}</OPTION>
-							{/foreach}
-						</SELECT>
-						{else}
-						{trans("all")}
-						<INPUT type="hidden" name="invprojects" value="0">
-						{/if}
-					</TD>
-				</TR>
-			</TABLE>
-		</TD>
-*}
 	<tr>
-		<td><img src="img/edit.gif" alt=""></td>
-		<td class="bold nobr">
-			{trans("Format type:")}
-		</td>
-		<td class="nobr">
-			<input type="radio" name="format" value="1" id="format1"> <label for="format1">{trans("multi file zip archive (lms legacy format)")}</label><br>
-			<input type="radio" name="format" value="2" id="format2" checked> <label for="format2">{trans("single csv file (uke siis format)")}</label>
-		</td>
-	</tr>
-
-	<tr class="space_row">
 		<td>
 			<img src="img/docum.gif" alt="">
 		</td>
@@ -1421,8 +1418,22 @@
 		</td>
 	</tr>
 
+	<tr>
+		<td>
+			<img src="img/netdev.gif" alt="">
+		</td>
+		<td class="bold nobr">
+			<label for="customernetdevices">
+				{trans("Include customer network device assignments:")}
+			</label>
+		</td>
+		<td>
+			<input type="checkbox" name="customernetdevices" id="customernetdevices" value="1">
+		</td>
+	</tr>
+
 	{if $linktypes}
-	<tr class="space_row">
+	<tr>
 		<td class="valign-top"><img src="img/view.gif" alt=""></td>
 		<td class="bold valign-top">{trans('Potential range')}:</td>
 		<td>
@@ -1449,8 +1460,8 @@
 	{/if}
 
 	<tr>
-		<td style="width: 100%;" colspan="3" align="right">
-			<a href="javascript:document.printnetdev.submit();">{trans("Save")} <img src="img/save.gif" alt=""></a>
+		<td colspan="3" class="buttons">
+			<a href="javascript:document.forms['uke-siis'].submit();">{trans("Save")} <img src="img/save.gif" alt=""></a>
 		</td>
 	</tr>
     </tbody>
@@ -1474,5 +1485,57 @@
 </script>
 
 </FORM>
+
+<form method="post" name="uke-income" id="uke-income" action="?m=netdevprint&type=uke-income" target="_blank">
+	<input type="submit" class="hiddenbtn">
+	<table class="lmsbox">
+		<colgroup>
+			<col style="width: 1%;">
+			<col style="width: 1%;">
+			<col style="width: 99%;">
+		</colgroup>
+		<thead>
+		<tr>
+			<th scope="col" colspan="3" class="bold nobr">
+				<img src="img/money.gif" alt=""> {trans("UKE income report")}
+			</th>
+		</tr>
+		</thead>
+		<tbody>
+		<tr>
+			<TD>
+				<IMG src="img/calendar.gif" alt="">
+			</TD>
+			<TD class="bold nobr">
+				{trans("Period:")}
+			</TD>
+			<TD class="nobr">
+				{date_period_preset from="#uke-income [name=\"from\"]" to="#uke-income [name=\"to\"]" periods="previous-year,previous-month,current-year,current-month,next-month,next-year"}
+				{trans("From")}&nbsp;<INPUT type="text" name="from" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format or click to choose it from calendar"}>
+				{trans("To")}&nbsp;<INPUT type="text" name="to" SIZE="10" maxlength="10" placeholder="{trans("yyyy/mm/dd")}" {tip class="lms-ui-date" text="Enter date in 'yyyy/mm/dd' format (empty field means current date) or click to choose it from calendar"}>
+			</TD>
+		</tr>
+		<tr>
+			<td>
+				<img src="img/tax.gif" alt="">
+			</td>
+			<td class="bold nobr">
+				<label for="brutto">
+					{trans("Brutto:")}
+				</label>
+			</td>
+			<td>
+				<input type="checkbox" name="brutto" id="brutto" value="1">
+			</td>
+		</tr>
+		<tr>
+			<td colspan="3" class="buttons">
+				<a href="javascript:document.forms['uke-income'].submit();">{trans("Save")} <img src="img/save.gif" alt=""></a>
+			</td>
+		</tr>
+		</tbody>
+	</table>
+</FORM>
+
 {/if}
 {/block}

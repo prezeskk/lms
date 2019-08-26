@@ -3,7 +3,7 @@
 /*
  *  LMS version 1.11-git
  *
- *  Copyright (C) 2001-2013 LMS Developers
+ *  Copyright (C) 2001-2018 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -26,16 +26,15 @@
 
 /**
  * LMSNetDevManagerInterface
- * 
- * @author Maciej Lew <maciej.lew.1987@gmail.com>
+ *
  */
 interface LMSNetDevManagerInterface
 {
     public function GetNetDevLinkedNodes($id);
 
-    public function NetDevLinkNode($id, $devid, $link = NULL);
+    public function NetDevLinkNode($id, $devid, $link = null);
 
-    public function SetNetDevLinkType($dev1, $dev2, $link = NULL);
+    public function SetNetDevLinkType($dev1, $dev2, $link = null);
     
     public function IsNetDevLink($dev1, $dev2);
     
@@ -56,7 +55,9 @@ interface LMSNetDevManagerInterface
     public function GetNotConnectedDevices($id);
     
     public function GetNetDevNames();
-    
+
+    public function GetNetDevName($id);
+
     public function GetNetDevList($order = 'name,asc');
     
     public function GetNetDevConnectedNames($id);
@@ -68,4 +69,24 @@ interface LMSNetDevManagerInterface
     public function GetNetDevIDByNode($id);
     
     public function NetDevExists($id);
+
+    public function GetProducers();
+
+    public function GetModels($producerid = null);
+
+    public function GetRadioSectors($netdevid, $technology = 0);
+
+    public function AddRadioSector($netdevid, array $radiosector);
+
+    public function DeleteRadioSector($id);
+
+    public function UpdateRadioSector($id, array $radiosector);
+
+    public function GetManagementUrls($type, $id);
+
+    public function AddManagementUrl($type, $id, array $url);
+
+    public function DeleteManagementUrl($type, $id);
+
+    public function updateManagementUrl($type, $id, array $url);
 }

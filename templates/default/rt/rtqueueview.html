@@ -3,8 +3,11 @@
 {block name=module_content}
 <!-- $Id$ -->
 <H1>{$layout.pagetitle}</H1>
-<TABLE class="lmsbox">
+
+<TABLE class="lmsbox lms-ui-background-cycle lms-ui-multi-check">
     <COLGROUP>
+        <COL style="width: 1%;">
+        <COL style="width: 1%;">
         <COL style="width: 1%;">
         <COL style="width: 1%;">
         <COL style="width: 50%;">
@@ -17,15 +20,20 @@
     <THEAD>
         {include file="rt/rtfilter.html"}
         <TR>
-            <TD class="pagination text-center" colspan="7">
-                {if $queuedata.total != 0}
-                {include file="scroller.html" listdata=$queuedata loop=$queue}
+            <TD class="lms-ui-pagination" COLSPAN="6">
+                {if $pagination->getTotal() != 0}
+                {include file="pagination.html" form="filter-form"}
                 {/if}
             </TD>
-            <TD class="pagination text-right nobr">
-                <A HREF="?m=rtticketadd{if isset($queuedata.id) && (!is_array($queuedata.id) || count($queuedata.id) == 1)}&id={$queuedata.id[0]}{/if}"><IMG src="img/save.gif" ALT=""> {trans("Create")}</A>
-            </TD>
-        </TR>
+			<TD class="lms-ui-pagination text-right nobr" colspan="4">
+				<label> <input type="checkbox" class="lms-ui-multi-check-all">
+					{trans("Check All")}
+				</label>
+				{button icon="fas fa-reply-all" class="group-action-run" label="Run group action"}
+				{button icon="add" onclick="location.href = '?m=rtticketadd{if $filter.ids}{if !is_array($filter.ids)}&id={$filter.ids}{else}{if count($filter.ids) == 1}&id={$filter.ids[0]}{/if}{/if}{/if}';"
+					label="New Ticket"}
+			</TD>
+		</TR>
         {include file="rt/rtheader.html"}
     </THEAD>
     <TBODY>
@@ -33,15 +41,83 @@
     </TBODY>
     <TFOOT>
         <TR>
-            <TD class="pagination text-center" colspan="7">
-                {if $queuedata.total != 0}
-                {include file="scroller.html" listdata=$queuedata loop=$queue}
+            <TD class="lms-ui-pagination" COLSPAN="6">
+                {if $pagination->getTotal() != 0}
+                {include file="pagination.html" form="filter-form"}
                 {/if}
             </TD>
-            <TD class="pagination text-right nobr">
-                <A HREF="?m=rtticketadd{if isset($queuedata.id) && (!is_array($queuedata.id) || count($queuedata.id) == 1)}&id={$queuedata.id[0]}{/if}"><IMG src="img/save.gif" ALT=""> {trans("Create")}</A>
-            </TD>
-        </TR>
+			<TD class="lms-ui-pagination text-right nobr" colspan="4">
+				<label> <input type="checkbox" class="lms-ui-multi-check-all">
+					{trans("Check all")}
+				</label>
+				{button icon="fas fa-reply-all" class="group-action-run" label="Run group action"}
+				{button icon="add" onclick="location.href = '?m=rtticketadd{if $filter.ids}{if !is_array($filter.ids)}&id={$filter.ids}{else}{if count($filter.ids) == 1}&id={$filter.ids[0]}{/if}{/if}{/if}';"
+					label="New Ticket"}
+			</TD>
+		</TR>
     </TFOOT>
 </TABLE>
+<script>
+
+	function get_backid(elem) {
+		var ticket = $(elem).closest('.single-ticket').prev('.single-ticket');
+		if (ticket.length) {
+			return '&backid=' + ticket.attr('id');
+		}
+		return '';
+	}
+
+	$(function() {
+		function disableLink() {
+			var disabled = $('.lms-ui-multi-check:checked').length < 2;
+			if (disabled) {
+				$('.group-action-run').prop('disabled', true);
+			} else {
+				$('.group-action-run').prop('disabled', false);
+			}
+		};
+		disableLink();
+
+		$('.lms-ui-multi-check:checkbox,.lms-ui-multi-check-all:checkbox').click(function () {
+			disableLink();
+		});
+
+		$('.group-action-run').click(function () {
+			var ticketid = [];
+			$('[name="ticketid[]"]:checked').each(function () {
+				ticketid.push($(this).val());
+			});
+			location.href = '?m=rtmessageadd&ticketid[]=' + ticketid.join('&ticketid[]=');
+		});
+
+		$('.delete-ticket').click(function() {
+			var link = $(this).attr('href');
+			var fulllink = link + get_backid(this);
+			var name = $(this).closest('tr').attr('data-name');
+			confirmDialog($t("Are you sure, you want to remove ticket $a?", name), this).done(function() {
+				location.href = fulllink;
+			});
+			return false;
+		});
+		$('.restore-ticket').click(function() {
+			var link = $(this).attr('href');
+			var fulllink = link + get_backid(this);
+			var name = $(this).closest('tr').attr('data-name');
+			confirmDialog($t("Are you sure, you want to restore ticket $a?", name), this).done(function() {
+				location.href = fulllink;
+			});
+			return false;
+		});
+		$('.remove-ticket').click(function() {
+			var link = $(this).attr('href');
+			var fulllink = link + get_backid(this);
+			var name = $(this).closest('tr').attr('data-name');
+			confirmDialog($t("Are you sure, you want to permanently remove ticket $a?", name), this).done(function() {
+				location.href = fulllink;
+			});
+			return false;
+		});
+	});
+
+</script>
 {/block}

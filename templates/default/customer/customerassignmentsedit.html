@@ -3,6 +3,10 @@
 {block name=module_content}
 <!--// $Id$ //-->
 <H1>{$layout.pagetitle}</H1>
+
+{$speed_unit_type = ConfigHelper::getConfig('phpui.speed_unit_type', 1000)}
+{$speed_unit_aggregation_threshold = ConfigHelper::getConfig('phpui.speed_unit_aggregation_threshold', 5)}
+
 <FORM method="POST" name="assignment" action="?m={$layout.module}{if $assignment.id}&id={$assignment.id}{if $assignment.liabilityid}&lid={$assignment.liabilityid}{/if}{else}&id={$customerinfo.id}{/if}">
 <INPUT type="submit" class="hiddenbtn">
 <TABLE class="lmsbox">
@@ -26,6 +30,7 @@
 						<td>
 							<input type="hidden" value="" name="assignment[tarifftype]" id="tarifftype">
 							<select id="tariff-select" size="1" name="assignment[tariffid]" {tip text="Select liability type" trigger="tariffid"}>
+								{block name="customerassignmentsedit-special-tariffs"}
 								<option value=""   data-tarifftype="0" {if !$assignment.tariffid} selected{/if}>- {trans("tariffless liability")} -</option>
 								<option value="-1" data-tarifftype="0" {if $assignment.tariffid == -1} selected{/if}>{trans("- all liabilities suspended -")}</option>
 
@@ -33,9 +38,11 @@
 									<option value="-2" data-tarifftype="0" {if $assignment.tariffid == -2} selected{/if}>- {trans("per promotion schema")} -</option>
 								{/if}
 
+								{/block}
+
 								{foreach $tariffs as $tariff}
 									<option value="{$tariff.id}" data-tarifftype="{$tariff.tarifftype}" data-tariffaccess="{$tariff.authtype}" data-tarifftags="{$tariff.tags}" {if $tariff.id==$assignment.tariffid} selected{/if} data-valid="{$tariff.valid}"{if !$tariff.valid} class="blend"{if !$assignment.alltariffs} style="display: none;"{/if}{/if}>
-									{$tariff.name} ({if ConfigHelper::checkConfig('privileges.superuser') || !ConfigHelper::checkConfig('privileges.hide_finances')}{$tariff.value|money_format}{/if}{if $tariff.upceil || $tariff.downceil}, {$tariff.downceil}/{$tariff.upceil} kbit/s{/if})
+									{$tariff.name} ({if ConfigHelper::checkConfig('privileges.superuser') || !ConfigHelper::checkConfig('privileges.hide_finances')}{$tariff.value|money_format}{/if}{if $tariff.upceil || $tariff.downceil}, {convert_to_units($tariff.downceil * $speed_unit_type, $speed_unit_aggregation_threshold, $speed_unit_type)}/{convert_to_units($tariff.upceil * $speed_unit_type, $speed_unit_aggregation_threshold, $speed_unit_type)}{/if})
 									</option>
 								{/foreach}
 							</select>
@@ -66,7 +73,7 @@
 
     <TBODY>
 		<tr>
-			<td colspan="3" class="contrainer">
+			<td colspan="3" class="container">
                 {include file="customer/customerassignmenthelper.html" variable_prefix="assignment" variables=$assignment}
             </TD>
 		</TR>
@@ -103,8 +110,8 @@
 	var assignment_settings = {
 		customerid: {$customerinfo.id},
 		selected: selected,
-		internetTariffType: {$smarty.const.TARIFF_INTERNET},
-		phoneTariffType: {$smarty.const.TARIFF_PHONE},
+		internetTariffType: {$smarty.const.SERVICE_INTERNET},
+		phoneTariffType: {$smarty.const.SERVICE_PHONE},
 		tariffTypes: tariffTypes,
 		variablePrefix: 'assignment',
         hideFinances: {if !ConfigHelper::checkConfig('privileges.superuser') && ConfigHelper::checkConfig('privileges.hide_finances')}true{else}false{/if}
@@ -115,6 +122,7 @@
 		$('#submit-button').click(function(e) {
 			{if ConfigHelper::checkConfig('phpui.node_assignment_warning')}
 			var tariffid = parseInt($('form[name="assignment"] select[name="assignment[tariffid]"]').val());
+			console.log('tariffid =', tariffid);
 
 			if (isNaN(tariffid)) {
 				document.assignment.submit();
@@ -130,12 +138,16 @@
                     	return;
 					break;
 				default:
-					if (tariffTypes[tariffid] == {$smarty.const.TARIFF_INTERNET}
-				        && !$('#nodelist :checked:not([name="allbox"])').length
-				        && !confirm('{trans("No nodes has been selected for assignment, by at least one is recommended! Are you sure you want to continue despite of this?")}')) {
-					    e.stopImmediatePropagation();
-					    return;
-				    }
+					if (tariffTypes[tariffid] == {$smarty.const.SERVICE_INTERNET} && !$('#nodelist :checked:not([name="allbox"])').length) {
+						confirmDialog($t("No nodes has been selected for assignment, by at least one is recommended! Are you sure you want to continue despite of this?"), this)
+								.done(function() {
+									document.assignment.submit();
+								})
+								.fail(function() {
+									e.stopImmediatePropagation();
+								});
+						return;
+					}
 					break;
 			}
 			{/if}

@@ -7,14 +7,14 @@
     <meta http-equiv="Content-Type" content="text/html; charset={$LANGDEFS.$_ui_language.charset}">
     <title>::: LMS :{if $layout.pagetitle != ""} {$layout.pagetitle} :{/if}::</title>
     {include file="jquery.html" language=$LANGDEFS.$_ui_language.html}
-    <link href="img/style.css" rel="stylesheet" type="text/css">
-    <script type="text/javascript" src="img/common.js"></script>
-    <script type="text/javascript" src="img/autosuggest.js"></script>
+    <link href="css/style.css" rel="stylesheet" type="text/css">
+    <script type="text/javascript" src="js/common.js"></script>
+    <script type="text/javascript" src="js/autosuggest.js"></script>
     {$xajax}
 </head>
-<body class="light">
+<body class="light lms-ui-popup">
 <div id="overDiv" style="position:absolute; visibility:hidden; z-index:100;"></div>
-    <script type="text/javascript" src="img/overlib.js"></script>
+    <script type="text/javascript" src="js/overlib.js"></script>
 
     {if !empty($states)}
     <div id="autosuggest"><ul></ul></div>
@@ -197,23 +197,23 @@ function submit_location() {
     var tmp, input_str;
 
     if (cr.style.display == 'none' || city.value == 0) {
-        alert('{trans("City has not been selected!")}');
-        return;
+		window.parent.alertDialog($t("City has not been selected!"));
+		return;
     }
 
     if (house.value == '') {
-        alert('{trans("House number is required!")}');
-        return;
+		window.parent.alertDialog($t("House number is required!"));
+		return;
     }
 
     if (house.length > 8) {
-        alert('{trans("House number is too long (max. 8 characters)!")}');
+		window.parent.alertDialog($t("House number is too long (max. 8 characters)!"));
         return;
     }
 
     if (flat.length > 8) {
-        alert('{trans("Flat number is too long (max. 8 characters)!")}');
-        return;
+		window.parent.alertDialog($t("Flat number is too long (max. 8 characters)!"));
+		return;
     }
 
     // SET CITY
@@ -229,9 +229,17 @@ function submit_location() {
     // SET STREET
     var street_option = $('option:selected', street);
     if (street_option.val()) {
-    	location_box.find( "input[data-address='street']"        ).val( street_option.attr('data-street-type')
-			+ (typeof(street_option.attr('data-street-name-2')) !== 'undefined' ? ' ' + street_option.attr('data-street-name-2') : '')
-			+ ' ' + street_option.attr('data-street-name-1') );
+    	var street_parts = [];
+    	street_parts.push(street_option.attr('data-street-type'));
+		if (typeof(street_option.attr('data-street-name-2')) !== 'undefined') {
+			street_parts.push(street_option.attr('data-street-name-2'));
+		}
+		street_parts.push(street_option.attr('data-street-name-1'));
+		if (street_parts[0].match(/^rynek$/i) &&
+			(street_parts[1].match(/^rynek/i) || (street_parts.length == 3 && street_parts[2].match(/^rynek/i)))) {
+			street_parts.shift();
+		}
+    	location_box.find( "input[data-address='street']"        ).val( street_parts.join(' ') );
         location_box.find( "input[data-address='street-hidden']" ).val( street_option.val() );
     } else {
         location_box.find( "input[data-address='street']"        ).val( '' );
@@ -243,7 +251,7 @@ function submit_location() {
     location_box.find( "input[data-address='flat']"  ).val( flat.value );
 
     // SET LOCATION NAME
-    location_box.find( "input[data-address='location-name']" ).val( $( '#location-name' ).val() );
+    //location_box.find( "input[data-address='location-name']" ).val( $( '#location-name' ).val() );
 
     // SET STATE
     location_box.find( "input[data-address='state']"        ).val( $( '#state_sel option:selected' ).text() );

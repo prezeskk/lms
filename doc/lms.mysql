@@ -31,9 +31,13 @@ DROP TABLE IF EXISTS up_help;
 DROP TABLE IF EXISTS up_customers;
 DROP TABLE IF EXISTS up_rights_assignments;
 DROP TABLE IF EXISTS up_rights;
+DROP TABLE IF EXISTS files;
+DROP TABLE IF EXISTS filecontainers;
 DROP TABLE IF EXISTS passwdhistory;
 DROP TABLE IF EXISTS userassignments;
 DROP TABLE IF EXISTS usergroups;
+DROP TABLE IF EXISTS rttemplatetypes;
+DROP TABLE IF EXISTS rttemplatequeues;
 DROP TABLE IF EXISTS templates;
 DROP TABLE IF EXISTS logmessagedata;
 DROP TABLE IF EXISTS logmessagekeys;
@@ -70,6 +74,7 @@ DROP TABLE IF EXISTS rtcategories;
 DROP TABLE IF EXISTS rtattachments;
 DROP TABLE IF EXISTS rtrights;
 DROP TABLE IF EXISTS rtmessages;
+DROP TABLE IF EXISTS rtticketlastview;
 DROP TABLE IF EXISTS rttickets;
 DROP TABLE IF EXISTS rtqueues;
 DROP TABLE IF EXISTS netlinks;
@@ -194,6 +199,7 @@ CREATE VIEW vusers AS
 CREATE TABLE countries (
 	id 		int(11) 	NOT NULL auto_increment,
 	name 		varchar(255) 	NOT NULL DEFAULT '',
+	ccode   varchar(5),
 	PRIMARY KEY (id),
 	UNIQUE KEY name (name)
 ) ENGINE=InnoDB;
@@ -295,8 +301,10 @@ CREATE TABLE location_buildings (
 	longitude    numeric(10,6) NULL,
 	updated      smallint DEFAULT 0,
 	PRIMARY KEY (id),
-	FOREIGN KEY (city_id) REFERENCES location_cities (id) ON DELETE CASCADE ON UPDATE CASCADE,
-	FOREIGN KEY (street_id) REFERENCES location_streets (id) ON DELETE SET NULL ON UPDATE CASCADE,
+	CONSTRAINT location_buildings_city_id_fkey
+		FOREIGN KEY (city_id) REFERENCES location_cities (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT location_buildings_street_id_fkey
+		FOREIGN KEY (street_id) REFERENCES location_streets (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	INDEX location_cityid_index (city_id)
 ) ENGINE=InnoDB;
 
@@ -333,7 +341,7 @@ CREATE TABLE divisions (
 	id 		int(11) 	NOT NULL auto_increment,
 	shortname       varchar(255) 	NOT NULL DEFAULT '',
 	name        	text    	NOT NULL DEFAULT '',
-	ten		varchar(16)	NOT NULL DEFAULT '',
+	ten		varchar(50)	NOT NULL DEFAULT '',
 	regon		varchar(255)	NOT NULL DEFAULT '',
 	rbe			varchar(255)	NOT NULL DEFAULT '',
 	rbename		varchar(255)	NOT NULL DEFAULT '',
@@ -365,8 +373,8 @@ CREATE TABLE customers (
   name varchar(128) 	NOT NULL DEFAULT '',
   status smallint 	NOT NULL DEFAULT '0',
   type smallint		NOT NULL DEFAULT '0',
-  ten varchar(16) 	NOT NULL DEFAULT '',
-  ssn varchar(11) 	NOT NULL DEFAULT '',
+  ten varchar(50) 	NOT NULL DEFAULT '',
+  ssn varchar(50) 	NOT NULL DEFAULT '',
   regon varchar(255) 	NOT NULL DEFAULT '',
   rbe varchar(255)	NOT NULL DEFAULT '',
   rbename varchar(255)	NOT NULL DEFAULT '',
@@ -471,10 +479,10 @@ CREATE TABLE documents (
 	name varchar(255) NOT NULL DEFAULT '',
 	address varchar(255) NOT NULL DEFAULT '',
 	zip varchar(10) NULL DEFAULT NULL,
-	city varchar(32) NULL DEFAULT NULL,
+	city varchar(100) NULL DEFAULT NULL,
 	countryid int(11) DEFAULT NULL,
-	ten varchar(16) NOT NULL DEFAULT '',
-	ssn varchar(11) NOT NULL DEFAULT '',
+	ten varchar(50) NOT NULL DEFAULT '',
+	ssn varchar(50) NOT NULL DEFAULT '',
 	paytime smallint NOT NULL DEFAULT '0',
 	paytype smallint DEFAULT NULL,
 	closed tinyint(1) NOT NULL DEFAULT '0',
@@ -502,6 +510,9 @@ CREATE TABLE documents (
 	post_address_id int(11),
 	template varchar(255) DEFAULT NULL,
 	commitflags tinyint(1) NOT NULL DEFAULT 0,
+	archived tinyint(1) NOT NULL DEFAULT 0,
+	auserid int(11) DEFAULT NULL,
+	adate int(11) DEFAULT 0 NOT NULL,
 	PRIMARY KEY (id),
 	INDEX cdate (cdate),
 	INDEX numberplanid (numberplanid),
@@ -518,6 +529,8 @@ CREATE TABLE documents (
 	FOREIGN KEY (userid) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT documents_cuserid_fkey
 	FOREIGN KEY (cuserid) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+	CONSTRAINT documents_auserid_fkey
+	FOREIGN KEY (auserid) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT documents_numberplanid_fkey
 	FOREIGN KEY (numberplanid) REFERENCES numberplans (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT documents_divisionid_fkey
@@ -1063,12 +1076,14 @@ CREATE TABLE cash (
   itemid smallint NOT NULL DEFAULT '0',
   importid int(11) DEFAULT NULL,
   sourceid int(11) DEFAULT NULL,
+  linktechnology int(11) DEFAULT NULL,
   PRIMARY KEY  (id),
   INDEX customerid (customerid),
   INDEX docid (docid),
   INDEX time (time),
   INDEX importid (importid),
   INDEX sourceid (sourceid),
+  INDEX cash_linktechnology_idx (linktechnology),
   CONSTRAINT cash_customerid_fkey
   	FOREIGN KEY (customerid) REFERENCES customers (id) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT cash_userid_fkey
@@ -1132,7 +1147,7 @@ CREATE TABLE ewx_stm_channels (
 	PRIMARY KEY (id),
 	UNIQUE KEY cid (cid),
 	CONSTRAINT ewx_stm_channels_cid_fkey
-		FOREIGN KEY (cid) REFERENCES ewx_channels (id) ON DELETE SET NULL ON UPDATE CASCADE
+		FOREIGN KEY (cid) REFERENCES customers (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 # --------------------------------------------------------
@@ -1172,10 +1187,13 @@ CREATE TABLE networks (
   vlanid smallint DEFAULT NULL,
   hostid int(11) DEFAULT NULL,
   authtype tinyint(1) NOT NULL DEFAULT '0',
+  pubnetid int(11) DEFAULT NULL,
   PRIMARY KEY  (id),
   UNIQUE KEY name (name),
   UNIQUE KEY address (address, hostid),
-  FOREIGN KEY (hostid) REFERENCES hosts (id) ON DELETE SET NULL ON UPDATE CASCADE
+  FOREIGN KEY (hostid) REFERENCES hosts (id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT networks_pubnetid_fkey
+    FOREIGN KEY (pubnetid) REFERENCES networks (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 # --------------------------------------------------------
@@ -1213,11 +1231,14 @@ CREATE TABLE netnodes (
 	divisionid int(11) DEFAULT NULL,
 	address_id int(11) DEFAULT NULL,
 	info text DEFAULT NULL,
+	ownerid int(11) DEFAULT NULL,
 	PRIMARY KEY (id),
 	CONSTRAINT netnodes_address_id_fkey
 		FOREIGN KEY (address_id) REFERENCES addresses (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	FOREIGN KEY (invprojectid) REFERENCES invprojects (id) ON DELETE SET NULL ON UPDATE CASCADE,
-	FOREIGN KEY (divisionid) REFERENCES divisions (id) ON DELETE SET NULL ON UPDATE CASCADE
+	FOREIGN KEY (divisionid) REFERENCES divisions (id) ON DELETE SET NULL ON UPDATE CASCADE,
+	CONSTRAINT netnodes_ownerid_fkey
+		FOREIGN KEY (ownerid) REFERENCES customers (id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=INNODB;
 
 # --------------------------------------------------------
@@ -1292,6 +1313,7 @@ CREATE TABLE netdevices (
 CREATE TABLE netradiosectors (
 	id int(11) NOT NULL auto_increment,
 	name varchar(64) NOT NULL,
+	type int(11) DEFAULT 0 NOT NULL,
 	azimuth decimal(9,2) DEFAULT 0 NOT NULL,
 	width decimal(9,2) DEFAULT 0 NOT NULL,
 	altitude smallint DEFAULT 0 NOT NULL,
@@ -1302,6 +1324,7 @@ CREATE TABLE netradiosectors (
 	frequency2 decimal(9,5) DEFAULT NULL,
 	bandwidth decimal(9,5) DEFAULT NULL,
 	netdev int(11) NOT NULL,
+	secret varchar(64) DEFAULT NULL,
 	PRIMARY KEY (id),
 	INDEX netdev (netdev),
 	FOREIGN KEY (netdev) REFERENCES netdevices (id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -1512,13 +1535,9 @@ CREATE TABLE promotionschemas (
     data text           DEFAULT NULL,
     promotionid int(11) DEFAULT NULL,
     disabled tinyint(1) DEFAULT '0' NOT NULL,
-    continuation tinyint(1) DEFAULT NULL,
-    ctariffid int(11) DEFAULT NULL,
     PRIMARY KEY (id),
     UNIQUE KEY promotionid (promotionid, name),
-    INDEX ctariffid (ctariffid),
-    FOREIGN KEY (promotionid) REFERENCES promotions (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (ctariffid) REFERENCES tariffs (id) ON DELETE RESTRICT ON UPDATE CASCADE
+    FOREIGN KEY (promotionid) REFERENCES promotions (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 # --------------------------------------------------------
@@ -1534,7 +1553,6 @@ CREATE TABLE promotionassignments (
     label varchar(60) DEFAULT NULL,
     orderid int(11)     DEFAULT 0 NOT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY promotionschemaid (promotionschemaid, tariffid),
     INDEX tariffid (tariffid),
     FOREIGN KEY (promotionschemaid) REFERENCES promotionschemas (id) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (tariffid) REFERENCES tariffs (id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -1618,6 +1636,9 @@ CREATE TABLE nodesessions (
 	tag varchar(32)		NOT NULL DEFAULT '',
 	terminatecause varchar(32) NOT NULL DEFAULT '',
 	type smallint		NOT NULL DEFAULT '0',
+    nasipaddr int(16) unsigned	DEFAULT NULL,
+    nasport text		DEFAULT NULL,
+    nasid text          DEFAULT NULL,
 	PRIMARY KEY (id),
 	INDEX customerid (customerid),
 	INDEX nodeid (nodeid),
@@ -1689,6 +1710,8 @@ CREATE TABLE rtqueues (
   newmessagebody text NOT NULL DEFAULT '',
   resolveticketsubject varchar(255) NOT NULL DEFAULT '',
   resolveticketbody text NOT NULL DEFAULT '',
+  verifierticketsubject varchar(255) NOT NULL DEFAULT '',
+  verifierticketbody text NOT NULL DEFAULT '',
   deleted tinyint(1) NOT NULL DEFAULT '0',
   deltime int(11) NOT NULL DEFAULT '0',
   deluserid int(11) DEFAULT NULL,
@@ -1730,7 +1753,12 @@ CREATE TABLE rttickets (
   netnodeid int(11) DEFAULT NULL,
   netdevid int(11) DEFAULT NULL,
   verifierid int(11) DEFAULT NULL,
+  verifier_rtime int(11) DEFAULT NULL,
   deadline int(11) DEFAULT NULL,
+  service int(11) DEFAULT NULL,
+  type int(11) DEFAULT NULL,
+  parentid int(11) DEFAULT NULL,
+  invprojectid int(11) DEFAULT NULL,
   PRIMARY KEY (id),
   INDEX queueid (queueid),
   INDEX customerid (customerid),
@@ -1755,7 +1783,27 @@ CREATE TABLE rttickets (
   CONSTRAINT rttickets_netdevid_fkey
 	FOREIGN KEY (netdevid) REFERENCES netdevices (id) ON UPDATE CASCADE ON DELETE SET NULL,
   CONSTRAINT rttickets_verifierid_fkey
-        FOREIGN KEY (verifierid) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE
+        FOREIGN KEY (verifierid) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT rttickets_invprojectid_fkey
+        FOREIGN KEY (invprojectid) REFERENCES invprojects (id) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT rttickets_parentid_fkey
+        FOREIGN KEY (parentid) REFERENCES rttickets (id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+# --------------------------------------------------------
+#
+# Structure of table  rtticketlastview
+#
+CREATE TABLE rtticketlastview (
+	ticketid int(11) NOT NULL,
+	userid int(11) NOT NULL,
+	vdate int(11) NOT NULL,
+	INDEX vdate (vdate),
+	UNIQUE KEY rtticketlastview_ticketid_key (ticketid, userid),
+	CONSTRAINT rtticketlastview_ticketid_fkey
+		FOREIGN KEY (ticketid) REFERENCES rttickets (id) ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT rtticketlastview_userid_fkey
+		FOREIGN KEY (userid) REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 # --------------------------------------------------------
@@ -1776,7 +1824,7 @@ CREATE TABLE rtmessages (
   headers text NOT NULL DEFAULT '',
   body mediumtext NOT NULL DEFAULT '',
   createtime int(11) NOT NULL DEFAULT '0',
-  type smallint NOT NULL DEFAULT 0,
+  type int(11) NOT NULL DEFAULT 0,
   deleted tinyint(1) NOT NULL DEFAULT '0',
   deltime int(11) NOT NULL DEFAULT '0',
   deluserid int(11) DEFAULT NULL,
@@ -2074,8 +2122,14 @@ CREATE TABLE uiconfig (
     description text NOT NULL DEFAULT '',
     disabled tinyint(1) NOT NULL DEFAULT '0',
     type smallint NOT NULL DEFAULT 0,
+    userid int(11) DEFAULT NULL,
+    configid int(11) DEFAULT NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY var (section, var)
+    UNIQUE KEY var (section, var),
+	CONSTRAINT uiconfig_userid_fkey
+		FOREIGN KEY (userid) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT uiconfig_configid_fkey
+		FOREIGN KEY (configid) REFERENCES uiconfig (id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 # --------------------------------------------------------
@@ -2088,9 +2142,9 @@ CREATE TABLE events (
     description text NOT NULL DEFAULT '',
     note text NOT NULL DEFAULT '',
     date int(11) NOT NULL DEFAULT '0',
-    begintime smallint(4) NOT NULL DEFAULT '0',
+    begintime int(11) NOT NULL DEFAULT '0',
     enddate int(11) NOT NULL DEFAULT '0',
-    endtime smallint(4) NOT NULL DEFAULT '0',
+    endtime int(11) NOT NULL DEFAULT '0',
     userid int(11) DEFAULT NULL,
     customerid int(11) DEFAULT NULL,
     private tinyint(1) NOT NULL DEFAULT '0',
@@ -2112,7 +2166,7 @@ CREATE TABLE events (
 	CONSTRAINT events_ticketid_fkey
 		FOREIGN KEY (ticketid) REFERENCES rttickets (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT events_address_id_fkey
-		FOREIGN KEY (address_id) REFERENCES addresses (id) ON UPDATE CASCADE ON DELETE CASCADE,
+		FOREIGN KEY (address_id) REFERENCES addresses (id) ON UPDATE CASCADE ON DELETE SET NULL,
 	CONSTRAINT events_customerid_fkey
 		FOREIGN KEY (customerid) REFERENCES customers (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT events_userid_fkey
@@ -2435,6 +2489,36 @@ CREATE TABLE templates (
 	UNIQUE KEY name (type, name)
 ) ENGINE=InnoDB;
 
+# ---------------------------------------------------
+#
+# Structure of table "rttemplatetypes"
+#
+CREATE TABLE rttemplatetypes (
+	id          int(11) NOT NULL auto_increment,
+	templateid  int(11) NOT NULL,
+	messagetype int(11) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE KEY rttemplatetypes_templateid_key (templateid, messagetype),
+	CONSTRAINT rttemplatetypes_templateid_fkey
+		FOREIGN KEY (templateid) REFERENCES templates (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+# ---------------------------------------------------
+#
+# Structure of table "rttemplatequeues"
+#
+CREATE TABLE rttemplatequeues (
+	id          int(11) NOT NULL auto_increment,
+	templateid  int(11) NOT NULL,
+	queueid  int(11) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE KEY rttemplatequeues_templateid_key (templateid, queueid),
+	CONSTRAINT rttemplatequeues_templateid_fkey
+		FOREIGN KEY (templateid) REFERENCES templates (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT rttemplatequeues_queueid_fkey
+		FOREIGN KEY (queueid) REFERENCES rtqueues (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
 # --------------------------------------------------------
 #
 # Structure of table usergroups
@@ -2472,6 +2556,42 @@ CREATE TABLE passwdhistory (
 	hash varchar(255) DEFAULT '' NOT NULL,
 	FOREIGN KEY (userid) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+# --------------------------------------------------------
+#
+# Structure of table filecontainers
+#
+CREATE TABLE filecontainers (
+	id int(11) NOT NULL AUTO_INCREMENT,
+	creationdate int(11) NOT NULL DEFAULT 0,
+	creatorid int(11) DEFAULT NULL,
+	description text NOT NULL,
+	netdevid int(11) DEFAULT NULL,
+	netnodeid int(11) DEFAULT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT filecontainers_creatorid_fkey
+		FOREIGN KEY (creatorid) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
+	CONSTRAINT filecontainers_netdevid_fkey
+		FOREIGN KEY (netdevid) REFERENCES netdevices (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT filecontainers_netnodeid_fkey
+		FOREIGN KEY (netnodeid) REFERENCES netnodes (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+# --------------------------------------------------------
+#
+# Structure of table files
+#
+CREATE TABLE files (
+	id int(11) NOT NULL AUTO_INCREMENT,
+	containerid int(11) NOT NULL,
+	filename varchar(255) NOT NULL,
+	contenttype varchar(255) NOT NULL,
+	md5sum varchar(32) NOT NULL,
+	PRIMARY KEY (id),
+	INDEX md5sum (md5sum),
+	UNIQUE KEY files_containerid_key (containerid, md5sum),
+	FOREIGN KEY (containerid) REFERENCES filecontainers (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 # --------------------------------------------------------
@@ -2879,12 +2999,13 @@ INSERT INTO up_rights(module, name, description, setdefault)
 INSERT INTO up_rights(module, name, description)
         VALUES ('info', 'edit_contact', 'Customer can change contact information');
 
-INSERT INTO countries (name) VALUES
-('Lithuania'),
-('Poland'),
-('Romania'),
-('Slovakia'),
-('USA');
+INSERT INTO countries (name, ccode) VALUES
+('Lithuania', 'lt_LT'),
+('Poland', 'pl_PL'),
+('Romania', 'ro_RO'),
+('Slovakia', 'sk_SK'),
+('USA', 'en_US'),
+('Czech', 'cs_CZ');
 
 INSERT INTO nastypes (name) VALUES
 ('mikrotik_snmp'),
@@ -2930,6 +3051,7 @@ INSERT INTO uiconfig (section, var, value, description, disabled) VALUES
 ('phpui','messagelist_pagelimit','100','',0),
 ('phpui','recordlist_pagelimit','100','',0),
 ('phpui','cashreglog_pagelimit','100','',0),
+('phpui','networklist_pagelimit','100','',0),
 ('phpui','reload_type','sql','',0),
 ('phpui','reload_execcmd','/bin/true','',0),
 ('phpui','reload_sqlquery','','',0),
@@ -3034,6 +3156,7 @@ URL: %url
 ('userpanel','invoice_duplicate','0','',0),
 ('userpanel','show_tariffname','1','',0),
 ('userpanel','show_speeds','1','',0),
+('userpanel','show_period','1','',0),
 ('userpanel','queues','1','',0),
 ('userpanel','tickets_from_selected_queues','0','',0),
 ('userpanel','allow_message_add_to_closed_tickets','1','',0),
@@ -3042,6 +3165,7 @@ URL: %url
 ('userpanel','debug_email','','',0),
 ('userpanel','lms_url','','',0),
 ('userpanel','hide_nodesbox','0','',0),
+('userpanel', 'hide_documentbox', '0', '', 0),
 ('userpanel','logout_url','','',0),
 ('userpanel','owner_stats','1','',0),
 ('userpanel','default_categories','1','',0),
@@ -3061,7 +3185,14 @@ URL: %url
 ('userpanel', 'google_recaptcha_secret', '', '', 0),
 ('userpanel', 'allow_reopen_tickets_newer_than', '0', '', 0),
 ('userpanel', 'pin_changes', 'true', '', 0),
+('userpanel', 'show_last_years', '5', '', 0),
+('userpanel', 'aggregate_documents', '0', '', 0),
+('userpanel', 'speed_unit_type', '1000', '', 0),
+('userpanel', 'speed_unit_aggregation_threshold', '5', '', 0),
+('userpanel', 'shortcut_icon', '', '', 0),
 ('directories','userpanel_dir','userpanel','',0);
+
+INSERT INTO invprojects (name, type) VALUES ('inherited', 1);
 
 INSERT INTO netdeviceproducers (id, name) VALUES
 (1, 'Mikrotik'),
@@ -3390,4 +3521,4 @@ INSERT INTO netdevicemodels (name, alternative_name, netdeviceproducerid) VALUES
 ('XR7', 'XR7 MINI PCI PCBA', 2),
 ('XR9', 'MINI PCI 600MW 900MHZ', 2);
 
-INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2018070300');
+INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2019082200');

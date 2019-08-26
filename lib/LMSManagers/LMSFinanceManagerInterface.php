@@ -42,11 +42,23 @@ interface LMSFinanceManagerInterface
 
     public function AddAssignment($data);
 
-	public function ValidateAssignment($data);
+    public function ValidateAssignment($data);
 
-	public function UpdateExistingAssignments($data);
+    public function CheckSchemaModifiedValues($data);
 
-	public function SuspendAssignment($id, $suspend = TRUE);
+    public function UpdateExistingAssignments($data);
+
+    public function SuspendAssignment($id, $suspend = true);
+
+    public function GetTradeDocumentArchiveStats($ids);
+
+    public function DeleteArchiveTradeDocument($id);
+
+    public function ArchiveTradeDocument($doc);
+
+    public function GetTradeDocument($doc);
+
+    public function GetInvoiceList(array $params);
 
     public function AddInvoice($invoice);
 
@@ -56,6 +68,8 @@ interface LMSFinanceManagerInterface
 
     public function GetInvoiceContent($invoiceid);
 
+    public function GetNoteList(array $params);
+
     public function GetNoteContent($id);
 
     public function TariffAdd($tariff);
@@ -64,7 +78,7 @@ interface LMSFinanceManagerInterface
 
     public function TariffDelete($id);
 
-    public function GetTariff($id, $network = NULL);
+    public function GetTariff($id, $network = null);
 
     public function GetTariffs($forced_id = null);
 
@@ -72,17 +86,21 @@ interface LMSFinanceManagerInterface
 
     public function TariffExists($id);
 
-	public function ReceiptDelete($docid);
+    public function ReceiptDelete($docid);
 
-	public function ReceiptContentDelete($docid, $itemid = 0);
+    public function ReceiptContentDelete($docid, $itemid = 0);
 
-	public function DebitNoteDelete($noteid);
+    public function DebitNoteDelete($noteid);
 
-	public function DebitNoteContentDelete($docid, $itemid = 0);
+    public function DebitNoteContentDelete($docid, $itemid = 0);
+
+    public function GetBalanceList(array $params);
 
     public function AddBalance($addbalance);
 
     public function DelBalance($id);
+
+    public function PreserveProforma($docid);
 
     public function GetPaymentList();
 
@@ -102,19 +120,29 @@ interface LMSFinanceManagerInterface
     
     public function GetHostingLimits($customerid);
     
-    public function GetTaxes($from = NULL, $to = NULL);
+    public function GetTaxes($from = null, $to = null);
     
     public function CalcAt($period, $date);
 
-	public function isDocumentPublished($id);
+    public function PublishDocuments($ids);
 
-	public function isDocumentReferenced($id);
+    public function isDocumentPublished($id);
 
-	public function AddReceipt(array $receipt);
+    public function isDocumentReferenced($id);
 
-	public function GetCashRegistries($cid = null);
+    public function GetReceiptList(array $params);
 
-	public function GetOpenedLiabilities($customerid);
+    public function AddReceipt(array $receipt);
 
-	public function GetPromotions();
+    public function GetCashRegistries($cid = null);
+
+    public function GetOpenedLiabilities($customerid);
+
+    public function GetPromotions();
+
+    public function AggregateDocuments($list);
+
+    public function GetDocumentsForBalanceRecords($ids, $doctypes);
+
+    public function GetDocumentLastReference($docid);
 }

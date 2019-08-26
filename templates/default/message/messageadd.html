@@ -8,8 +8,7 @@
 <p style="display: none;">
 <INPUT type="submit" class="hiddenbtn">
 </p>
-<SCRIPT type="text/javascript">
-<!--
+<SCRIPT>
 	function checkaddr(email)
 	{
 		{literal}
@@ -138,22 +137,20 @@
 			if (data.recipients <= 50) {
 				document.message.submit();
 			} else {
-				var message = '{t}Are you sure you want to send messages to $a customer(s)?{/t}'.replace('$a', data.recipients);
-				if (confirm(message)) {
+				confirmDialog($t("Are you sure you want to send messages to $a customer(s)?", data.recipients), $('#submit-try')).done(function() {
 					document.message.submit();
-				}
+				});
 			}
 		});
 		return false;
 	}
--->
 </SCRIPT>
 <TABLE class="lmsbox">
     <THEAD>
 {if $message.customerid}
 	<TR>
 		<TD style="width: 1%;">
-			<IMG src="img/customer.gif" alt=""> 
+			<IMG src="img/customer.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold nobr">
 			{trans("Recipient:")}
@@ -166,16 +163,26 @@
 {else}
 	<TR>
 		<TD style="width: 1%;">
-			<IMG src="img/group.gif" alt=""> 
+			<IMG src="img/group.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold nobr">
 			{trans("Recipients:")}
 		</TD>
 		<TD style="width: 98%;">
 			<TABLE width="100%">
+				<COLGROUP>
+					<COL style="width: 1%;">
+					<COL style="width: 1%;">
+					<COL style="width: 1%;">
+					<COL style="width: 1%;">
+					<COL style="width: 1%;">
+					<COL style="width: 1%;">
+					<COL style="width: 1%;">
+					<COL style="width: 93%;">
+				</COLGROUP>
 				<TR>
-					<TD style="width: 1%;" class="nobr" rowspan="2">{trans("Status:")}</TD>
-					<TD style="width: 1%;" rowspan="2">
+					<TD class="nobr" rowspan="3">{trans("Status:")}</TD>
+					<TD rowspan="3">
 						<SELECT name="message[group]" {tip trigger="group" text="Select recipients group"}>
 							<option value="0"{if !$message.group} selected{/if}>{trans("- all customers -")}</option>
 							{foreach $_CSTATUSES as $statusidx => $status}
@@ -194,16 +201,16 @@
 							<option value="59"{if $message.group == "59"} selected{/if}>{trans("opened documents")}</option>
 						</SELECT>
 					</TD>
-					<TD style="width: 1%;" class="nobr">{trans("Group:")}</TD>
-					<TD style="width: 1%;" class="multiselect">
+					<TD class="nobr">{trans("Group:")}</TD>
+					<TD class="multiselect">
 						<SELECT name="message[customergroup][]" multiple class="lms-ui-multiselect" {tip trigger="customergroup" text="Select customers group"} data-default-value="{trans("- all groups -")}">
 							{foreach $customergroups as $customergroup}
 							<option value="{$customergroup.id}"{if isset($message.customergroup) && in_array($customergroup.id, $message.customergroup)} selected{/if}>{$customergroup.name|truncate:"30":"...":true}</option>
 							{/foreach}
 						</SELECT>
 					</TD>
-					<TD style="width: 1%;" class="nobr">{trans("Network:")}</TD>
-					<TD style="width: 1%;">
+					<TD class="nobr">{trans("Network:")}</TD>
+					<TD>
 						<SELECT name="message[network]" {tip trigger="network" text="Select IP network"}>
 							<option value="0">{trans("- all networks -")}</option>
 							{section name="networks" loop=$networks}
@@ -211,19 +218,19 @@
 							{/section}
 						</SELECT>
 					</TD>
-					<TD style="width: 1%;" class="nobr">{trans("Tariff type:")}</TD>
-					<TD style="width: 93%;">
+					<TD class="nobr">{trans("Tariff type:")}</TD>
+					<TD>
 						<SELECT name="message[tarifftype]" {tip trigger="network" text="Select tariff type"}>
 							<option value="0">{trans("- all -")}</option>
-							{foreach $_TARIFFTYPES as $key => $type}
+							{foreach $_SERVICETYPES as $key => $type}
 							<option value="{$key}"{if $message.tarifftype == $key} selected{/if}>{$type}</option>
 							{/foreach}
 						</SELECT>
 					</TD>
 				</TR>
 				<TR>
-					<TD style="width: 1%;" class="nobr">{trans("Nodes Group:<!short>")}</TD>
-					<TD style="width: 1%;">
+					<TD class="nobr">{trans("Nodes Group:<!short>")}</TD>
+					<TD>
 						<SELECT size="1" name="message[nodegroup]" {tip trigger="nodegroup" text="Select nodes group"}>
 							<OPTION value="" {if !$listdata.nodegroup} selected{/if}>{trans("- all groups -")}</OPTION>
 							{foreach from=$nodegroups item=nodegroup}
@@ -231,8 +238,8 @@
 							{/foreach}
 						</SELECT>
 					</TD>
-					<TD style="width: 1%;" class="nobr">{trans("Link type:")}</TD>
-					<TD style="width: 1%;">
+					<TD class="nobr">{trans("Link type:")}</TD>
+					<TD>
 						<SELECT size="1" name="message[linktype]" {tip trigger="linktype" text="Select link type"}>
 							<OPTION value="">{trans("- all -")}</OPTION>
 							<OPTION value="0">{trans("wire")}</OPTION>
@@ -240,9 +247,30 @@
 							<OPTION value="2">{trans("fiber")}</OPTION>
 						</SELECT>
 					</TD>
-					<TD style="width: 1%;" class="nobr"><label for="consent">{trans("Consent required:")}</label></TD>
-					<TD style="width: 93%;">
-						<INPUT type="checkbox" id="consent" name="message[consent]" value="1" {tip text="Check if customer consent to messages delivery via e-mail or sms is required" trigger="consent"}{if $message.consent} checked{/if}>
+					<TD class="nobr" colspan="2">
+						<label>
+							<INPUT type="checkbox" name="message[consent]" value="1" {tip text="Check if customer consent to messages delivery via e-mail or sms is required" trigger="consent"}{if $message.consent} checked{/if}>
+							{trans("consent required")}
+						</label>
+					</TD>
+				</TR>
+				<TR>
+					<TD class="nobr">
+						<label for="netdev">
+							{trans("Network device:")}
+						</label>
+					</TD>
+					<TD colspan="7" class="nobr">
+						<SELECT name="message[netdev]" id="netdev" class="lms-ui-advanced-select" {tip trigger="netdev" text="Select network device"}>
+							<option value="">{trans("- none -")}</option>
+							{foreach $netdevices as $netdev}
+							<option value="{$netdev.id}"{if isset($message.netdev) && $netdev.id == $message.netdev} selected{/if}>{$netdev.name}</option>
+							{/foreach}
+						</SELECT>
+						<label>
+							<input type="checkbox" name="message[wholesubtree]" value="1"{if isset($message.wholesubtree)} checked{/if}>
+							{trans("whole subtree")}
+						</label>
 					</TD>
 				</TR>
 			</TABLE>
@@ -253,7 +281,7 @@
     <TBODY>
 	<TR>
 		<TD style="width: 1%;">
-			<IMG src="img/mailsms.gif" alt=""> 
+			<IMG src="img/mailsms.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold nobr">
 			{trans("Type:")}
@@ -276,7 +304,7 @@
 	{if $message.emails}
 	<TR id="customermails"{if $message.type != $smarty.const.MSG_MAIL} style="display: none;"{/if}>
 		<TD>
-			<IMG src="img/email.gif" alt=""> 
+			<IMG src="img/email.gif" alt="">
 		</TD>
 		<TD class="bold nobr">
 			{trans("E-mail:")}
@@ -293,7 +321,7 @@
 	{if $message.phones}
 	<TR id="customerphones"{if $message.type != $smarty.const.MSG_SMS} style="display: none;"{/if}>
 		<TD>
-			<IMG src="img/phone.gif" alt=""> 
+			<IMG src="img/phone.gif" alt="">
 		</TD>
 		<TD class="bold nobr">
 			{trans("Phone:")}
@@ -309,7 +337,7 @@
 	{/if}
 	<TR ID="mailsender"{if $message.type > $smarty.const.MSG_MAIL} style="display: none;"{/if}>
 		<TD style="width: 1%;">
-			<IMG src="img/email.gif" alt=""> 
+			<IMG src="img/email.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold nobr">
 			{trans("Sender E-mail:")}
@@ -323,7 +351,7 @@
 	</TR>
 	<TR ID="mailfrom"{if $message.type > $smarty.const.MSG_MAIL} style="display: none;"{/if}>
 		<TD style="width: 1%;">
-			<IMG src="img/users.gif" alt=""> 
+			<IMG src="img/users.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold">
 			{trans("Sender:")}
@@ -336,7 +364,7 @@
 	{if $users}
 	<TR ID="users"{if $message.type != $smarty.const.MSG_ANYSMS} style="display: none;"{/if}>
 		<TD style="width: 1%;">
-			<IMG src="img/users.gif" alt=""> 
+			<IMG src="img/users.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold">
 			{trans("Users:")}
@@ -352,7 +380,7 @@
 	{/if}
 	<TR ID="phonenumber"{if $message.type != $smarty.const.MSG_ANYSMS} style="display: none;"{/if}>
 		<TD style="width: 1%;">
-			<IMG src="img/sms.gif" alt=""> 
+			<IMG src="img/sms.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold">
 			{trans("Phone number:")}
@@ -364,7 +392,7 @@
 {/if}
 	<TR>
 		<TD style="width: 1%;">
-			<IMG src="img/mail.gif" alt=""> 
+			<IMG src="img/mail.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold">
 			{trans("Subject:")}
@@ -397,18 +425,18 @@
 			{trans("Message body:")}
 		</TD>
 		<TD style="width: 98%;">
-			<TEXTAREA name="message[mailbody]" class="lms-ui-wysiwyg-editor" cols="80" rows="20" {tip text="Use carriage return for indentation only. LMS will reformat paragraphs and break long lines." trigger="mailbody"}{if isset($message.wysiwyg.mailbody)} data-wysiwyg="{$message.wysiwyg.mailbody}"{/if}>{$message.body}</TEXTAREA>
+			<TEXTAREA name="message[mailbody]" cols="80" rows="20" {tip class="lms-ui-wysiwyg-editor" text="Enter message body.<br><br>Supported substitutions/variables:<br><strong>%customer</strong> - customer first name and last name or name,<br><strong>%balance</strong> - customer balance,<br><strong>%cid</strong> - customer identifier,<br><strong>%pin</strong> - customer pin,<br><strong>%bankaccount</strong> - bank account for payments,<br><strong>%last_N_in_a_table</strong> - last N operation in customer financial history (N means number).<br>" trigger="mailbody"}{if isset($message.wysiwyg.mailbody)} data-wysiwyg="{$message.wysiwyg.mailbody}"{/if}>{$message.body}</TEXTAREA>
 		</TD>
 	</TR>
 	<TR ID="smsbody"{if $message.type < $smarty.const.MSG_SMS || $message.type > $smarty.const.MSG_ANYSMS} style="display: none"{/if}>
 		<TD style="width: 1%;">
-			<IMG src="img/edit.gif" alt=""> 
+			<IMG src="img/edit.gif" alt="">
 		</TD>
 		<TD style="width: 1%;" class="bold nobr">
 			{trans("Message body:")}
 		</TD>
 		<TD style="width: 98%;">
-			<TEXTAREA name="message[smsbody]" id="smstext" cols="60" rows="5" onkeydown="countChars(this)" onkeyup="countChars(this)" {tip text="Enter message body" trigger="smsbody"}>{$message.body}</TEXTAREA>
+			<TEXTAREA name="message[smsbody]" id="smstext" cols="60" rows="5" onkeydown="countChars(this)" onkeyup="countChars(this)" {tip text="Enter message body.<br><br>Supported substitutions/variables:<br><strong>%customer</strong> - customer first name and last name or name,<br><strong>%balance</strong> - customer balance,<br><strong>%cid</strong> - customer identifier,<br><strong>%pin</strong> - customer pin,<br><strong>%bankaccount</strong> - bank account for payments,<br><strong>%last_N_in_a_table</strong> - last N operation in customer financial history (N means number).<br>" trigger="smsbody"}>{$message.body}</TEXTAREA>
 		</TD>
 	</TR>
 	<TR>
@@ -440,19 +468,18 @@
 			{trans("Attachments:")}
 		</TD>
 		<TD style="width: 98%;">
-			{fileupload id="files" fileupload=$fileupload}
+			{fileupload id="files" fileupload=$fileupload form="message"}
 		</TD>
 	</TR>
 	<TR>
 		<TD class="text-right" colspan="3">
-			 <A href="#" onClick="submit_try();" accesskey="s">{trans("Send")} <IMG src="img/save.gif" alt=""></A>
+			 <A id="submit-try" href="#" onClick="submit_try();" accesskey="s">{trans("Send")} <IMG src="img/save.gif" alt=""></A>
 		</TD>
 	</TR>
     </TBODY>
 </TABLE>
 </FORM>
-<SCRIPT type="text/javascript">
-<!--
+<SCRIPT>
 $(function() {
 	$('form[name="message"] [name="message[sender]"]').focus();
 });
@@ -463,6 +490,5 @@ document.getElementById('smstext').onmouseout = function() {
 	pophide();
 }
 
-//-->
 </SCRIPT>
 {/block}

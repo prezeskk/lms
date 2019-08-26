@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2013 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -25,15 +25,31 @@
  */
 
 $id = intval($_GET['id']);
+$globalconf = isset($_GET['globalconf']) ? $_GET['globalconf'] : null;
 
-if ($id && $_GET['is_sure'] == '1') {
-	$DB->Execute('DELETE FROM uiconfig WHERE id = ?', array($id));
-	if ($SYSLOG) {
-		$args = array(SYSLOG::RES_UICONF => $id);
-		$SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_DELETE, $args);
-	}
+if ($id) {
+    if (empty($globalconf)) {
+        $DB->Execute('DELETE FROM uiconfig WHERE id = ?', array($id));
+        if ($SYSLOG) {
+            $args = array(SYSLOG::RES_UICONF => $id);
+            $SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_DELETE, $args);
+        }
+    } else {
+        $DB->BeginTrans();
+
+        $DB->Execute('DELETE FROM uiconfig WHERE configid = ?', array($id));
+        if ($SYSLOG) {
+            $args = array(SYSLOG::RES_UICONF => $id);
+            $SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_DELETE, $args);
+        }
+
+        $DB->Execute('DELETE FROM uiconfig WHERE id = ?', array($id));
+        if ($SYSLOG) {
+            $args = array(SYSLOG::RES_UICONF => $id);
+            $SYSLOG->AddMessage(SYSLOG::RES_UICONF, SYSLOG::OPER_DELETE, $args);
+        }
+        $DB->CommitTrans();
+    }
 }
 
-header('Location: ?m=configlist');
-
-?>
+$SESSION->redirect('?'.$SESSION->get('backto'));

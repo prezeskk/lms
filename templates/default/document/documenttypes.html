@@ -3,7 +3,7 @@
 {block name=module_content}
 <!--// $Id$ //-->
 <H1>{$layout.pagetitle}</H1>
-<TABLE class="lmsbox">
+<TABLE class="lmsbox lms-ui-background-cycle">
     <THEAD>
 	<TR>
 		<TD width="99%" NOWRAP><IMG src="img/docum.gif" alt=""> <B>{trans("Name:")}</B></TD>
@@ -11,14 +11,13 @@
 	</TR>
 	{if $listdata.total != 0}
 	<TR>
-		<TD class="pagination" COLSPAN="2">
+		<TD class="lms-ui-pagination" COLSPAN="2">
 			{include file="scroller.html" loop=$typelist}
 		</TD>
 	</TR>
 	{/if}
     </THEAD>
     <TBODY>
-	{cycle values="light,lucid" print=false}
 	{foreach from=$typelist key=key item=item}
 	<TR class="highlight {cycle}"  >
 		<TD NOWRAP onClick="return self.location.href='?m=documenttypeedit&amp;id={$key}';">
@@ -35,13 +34,15 @@
 		</TD>
 	</TR>
 	{/foreach}
+	</TBODY>
+	<TFOOT>
 	{if $listdata.total != 0}
 	<TR>
-		<TD class="pagination" COLSPAN="2">
+		<TD class="lms-ui-pagination" COLSPAN="2">
 			{include file="scroller.html" loop=$typelist}
 		</TD>
 	</TR>
 	{/if}
-    </TBODY>
+	</TFOOT>
 </TABLE>
 {/block}

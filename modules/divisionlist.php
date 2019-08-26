@@ -28,12 +28,13 @@ $divisionlist = $DB->GetAll('SELECT d.id, d.name, d.shortname, d.status,
 	(SELECT COUNT(*) FROM customers WHERE divisionid = d.id) AS cnt 
 	FROM divisions d ORDER BY d.shortname');
 
-$listdata['total'] = sizeof($divisionlist);
+$listdata['total'] = empty($divisionlist) ? 0 : count($divisionlist);
 
-if ($SESSION->is_set('cdlp') && !isset($_GET['page']))
-	$SESSION->restore('cdlp', $_GET['page']);
+if ($SESSION->is_set('cdlp') && !isset($_GET['page'])) {
+    $SESSION->restore('cdlp', $_GET['page']);
+}
 
-$page = (!isset($_GET['page']) ? 1 : $_GET['page']); 
+$page = (!isset($_GET['page']) ? 1 : $_GET['page']);
 $pagelimit = ConfigHelper::getConfig('phpui.divisionlist_pagelimit', $listdata['total']);
 $start = ($page - 1) * $pagelimit;
 
@@ -49,5 +50,3 @@ $SMARTY->assign('start', $start);
 $SMARTY->assign('divisionlist', $divisionlist);
 $SMARTY->assign('listdata', $listdata);
 $SMARTY->display('division/divisionlist.html');
-
-?>

@@ -3,7 +3,7 @@
 /*
  *  LMS version 1.11-git
  *
- *  Copyright (C); 2001-2017 LMS Developers
+ *  Copyright (C); 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -26,22 +26,22 @@
 
 /**
  * LMSHelpdeskManagerInterface
- * 
+ *
  */
 interface LMSHelpdeskManagerInterface
 {
 
     public function GetQueue($id);
 
-    public function GetQueueContents($ids, $order = 'createtime,desc', $state = NULL, $priority = NULL, $owner = 0, $catids = NULL, $removed = NULL, $netdevids = NULL, $netnodeids = NULL, $deadline = NULL);
+    public function GetQueueContents(array $params);
 
-    public function GetUserRightsRT($user, $queue, $ticket = NULL);
+    public function GetUserRightsRT($user, $queue, $ticket = null);
 
-    public function GetQueueList($stats = true);
-
-	public function GetQueueListByUser($userid, $stats = true);
+    public function GetQueueList(array $params);
 
     public function GetQueueNames();
+
+    public function GetMyQueues();
 
     public function QueueExists($id);
 
@@ -57,7 +57,7 @@ interface LMSHelpdeskManagerInterface
 
     public function GetCategory($id);
 
-    public function GetUserRightsToCategory($user, $category, $ticket = NULL);
+    public function GetUserRightsToCategory($user, $category, $ticket = null);
 
     public function GetCategoryList($stats = true);
 
@@ -67,7 +67,9 @@ interface LMSHelpdeskManagerInterface
 
     public function GetCategoryIdByName($category);
 
-    public function GetCategoryListByUser($userid = NULL);
+    public function GetCategoryName($id);
+
+    public function GetUserCategories($userid = null);
 
     public function RTStats();
 
@@ -79,15 +81,17 @@ interface LMSHelpdeskManagerInterface
 
     public function TicketExists($id);
 
-//	public function SaveTicketMessageAttachments($ticketid, $messageid, $files, $cleanup = false);
+//  public function SaveTicketMessageAttachments($ticketid, $messageid, $files, $cleanup = false);
 
-	public function TicketMessageAdd($message, $files = null);
+    public function TicketMessageAdd($message, $files = null);
 
-    public function TicketAdd($ticket, $files = NULL);
+    public function TicketAdd($ticket, $files = null);
 
-	public function GetLastMessageID();
+    public function GetLastMessageID();
 
-    public function GetTicketContents($id);
+    public function LimitQueuesToUserpanelEnabled($queuelist, $queueid);
+
+    public function GetTicketContents($id, $short = false);
 
     public function GetMessage($id);
 
@@ -97,11 +101,35 @@ interface LMSHelpdeskManagerInterface
 
     public function TicketChange($ticketid, array $props);
 
-	public function GetQueueCategories($queueid);
+    public function GetQueueCategories($queueid);
 
-	public function ReplaceNotificationSymbols($text, array $params);
+    public function ReplaceNotificationSymbols($text, array $params);
 
-	public function ReplaceNotificationCustomerSymbols($text, array $params);
+    public function ReplaceNotificationCustomerSymbols($text, array $params);
 
-	public function NotifyUsers(array $params);
+    public function NotifyUsers(array $params);
+
+    public function CleanupTicketLastView();
+
+    public function MarkQueueAsRead($queueid);
+
+    public function MarkTicketAsRead($ticketid);
+
+    public function MarkTicketAsUnread($ticketid);
+
+    public function GetIndicatorStats();
+
+    public function DetermineSenderEmail($queue_email, $ticket_email, $user_email, $forced_order = null);
+
+    public function GetTicketPhoneFrom($ticketid);
+
+    public function CheckTicketAccess($ticketid);
+
+    public function GetRelatedTicketIds($ticketid);
+
+    public function GetTicketParentID($ticketid);
+
+    public function IsTicketLoop($ticketid, $parentid);
+
+    public function GetRTSmtpOptions();
 }

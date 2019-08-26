@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2016 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -27,21 +27,20 @@
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
 if ($id) {
-	$args = array(
-		'disabled' => !empty($_GET['access']) ? 0 : 1,
-		SYSLOG::RES_PROMOSCHEMA => $id
-	);
-	$DB->Execute('UPDATE promotionschemas SET disabled = ? WHERE id = ?',
-		array_values($args));
-	if ($SYSLOG) {
-		$schema = $DB->GetRow('SELECT promotionid, ctariffid
+    $args = array(
+        'disabled' => !empty($_GET['access']) ? 0 : 1,
+        SYSLOG::RES_PROMOSCHEMA => $id
+    );
+    $DB->Execute(
+        'UPDATE promotionschemas SET disabled = ? WHERE id = ?',
+        array_values($args)
+    );
+    if ($SYSLOG) {
+        $promotionid = $DB->GetOne('SELECT promotionid
 			FROM promotionschemas WHERE id = ?', array($id));
-		$args[SYSLOG::RES_PROMO] = $schema['promotionid'];
-		$args[SYSLOG::RES_TARIFF] = $schema['ctariffid'];
-		$SYSLOG->AddMessage(SYSLOG::RES_PROMOSCHEMA, SYSLOG::OPER_UPDATE, $args);
-	}
+        $args[SYSLOG::RES_PROMO] = $promotionid;
+        $SYSLOG->AddMessage(SYSLOG::RES_PROMOSCHEMA, SYSLOG::OPER_UPDATE, $args);
+    }
 }
 
 header('Location: ?'.$SESSION->get('backto'));
-
-?>

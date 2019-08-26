@@ -24,6 +24,7 @@
  *  $Id$
  */
 
+$_LANG['Hide customer nodes box'] = 'Ukryj okno komputerów klienta';
 $_LANG['Access denied!'] = 'Brak dostępu!';
 $_LANG['and'] = 'i';
 $_LANG['Cancel'] = 'Anuluj';
@@ -40,6 +41,7 @@ $_LANG['Error'] = 'Błąd';
 $_LANG['[ Error! ]'] = '[ Błąd! ]';
 $_LANG['Error:'] = 'Błąd:';
 $_LANG['Error!'] = 'Błąd!';
+$_LANG['Notification'] = 'Powiadomienie';
 $_LANG['For more information see'] = 'Aby dowiedzieć się więcej zobacz';
 $_LANG['Function <b>$a</b> in module <b>$b</b> not found!'] = 'Funkcja <b>$a</b> w module <b>$b</b> nie odnaleziona!';
 $_LANG['Hint style:'] = 'Styl podpowiedzi:';
@@ -107,4 +109,5 @@ $_LANG['Enter Google reCAPTCHA site key'] = 'Podaj klucz witryny Google reCAPTCH
 $_LANG['Google reCAPTCHA secret:'] = 'Podaj tajne hasło Google reCAPTCHA:';
 $_LANG['Enter Google reCAPTCHA secret'] = 'Podaj tajne hasło Google reCAPTCHA:';
 
-?>
+$_LANG['Web browser icon'] = 'Ikona w przeglądarce www';
+$_LANG['Enter full or relative URL address of web browser icon'] = 'Podaj pełny lub względny adres URL ikony widocznej w przeglądarce www';

@@ -26,7 +26,7 @@
 
 // get customer name and check privileges using customerview
 $customer = $DB->GetRow('SELECT id, divisionid, '
-	.$DB->Concat('lastname',"' '",'name').' AS name
+    .$DB->Concat('lastname', "' '", 'name').' AS name
 	FROM customerview WHERE id = ?', array($_GET['id']));
 
 if (!$customer) {
@@ -34,91 +34,104 @@ if (!$customer) {
 }
 
 if (isset($_POST['assignment'])) {
-	$a = $_POST['assignment'];
+    $a = $_POST['assignment'];
 
-	$result = $LMS->ValidateAssignment($a);
-	extract($result);
+    $result = $LMS->ValidateAssignment($a);
+    extract($result);
 
-	$hook_data = $LMS->executeHook(
-		'customerassignmentadd_validation_before_submit', 
-		array(
-			'a' => $a,
-			'error' => $error
-		)
-	);
-	$a = $hook_data['a'];
-	$error = $hook_data['error'];
+    if (isset($schemaid) && !$LMS->CheckSchemaModifiedValues($a)) {
+        $error['promotion-select'] = trans('Illegal promotion schema period value modification!');
+    }
 
-	if (!$error) {
-		$a['customerid'] = $customer['id'];
-		$a['period']     = $period;
-		$a['at']         = $at;
-		$a['datefrom']   = $from;
-		$a['dateto']     = $to;
+    $hook_data = $LMS->executeHook(
+        'customerassignmentadd_validation_before_submit',
+        array(
+            'a' => $a,
+            'error' => $error
+        )
+    );
+    $a = $hook_data['a'];
+    $error = $hook_data['error'];
 
-		$DB->BeginTrans();
+    if (!$error) {
+        $a['customerid'] = $customer['id'];
+        $a['period']     = $period;
+        $a['at']         = $at;
+        $a['datefrom']   = $from;
+        $a['dateto']     = $to;
 
-		$LMS->UpdateExistingAssignments($a);
+        $DB->BeginTrans();
 
-		if (is_array($a['stariffid'][$schemaid])) {
-			$copy_a = $a;
-			$snodes = $a['snodes'][$schemaid];
-			$sphones = $a['sphones'][$schemaid];
+        $LMS->UpdateExistingAssignments($a);
 
-			foreach ($a['stariffid'][$schemaid] as $label => $v) {
-				if (!$v)
-					continue;
+        if (is_array($a['stariffid'][$schemaid])) {
+            $modifiedvalues = $a['values'][$schemaid];
+            $copy_a = $a;
+            $snodes = $a['snodes'][$schemaid];
+            $sphones = $a['sphones'][$schemaid];
 
-			    $copy_a['promotiontariffid'] = $v;
-			    $copy_a['nodes'] = $snodes[$label];
-				$copy_a['phones'] = $sphones[$label];
-				$tariffid = $LMS->AddAssignment($copy_a);
-			}
-		} else {
-			$LMS->UpdateExistingAssignments($a);
-			$tariffid = $LMS->AddAssignment($a);
-		}
+            foreach ($a['stariffid'][$schemaid] as $label => $v) {
+                if (!$v) {
+                    continue;
+                }
 
-        if ($a['tarifftype'] == TARIFF_PHONE && !empty($a['phones'])) {
-            $tariffid = $tariffid[0];
-
-            foreach($a['phones'] as $p)
-                $DB->Execute('INSERT INTO voip_number_assignments (number_id, assignment_id) VALUES (?,?)', array($p, $tariffid));
+                $copy_a['promotiontariffid'] = $v;
+                $copy_a['modifiedvalues'] = isset($modifiedvalues[$label][$v]) ? $modifiedvalues[$label][$v] : array();
+                $copy_a['nodes'] = $snodes[$label];
+                $copy_a['phones'] = $sphones[$label];
+                $tariffid = $LMS->AddAssignment($copy_a);
+            }
+        } else {
+            $LMS->UpdateExistingAssignments($a);
+            $tariffid = $LMS->AddAssignment($a);
         }
 
-		$DB->CommitTrans();
+        if ($a['tarifftype'] == SERVICE_PHONE && !empty($a['phones'])) {
+            $tariffid = $tariffid[0];
+        }
 
-		$LMS->executeHook(
-			'customerassignmentadd_after_submit',
-			array(
-				'assignment' => $a,
-			)
-		);
+        $DB->CommitTrans();
 
-		$SESSION->redirect('?'.$SESSION->get('backto'));
-	}
+        $LMS->executeHook(
+            'customerassignmentadd_after_submit',
+            array(
+                'assignment' => $a,
+            )
+        );
 
-	$a['alltariffs'] = isset($a['alltariffs']);
+        $SESSION->redirect('?'.$SESSION->get('backto'));
+    }
 
-	$SMARTY->assign('error', $error);
+    $a['alltariffs'] = isset($a['alltariffs']);
+
+    $SMARTY->assign('error', $error);
+} else {
+    $default_assignment_invoice = ConfigHelper::getConfig('phpui.default_assignment_invoice');
+    if (!empty($default_assignment_invoice)) {
+        if (preg_match('/^[0-9]+$/', $default_assignment_invoice)) {
+            $a['invoice'] = $default_assignment_invoice;
+        } elseif (ConfigHelper::checkValue($default_assignment_invoice)) {
+            $a['invoice'] = DOC_INVOICE;
+        }
+    }
+    $default_assignment_settlement = ConfigHelper::getConfig('phpui.default_assignment_settlement');
+    if (!empty($default_assignment_settlement)) {
+        if (preg_match('/^[0-9]+$/', $default_assignment_settlement)) {
+            $a['settlement'] = $default_assignment_settlement;
+        } elseif (ConfigHelper::checkValue($default_assignment_settlement)) {
+            $a['settlement'] = 1;
+        }
+    }
+    $a['last-settlement'] = ConfigHelper::checkConfig('phpui.default_assignment_last_settlement');
+    $default_assignment_period = ConfigHelper::getConfig('phpui.default_assignment_period');
+    if (!empty($default_assignment_period)) {
+        $a['period'] = $default_assignment_period;
+    }
+    $default_assignment_at = ConfigHelper::getConfig('phpui.default_assignment_at');
+    if (!empty($default_assignment_at)) {
+        $a['at'] = $default_assignment_at;
+    }
 }
-else
-{
-	$default_assignment_invoice = ConfigHelper::getConfig('phpui.default_assignment_invoice');
-	if (!empty($default_assignment_invoice))
-		$a['invoice'] = $default_assignment_invoice;
-	$default_assignment_settlement = ConfigHelper::getConfig('phpui.default_assignment_settlement');
-	if (!empty($default_assignment_settlement))
-		$a['settlement'] = true;
-	$default_assignment_period = ConfigHelper::getConfig('phpui.default_assignment_period');
-	if (!empty($default_assignment_period))
-		$a['period'] = $default_assignment_period;
-	$default_assignment_at = ConfigHelper::getConfig('phpui.default_assignment_at');
-	if (!empty($default_assignment_at))
-		$a['at'] = $default_assignment_at;
-}
-
-$expired = isset($_GET['expired']) ? $_GET['expired'] : false;
 
 $layout['pagetitle'] = trans('New Liability: $a', '<A href="?m=customerinfo&id='.$customer['id'].'">'.$customer['name'].'</A>');
 
@@ -138,22 +151,19 @@ $SMARTY->assign('customernetdevnodes', $LMS->getCustomerNetDevNodes($customer['i
 $SMARTY->assign('voipaccounts', $LMS->GetCustomerVoipAccounts($customer['id']));
 $SMARTY->assign('customeraddresses', $LMS->getCustomerAddresses($customer['id']));
 $SMARTY->assign('numberplanlist', $LMS->GetNumberPlans(array(
-	'doctype' => DOC_INVOICE,
-	'cdate' => null,
-	'division' => $customer['divisionid'],
-	'next' => false,
+    'doctype' => DOC_INVOICE,
+    'cdate' => null,
+    'division' => $customer['divisionid'],
+    'next' => false,
 )));
 
 $SMARTY->assign('tags', $LMS->TarifftagGetAll());
 
-$SMARTY->assign('assignment'          , $a);
+$SMARTY->assign('assignment', $a);
 
-$SMARTY->assign('tariffs'             , $LMS->GetTariffs());
-$SMARTY->assign('taxeslist'           , $LMS->GetTaxes());
-$SMARTY->assign('expired'             , $expired);
-$SMARTY->assign('assignments'         , $LMS->GetCustomerAssignments($customer['id'], $expired));
-$SMARTY->assign('customerinfo'        , $customer);
+$SMARTY->assign('tariffs', $LMS->GetTariffs());
+$SMARTY->assign('taxeslist', $LMS->GetTaxes());
+$SMARTY->assign('assignments', $LMS->GetCustomerAssignments($customer['id'], true, false));
+$SMARTY->assign('customerinfo', $customer);
 
 $SMARTY->display('customer/customerassignmentsedit.html');
-
-?>

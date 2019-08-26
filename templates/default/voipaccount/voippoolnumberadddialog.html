@@ -47,7 +47,7 @@
             </LI>
             <LI>
                 {trans("Description:")}<BR>
-                <TEXTAREA ID="description" NAME="description" CLASS="text ui-croner lms-ui-dialog-input" ROWS="7" {tip text="Enter notes (optional)"}></TEXTAREA>
+                <TEXTAREA ID="description" NAME="description" CLASS="text ui-corner lms-ui-dialog-input" ROWS="7" {tip text="Enter notes (optional)"}></TEXTAREA>
             </LI>
         </OL>
 
@@ -62,7 +62,7 @@ var pool_add_dialog;
 
 $( function() {
     pool_add_dialog = new LmsUiDialog('pool-add-dialog');
-    pool_add_dialog.setOpener( "pool-add-dialog-show-btn" );
+    pool_add_dialog.setOpener( "#pool-add-dialog-show-btn" );
     pool_add_dialog.setButtons([{ text: "{trans("Add")}"   , click: function() { $(this).find("form").submit(); } },
                                 { text: "{trans("Cancel")}", click: function() { $( this ).dialog( "close" ); } } ]);
 
