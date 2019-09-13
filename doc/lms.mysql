@@ -150,6 +150,7 @@ DROP TABLE IF EXISTS location_boroughs;
 DROP TABLE IF EXISTS location_districts;
 DROP TABLE IF EXISTS location_states;
 DROP TABLE IF EXISTS countries;
+DROP TABLE IF EXISTS twofactorauthcodes;
 DROP TABLE IF EXISTS users;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -184,6 +185,8 @@ CREATE TABLE users (
   accessto int(11) NOT NULL DEFAULT '0',
   settings mediumtext NOT NULL DEFAULT '',
   persistentsettings mediumtext NOT NULL DEFAULT '',
+  twofactorauth smallint NOT NULL DEFAULT 0,
+  twofactorauthsecretkey varchar(255) DEFAULT NULL,
   PRIMARY KEY  (id),
   UNIQUE KEY login (login)
 ) ENGINE=InnoDB;
@@ -191,6 +194,23 @@ CREATE TABLE users (
 CREATE VIEW vusers AS
 	SELECT *, CONCAT(firstname, ' ', lastname) AS name, CONCAT(lastname, ' ', firstname) AS rname
 	FROM users;
+
+# --------------------------------------------------------
+#
+# Structure of table twofactorauthcodehistory
+#
+
+CREATE TABLE twofactorauthcodehistory (
+    id int(11) NOT NULL auto_increment,
+    userid int(11) NOT NULL,
+    authcode varchar(10) NOT NULL,
+    uts int(11) NOT NULL,
+    ipaddr int(16) DEFAULT NULL,
+    success smallint NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    CONSTRAINT twofactorauthcodehistory_userid_fkey
+        FOREIGN KEY (userid) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
 
 # --------------------------------------------------------
 #
@@ -928,6 +948,7 @@ CREATE TABLE assignments (
 	docid int(11) DEFAULT NULL,
 	commited tinyint(1) NOT NULL DEFAULT '1',
 	separatedocument tinyint(1) NOT NULL DEFAULT 0,
+	count numeric(9,3) DEFAULT 1 NOT NULL,
 	PRIMARY KEY (id),
 	INDEX tariffid (tariffid),
 	INDEX customerid (customerid),
@@ -1421,6 +1442,7 @@ CREATE TABLE nodelocks (
 	days smallint		DEFAULT 0 NOT NULL,
 	fromsec int(11)		DEFAULT 0 NOT NULL,
 	tosec int(11)		DEFAULT 0 NOT NULL,
+	disabled tinyint(1)     DEFAULT '0' NOT NULL,
 	PRIMARY KEY (id),
 	FOREIGN KEY (nodeid) REFERENCES nodes (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=INNODB;
@@ -2727,38 +2749,39 @@ CREATE VIEW vnodetariffs_allsuspended AS
 		AND (dateto = 0 OR dateto > UNIX_TIMESTAMP())
 	GROUP BY customerid;
 
+
 CREATE VIEW vnodetariffs_tariffs AS
-	SELECT n.id AS nodeid,
-		   SUM(t.downrate) AS downrate,
-		   SUM(t.downceil) AS downceil,
-		   SUM(t.down_burst_time) AS down_burst_time,
-		   SUM(t.down_burst_threshold) AS down_burst_threshold,
-		   SUM(t.down_burst_limit) AS down_burst_limit,
-		   SUM(t.uprate) AS uprate,
-		   SUM(t.upceil) AS upceil,
-		   SUM(t.up_burst_time) AS up_burst_time,
-		   SUM(t.up_burst_threshold) AS up_burst_threshold,
-		   SUM(t.up_burst_limit) AS up_burst_limit,
-		   SUM(COALESCE(t.downrate_n, t.downrate)) AS downrate_n,
-		   SUM(COALESCE(t.downceil_n, t.downceil)) AS downceil_n,
-		   SUM(COALESCE(t.down_burst_time_n, t.down_burst_time)) AS down_burst_time_n,
-		   SUM(COALESCE(t.down_burst_threshold_n, t.down_burst_threshold)) AS down_burst_threshold_n,
-		   SUM(COALESCE(t.down_burst_limit_n, t.down_burst_limit)) AS down_burst_limit_n,
-		   SUM(COALESCE(t.uprate_n, t.uprate)) AS uprate_n,
-		   SUM(COALESCE(t.upceil_n, t.upceil)) AS upceil_n,
-		   SUM(COALESCE(t.up_burst_time_n, t.up_burst_time)) AS up_burst_time_n,
-		   SUM(COALESCE(t.up_burst_threshold_n, t.up_burst_threshold)) AS up_burst_threshold_n,
-		   SUM(COALESCE(t.up_burst_limit_n, t.up_burst_limit)) AS up_burst_limit_n
-	FROM nodes n
-		JOIN nodeassignments na ON na.nodeid = n.id
-		JOIN assignments a ON a.id = na.assignmentid
-		JOIN tariffs t ON t.id = a.tariffid
-		LEFT JOIN vnodetariffs_allsuspended s ON s.customerid = n.ownerid
-	WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
-		  AND a.datefrom <= UNIX_TIMESTAMP()
-		  AND (a.dateto = 0 OR a.dateto >= UNIX_TIMESTAMP())
-		  AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
-	GROUP BY n.id;
+    SELECT n.id AS nodeid,
+        ROUND(SUM(t.downrate * a.count)) AS downrate,
+        ROUND(SUM(t.downceil * a.count)) AS downceil,
+        SUM(t.down_burst_time) AS down_burst_time,
+        SUM(t.down_burst_threshold) AS down_burst_threshold,
+        SUM(t.down_burst_limit) AS down_burst_limit,
+        ROUND(SUM(t.uprate * a.count)) AS uprate,
+        ROUND(SUM(t.upceil * a.count)) AS upceil,
+        SUM(t.up_burst_time) AS up_burst_time,
+        SUM(t.up_burst_threshold) AS up_burst_threshold,
+        SUM(t.up_burst_limit) AS up_burst_limit,
+        ROUND(SUM(COALESCE(t.downrate_n, t.downrate) * a.count)) AS downrate_n,
+        ROUND(SUM(COALESCE(t.downceil_n, t.downceil) * a.count)) AS downceil_n,
+        SUM(COALESCE(t.down_burst_time_n, t.down_burst_time)) AS down_burst_time_n,
+        SUM(COALESCE(t.down_burst_threshold_n, t.down_burst_threshold)) AS down_burst_threshold_n,
+        SUM(COALESCE(t.down_burst_limit_n, t.down_burst_limit)) AS down_burst_limit_n,
+        ROUND(SUM(COALESCE(t.uprate_n, t.uprate) * a.count)) AS uprate_n,
+        ROUND(SUM(COALESCE(t.upceil_n, t.upceil) * a.count)) AS upceil_n,
+        SUM(COALESCE(t.up_burst_time_n, t.up_burst_time)) AS up_burst_time_n,
+        SUM(COALESCE(t.up_burst_threshold_n, t.up_burst_threshold)) AS up_burst_threshold_n,
+        SUM(COALESCE(t.up_burst_limit_n, t.up_burst_limit)) AS up_burst_limit_n
+    FROM nodes n
+    JOIN nodeassignments na ON na.nodeid = n.id
+    JOIN assignments a ON a.id = na.assignmentid
+    JOIN tariffs t ON t.id = a.tariffid
+    LEFT JOIN vnodetariffs_allsuspended s ON s.customerid = n.ownerid
+    WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
+        AND a.datefrom <= UNIX_TIMESTAMP()
+        AND (a.dateto = 0 OR a.dateto >= UNIX_TIMESTAMP())
+        AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
+    GROUP BY n.id;
 
 CREATE VIEW vnodetariffs AS
 	SELECT n.*,
@@ -2789,35 +2812,38 @@ CREATE VIEW vnodealltariffs_nodes AS
 		OR (vn.ownerid IS NULL AND nd.id IS NOT NULL);
 
 CREATE VIEW vnodealltariffs_tariffs AS
-	SELECT n.id AS nodeid, SUM(t.downrate) AS downrate, SUM(t.downceil) AS downceil,
-		   SUM(t.down_burst_time) AS down_burst_time,
-		   SUM(t.down_burst_threshold) AS down_burst_threshold,
-		   SUM(t.down_burst_limit) AS down_burst_limit,
-		   SUM(t.uprate) AS uprate, SUM(t.upceil) AS upceil,
-		   SUM(t.up_burst_time) AS up_burst_time,
-		   SUM(t.up_burst_threshold) AS up_burst_threshold,
-		   SUM(t.up_burst_limit) AS up_burst_limit,
-		   SUM(COALESCE(t.downrate_n, t.downrate)) AS downrate_n,
-		   SUM(COALESCE(t.downceil_n, t.downceil)) AS downceil_n,
-		   SUM(COALESCE(t.down_burst_time_n, t.down_burst_time)) AS down_burst_time_n,
-		   SUM(COALESCE(t.down_burst_threshold_n, t.down_burst_threshold)) AS down_burst_threshold_n,
-		   SUM(COALESCE(t.down_burst_limit_n, t.down_burst_limit)) AS down_burst_limit_n,
-		   SUM(COALESCE(t.uprate_n, t.uprate)) AS uprate_n,
-		   SUM(COALESCE(t.upceil_n, t.upceil)) AS upceil_n,
-		   SUM(COALESCE(t.up_burst_time_n, t.up_burst_time)) AS up_burst_time_n,
-		   SUM(COALESCE(t.up_burst_threshold_n, t.up_burst_threshold)) AS up_burst_threshold_n,
-		   SUM(COALESCE(t.up_burst_limit_n, t.up_burst_limit)) AS up_burst_limit_n
-	FROM assignments a
-		JOIN tariffs t ON t.id = a.tariffid
-		JOIN vnodealltariffs_nodes n ON n.ownerid = a.customerid
-		LEFT JOIN vnodetariffs_allsuspended s ON s.customerid = a.customerid
-	WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
-		  AND a.datefrom <= UNIX_TIMESTAMP()
-		  AND (a.dateto = 0 OR a.dateto >= UNIX_TIMESTAMP())
-		  AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
-		  AND n.id NOT IN (SELECT nodeid FROM nodeassignments)
-		  AND a.id NOT IN (SELECT assignmentid FROM nodeassignments)
-	GROUP BY n.id;
+    SELECT n.id AS nodeid,
+        ROUND(SUM(t.downrate * a.count)) AS downrate,
+        ROUND(SUM(t.downceil * a.count)) AS downceil,
+        SUM(t.down_burst_time) AS down_burst_time,
+        SUM(t.down_burst_threshold) AS down_burst_threshold,
+        SUM(t.down_burst_limit) AS down_burst_limit,
+        ROUND(SUM(t.uprate * a.count)) AS uprate,
+        ROUND(SUM(t.upceil * a.count)) AS upceil,
+        SUM(t.up_burst_time) AS up_burst_time,
+        SUM(t.up_burst_threshold) AS up_burst_threshold,
+        SUM(t.up_burst_limit) AS up_burst_limit,
+        ROUND(SUM(COALESCE(t.downrate_n, t.downrate) * a.count)) AS downrate_n,
+        ROUND(SUM(COALESCE(t.downceil_n, t.downceil) * a.count)) AS downceil_n,
+        SUM(COALESCE(t.down_burst_time_n, t.down_burst_time)) AS down_burst_time_n,
+        SUM(COALESCE(t.down_burst_threshold_n, t.down_burst_threshold)) AS down_burst_threshold_n,
+        SUM(COALESCE(t.down_burst_limit_n, t.down_burst_limit)) AS down_burst_limit_n,
+        ROUND(SUM(COALESCE(t.uprate_n, t.uprate) * a.count)) AS uprate_n,
+        ROUND(SUM(COALESCE(t.upceil_n, t.upceil) * a.count)) AS upceil_n,
+        SUM(COALESCE(t.up_burst_time_n, t.up_burst_time)) AS up_burst_time_n,
+        SUM(COALESCE(t.up_burst_threshold_n, t.up_burst_threshold)) AS up_burst_threshold_n,
+        SUM(COALESCE(t.up_burst_limit_n, t.up_burst_limit)) AS up_burst_limit_n
+    FROM assignments a
+    JOIN tariffs t ON t.id = a.tariffid
+    JOIN vnodealltariffs_nodes n ON n.ownerid = a.customerid
+    LEFT JOIN vnodetariffs_allsuspended s ON s.customerid = a.customerid
+    WHERE s.allsuspended IS NULL AND a.suspended = 0 AND a.commited = 1
+        AND a.datefrom <= UNIX_TIMESTAMP()
+        AND (a.dateto = 0 OR a.dateto >= UNIX_TIMESTAMP())
+        AND (t.downrate > 0 OR t.downceil > 0 OR t.uprate > 0 OR t.upceil > 0)
+        AND n.id NOT IN (SELECT nodeid FROM nodeassignments)
+        AND a.id NOT IN (SELECT assignmentid FROM nodeassignments)
+    GROUP BY n.id;
 
 CREATE VIEW vnodealltariffs AS
 	SELECT n.*,
@@ -2846,10 +2872,10 @@ CREATE VIEW vnodealltariffs AS
 		a.house as location_house, a.flat as location_flat,
 		a.location
 	FROM nodes n
-		JOIN vnodes_mac m ON m.nodeid = n.id
-		LEFT JOIN vaddresses a ON a.id = n.address_id
-		JOIN vnodetariffs_tariffs t1 ON t1.nodeid = n.id
-		LEFT JOIN vnodealltariffs_tariffs t2 ON t2.nodeid = n.id
+    JOIN vnodes_mac m ON m.nodeid = n.id
+    LEFT JOIN vaddresses a ON a.id = n.address_id
+    LEFT JOIN vnodetariffs_tariffs t1 ON t1.nodeid = n.id
+    LEFT JOIN vnodealltariffs_tariffs t2 ON t2.nodeid = n.id
 	WHERE (n.ipaddr <> 0 OR n.ipaddr_pub <> 0)
 		  AND ((t1.nodeid IS NOT NULL AND t2.nodeid IS NULL)
 			   OR (t1.nodeid IS NULL AND t2.nodeid IS NOT NULL)
@@ -3190,6 +3216,7 @@ URL: %url
 ('userpanel', 'speed_unit_type', '1000', '', 0),
 ('userpanel', 'speed_unit_aggregation_threshold', '5', '', 0),
 ('userpanel', 'shortcut_icon', '', '', 0),
+('userpanel', 'timeout', '600', '', 0),
 ('directories','userpanel_dir','userpanel','',0);
 
 INSERT INTO invprojects (name, type) VALUES ('inherited', 1);
@@ -3521,4 +3548,4 @@ INSERT INTO netdevicemodels (name, alternative_name, netdeviceproducerid) VALUES
 ('XR7', 'XR7 MINI PCI PCBA', 2),
 ('XR9', 'MINI PCI 600MW 900MHZ', 2);
 
-INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2019082200');
+INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2019091301');

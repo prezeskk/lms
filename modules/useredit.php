@@ -1,9 +1,11 @@
 <?php
 
+use PragmaRX\Google2FA\Google2FA;
+
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2016 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -89,7 +91,17 @@ if ($userinfo) {
         $userinfo['ntype'] = array_sum(Utils::filterIntegers($userinfo['ntype']));
     }
 
+    if ($userinfo['twofactorauth'] == 1 && strlen($userinfo['twofactorauthsecretkey']) != 16) {
+        $error['twofactorauthsecretkey'] = trans('Incorrect secret key format!');
+    }
+
     if (!$error) {
+        if ($userinfo['twofactorauth'] == -1) {
+            $userinfo['twofactorauth'] = 1;
+            $google2fa = new Google2FA();
+            $userinfo['twofactorauthsecretkey'] = $google2fa->generateSecretKey();
+        }
+
         $userinfo['accessfrom'] = $accessfrom;
         $userinfo['accessto'] = $accessto;
         $LMS->UserUpdate($userinfo);

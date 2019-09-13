@@ -126,8 +126,16 @@ TABLE		{ border-collapse: collapse; border-color: #000000 }
 
 #lms-ui-main-menu {
 	margin-top: 0.5em;
-	margin-bottom: 0.5em;
+	//margin-bottom: 0.5em;
 	align-self: stretch;
+}
+
+#lms-ui-session-expire {
+  font-weight: bold;
+  color: darkred;
+  align-self: stretch;
+  text-align: center;
+  margin-bottom: 0.5em;
 }
 
 #lms-ui-copyrights {
@@ -1483,6 +1491,25 @@ li.lms-ui-suggestion-item {
 	}
 }
 
+.lms-ui-icon-suspend,
+.lms-ui-icon-lock {
+	.fa-icon;
+	.fas;
+	.lms-ui-icon;
+	&:before {
+		content: @fa-var-lock;
+	}
+}
+
+.lms-ui-icon-unlock {
+	.fa-icon;
+	.fas;
+	.lms-ui-icon;
+	&:before {
+		content: @fa-var-unlock;
+	}
+}
+
 .lms-ui-icon-warning,
 .lms-ui-icon-warn,
 .lms-ui-icon-warnoff {
@@ -2149,6 +2176,12 @@ button,a,div {
 		}
 	}
 
+	&.lms-ui-button-password {
+		& > i {
+			.lms-ui-icon-password;
+		}
+	}
+
 	&.lms-ui-button-convert,
 	&.lms-ui-button-transform {
 		& > i {
@@ -2224,6 +2257,19 @@ button,a,div {
 	&.lms-ui-button-remove {
 		& > i {
 			.lms-ui-icon-trash;
+		}
+	}
+
+	&.lms-ui-button-suspend,
+	&.lms-ui-button-lock {
+		& > i {
+			.lms-ui-icon-suspend;
+		}
+	}
+
+	&.lms-ui-button-unlock {
+		& > i {
+			.lms-ui-icon-unlock;
 		}
 	}
 
@@ -2383,7 +2429,10 @@ table.lmsbox {
 				background-position: left 0.5em;
 				background-size: 3px 1px;
 				background-repeat: repeat-x;
-				padding: 1em 0.5em 0.5em 0.5em;
+				padding: 1em 0.5em 0.25em 0.5em;
+				.lms-ui-button {
+					margin-bottom: 0.25em;
+				}
 			}
 		}
 		& > thead {
@@ -3270,6 +3319,7 @@ div.lms-ui-filter-container {
 	div.lms-ui-filter-definition {
 		display: flex;
 		flex-wrap: wrap;
+		white-space: normal;
 		width: 80%;
 		& > *,
 		& > form > * {

@@ -52,6 +52,21 @@ version 25-git (????-??-??):
   - improvement: make customer and node forms responsive [chilan, ravvar]
   - improvement: phpui.open_calendar_on_input_click set to 'true' ('false' by default) enables
     old-style date picker behavior on input control click [chilan]
+  - enhancement: session expiration time to left presented on right-top corner [chilan]
+  - enhancement: phpui.session_expiration_warning_interval controls if session expiration
+    warning popup is displayed if given seconds left to auto-logout (default value '0'
+    means function is disabled) [chilan]
+  - enhancement: separate session timeout for userpanel [chilan]
+  - enhancement: implemented count for assignments [chilan]
+  - enhancement: phpui.node_multi_tariff_restriction variable controls how multi tariffs
+    to single node assignments are handled (default empty value means current
+    behavior) [chilan]
+  - enhancement: nodelocks can be enabled/disabled [chilan]
+  - improvement: phpui.datatables_max_records can have 0 value which means
+    no record limit [chilan]
+  - enhancement: added optional bandwidth link distribution for uke income report [chilan]
+  - improvement: allow to search customers with balance calculated on given day [chilan]
+  - enhancement: google authenticator support added [chilan]
 
 version 24.0 (2019-05-16):
 

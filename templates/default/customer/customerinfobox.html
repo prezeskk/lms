@@ -1,5 +1,20 @@
 <!--// $Id$ //-->
 <style>
+	.customer-header {
+		width: 100%;
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: stretch;
+		flex-wrap: wrap;
+	}
+
+	.customer-header > div {
+	}
+
+	.customer-contact {
+		display: flex;
+	}
 
 	.customer-data {
 		width: 100%;
@@ -12,10 +27,6 @@
 
 	.customer-data > div {
 		flex-grow: 1;
-	}
-
-	#customer-left-panel {
-		margin-right: 10em;
 	}
 
 	#customer-right-panel {
@@ -31,13 +42,17 @@
 	</COLGROUP>
     <THEAD>
 	<TR{if $customerpanel} class="hand lmsbox-titlebar" data-lmsbox-content="customerpanel"{/if}>
-		<TD class="bold{if !$customerpanel} fleftu{/if}">
-			<IMG SRC="img/customer.gif" ALT="">
-			{if $customerpanel}{trans("Owner:")}{/if}
-			{$customerinfo.customername|escape} ({$customerinfo.id|string_format:"%04d"}{if $customerinfo.extid} / {$customerinfo.extid}{/if}){if $customerinfo.deleted} <span class="red">({trans("deleted customer")})</span>{/if}
-		</TD>
-		<TD class="text-right nobr{if !$customerpanel} frightu{/if}">
-			{if $customerpanel}<a href="?m=customerinfo&amp;id={$customerinfo.id}">{trans('Navigate to the customer')} &raquo;</a>{/if}&nbsp;
+		<TD colspan="2">
+			<div class="customer-header">
+				<div class="bold">
+					<IMG SRC="img/customer.gif" ALT="">
+					{if $customerpanel}{trans("Owner:")}{/if}
+					{$customerinfo.customername|escape} ({$customerinfo.id|string_format:"%04d"}{if $customerinfo.extid} / {$customerinfo.extid}{/if}){if $customerinfo.deleted} <span class="red">({trans("deleted customer")})</span>{/if}
+				</div>
+				<div>
+					{if $customerpanel}<a href="?m=customerinfo&amp;id={$customerinfo.id}">{trans('Navigate to the customer')} &raquo;</a>{/if}&nbsp;
+				</div>
+			</div>
 		</TD>
 	</TR>
     </THEAD>
@@ -132,19 +147,21 @@
 						{if isset($customerinfo[$type|cat:"s"])}
 							<TR>
 								<TD style="width: 1%;"></TD>
-								<TD style="width: 99%;" class="nobr">
-									<fieldset style="width: 1%;" class="nobr">
-										<legend class="bold">
+								<TD style="width: 99%;" class="customer-contact">
+									<fieldset style="width: auto;">
+										<legend class="bold nobr">
 											<i class="{$properties.ui.legend.icon}"></i>
 											{$properties.ui.legend.text}
 										</legend>
 										<TABLE>
 											{foreach $customerinfo[$type|cat:"s"] as $contact}
 											<TR{if ($contact.type & $smarty.const.CONTACT_DISABLED) == $smarty.const.CONTACT_DISABLED} class="blend"{/if}>
-												<TD>
+												<TD class="customer-contact">
+													<div>
 													{if isset($properties.formatter)}{call_user_func($properties['formatter'], $contact)}{else}{$contact.contact}{/if}
 													{if $contact.typestr}[{$contact.typestr}]{/if}
 													{if $contact.name} ({$contact.name|truncate:"40":"...":true}){/if}
+													</div>
 												</TD>
 											</TR>
 											{/foreach}
@@ -215,7 +232,7 @@
 								<TD style="width: 1%;" class="valign-top">
 									<IMG SRC="img/serialnumber.gif" ALT="">
 								</TD>
-								<TD style="width: 99%;" class="nobr">
+								<TD style="width: 99%;">
 									{trans("RBE Name:")}
 									<TABLE CELLPADDING="5">
 										<TR>
@@ -232,7 +249,7 @@
 								<TD style="width: 1%;">
 									<IMG SRC="img/serialnumber.gif" ALT="">
 								</TD>
-								<TD style="width: 99%;" class="nobr">
+								<TD style="width: 99%;">
 									{trans("RBE")}: {$customerinfo.rbe}
 								</TD>
 							</TR>

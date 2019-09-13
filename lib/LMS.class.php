@@ -373,6 +373,12 @@ class LMS
         return $manager->setUserPassword($id, $passwd);
     }
 
+    public function SetUserAuthentication($id, $twofactorauth, $twofactorauthsecretkey)
+    {
+        $manager = $this->getUserManager();
+        return $manager->SetUserAuthentication($id, $twofactorauth, $twofactorauthsecretkey);
+    }
+
     public function GetUserName($id = null)
     {
         $manager = $this->getUserManager();
@@ -3087,6 +3093,12 @@ class LMS
         return $manager->GetDocumentLastReference($docid);
     }
 
+    public function CheckNodeTariffRestrictions($aid, $nodes)
+    {
+        $manager = $this->getFinanceManager();
+        return $manager->CheckNodeTariffRestrictions($aid, $nodes);
+    }
+
     /**
      * VoIP functions
      */
@@ -3214,6 +3226,12 @@ class LMS
             }
         }
         return $nodesessions;
+    }
+
+    public function MessageTemplateExists($type, $name)
+    {
+        $manager = $this->getMessageManager();
+        return $manager->MessageTemplateExists($type, $name);
     }
 
     public function AddMessageTemplate($type, $name, $subject, $helpdesk_queues, $helpdesk_message_types, $message)

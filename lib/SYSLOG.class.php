@@ -88,6 +88,7 @@ class SYSLOG
     const OPER_USERLOGFAIL = 253;
     const OPER_USERLOGIN = 254;
     const OPER_USERLOGOUT = 255;
+    const OPER_USERAUTCHANGE = 256;
 
     private static $resources = array(
         self::RES_USER => 'user<!syslog>',
@@ -556,5 +557,19 @@ class SYSLOG
         }
         //xdebug_var_dump($result);
         return $result;
+    }
+
+    public function AddResources($namesArray, $keysArray = NULL)
+    {
+        if(is_array($namesArray)) {
+            foreach($namesArray as $key => $value) {
+                self::$resources[$key] = $value;
+            }
+        }
+        if($keysArray != NULL && is_array($keysArray)) {
+            foreach($keysArray as $key => $value) {
+                self::$resource_keys[$key] = $value;
+            }
+        }
     }
 }

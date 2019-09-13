@@ -179,6 +179,16 @@ if (isset($_POST['assignment'])) {
             break;
     }
 
+    if (isset($a['count'])) {
+        if ($a['count'] == '') {
+            $count = 1;
+        } elseif (preg_match('/^[0-9]+(\.[0-9]+)?$/', $a['count'])) {
+            $count = floatval($a['count']);
+        } else {
+            $error['count'] = trans('Incorrect count format! Numeric value required!');
+        }
+    }
+
     if ($a['datefrom'] == '') {
         $from = 0;
     } elseif (preg_match('/^[0-9]{4}\/[0-9]{2}\/[0-9]{2}$/', $a['datefrom'])) {
@@ -247,6 +257,28 @@ if (isset($_POST['assignment'])) {
         unset($a['nodes']);
     } else {
         unset($a['phones']);
+    }
+
+    // try to restrict node assignment sharing
+    if ($a['tariffid'] > 0 && isset($a['nodes']) && !empty($a['nodes'])) {
+        $restricted_nodes = $LMS->CheckNodeTariffRestrictions($a['id'], $a['nodes']);
+        $node_multi_tariff_restriction = ConfigHelper::getConfig(
+            'phpui.node_multi_tariff_restriction',
+            '',
+            true
+        );
+        if (preg_match('/^(error|warning)$/', $node_multi_tariff_restriction) && !empty($restricted_nodes)) {
+            foreach ($restricted_nodes as $idx => $nodeid) {
+                if ($node_multi_tariff_restriction == 'error') {
+                    $error['assignment[nodes][' . $idx . ']'] = trans('This item is already bound with another assignment!');
+                } else {
+                    if (!isset($a['node_warns'][$idx])) {
+                        $error['assignment[nodes][' . $idx . ']'] = trans('This item is already bound with another assignment!');
+                    }
+                    $a['node_warns'][$idx] = 1;
+                }
+            }
+        }
     }
 
     $hook_data = $LMS->executeHook(
@@ -325,6 +357,7 @@ if (isset($_POST['assignment'])) {
             'attribute' => !empty($a['attribute']) ? $a['attribute'] : null,
             'period' => $period,
             'at' => $at,
+            'count' => $count,
             'invoice' => isset($a['invoice']) ? $a['invoice'] : 0,
             'separatedocument' => isset($a['separatedocument']) ? 1 : 0,
             'settlement' => !isset($a['settlement']) || empty($a['settlement']) ? 0 : 1,
@@ -339,7 +372,7 @@ if (isset($_POST['assignment'])) {
             SYSLOG::RES_ASSIGN => $a['id']
         );
 
-        $DB->Execute('UPDATE assignments SET tariffid=?, customerid=?, attribute=?, period=?, at=?,
+        $DB->Execute('UPDATE assignments SET tariffid=?, customerid=?, attribute=?, period=?, at=?, count=?,
 			invoice=?, separatedocument=?, settlement=?, datefrom=?, dateto=?, pdiscount=?, vdiscount=?,
 			liabilityid=?, numberplanid=?, paytype=?, recipient_address_id=?
 			WHERE id=?', array_values($args));
@@ -408,7 +441,7 @@ if (isset($_POST['assignment'])) {
     $SMARTY->assign('error', $error);
 } else {
     $a = $DB->GetRow('SELECT a.id AS id, a.customerid, a.tariffid, a.period,
-				a.at, a.datefrom, a.dateto, a.numberplanid, a.paytype,
+				a.at, a.count, a.datefrom, a.dateto, a.numberplanid, a.paytype,
 				a.invoice, a.separatedocument, a.settlement, a.pdiscount, a.vdiscount, a.attribute, a.liabilityid,
 				(CASE WHEN liabilityid IS NULL THEN tariffs.name ELSE liabilities.name END) AS name,
 				liabilities.value AS value, liabilities.prodid AS prodid, liabilities.taxid AS taxid,
@@ -453,6 +486,8 @@ if (isset($_POST['assignment'])) {
             }
             break;
     }
+
+    $a['count'] = floatval($a['count']);
 
     if (!$a['tariffid'] && !$a['liabilityid']) {
         $a['tariffid'] = -1;
