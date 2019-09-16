@@ -4429,10 +4429,17 @@ $_LANG['Secret key:'] = 'Tajny klucz:';
 $_LANG['Show secret key'] = 'Pokaż tajny klucz';
 $_LANG['Hide secret key'] = 'Ukryj tajny klucz';
 $_LANG['Incorrect secret key format!'] = 'Niepoprawny format tajnego klucza!';
+$_LANG['Secret key contains invalid characters!'] = 'Tajny klucz zawiera niepoprawne znaki!';
 $_LANG['Authentication code:'] = 'Kod uwierzytelniający:';
 $_LANG['Wrong authentication code.'] = 'Niepoprawny kod uwierzytelniający.';
+$_LANG['Too many failed login attempts in short time period.<br>Try again in a few minutes.'] = 'Zbyt wiele nieudanych prób logowań w któtkim okresie czasu.<br>Spróbuj ponownie za kilka minut.';
+$_LANG['This code has already been used before the moment.'] = 'Ten kod został już użyty przed momentem.';
 $_LANG['Allows you to view current two factor authentication settings'] = 'Umożliwia objerzenie aktualnych ustawień uwierzytelniania dwuetapowego';
 $_LANG['Authentication'] = 'Uwierzytelnianie';
 $_LANG['Authentication management'] = 'Zarządzanie uwierzytelnianiem';
 $_LANG['Authentication Settings: $a'] = 'Ustawienia uwierzytelniania: $a';
 $_LANG['Authentication Modification: $a'] = 'Modyfikacja uwierzytelniania: $a';
+
+$_LANG['Wrong current password!'] = 'Niepoprawne aktualne hasło!';
+$_LANG['Current password:'] = 'Aktualne hasło:';
+$_LANG['Enter current password'] = 'Wprowadź aktualne hasło';
