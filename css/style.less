@@ -2143,6 +2143,25 @@ li.lms-ui-suggestion-item {
 	}
 }
 
+.lms-ui-icon-trust,
+.lms-ui-icon-handshake {
+	.fa-icon;
+	.fas;
+	.lms-ui-icon;
+	&:before {
+		content: @fa-var-handshake;
+	}
+}
+
+.lms-ui-icon-list {
+	.fa-icon;
+	.fas;
+	.lms-ui-icon;
+	&:before {
+		content: @fa-var-list;
+	}
+}
+
 button,a,div {
 	&.lms-ui-button-netnode {
 		& > i {
@@ -2357,6 +2376,24 @@ button,a,div {
 	&.lms-ui-button-timetable {
 		& > i {
 			.lms-ui-icon-calendar;
+		}
+	}
+
+	&.lms-ui-button-list {
+		& > i {
+			.lms-ui-icon-list;
+		}
+	}
+
+	&.lms-ui-button-connected {
+		& > i {
+			.lms-ui-icon-connected;
+		}
+	}
+
+	&.lms-ui-button-disconnected {
+		& > i {
+			.lms-ui-icon-disconnected;
 		}
 	}
 }

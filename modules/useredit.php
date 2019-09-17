@@ -31,6 +31,16 @@ if (!$LMS->UserExists($id)) {
     $SESSION->redirect('?m=userlist');
 }
 
+if (isset($_GET['removetrusteddevices'])) {
+    $AUTH->removeTrustedDevices($id, isset($_GET['deviceid']) ? $_GET['deviceid'] : null);
+    $SESSION->redirect($_SERVER['HTTP_REFERER']);
+}
+
+if (isset($_GET['forcepasswdchange'])) {
+    $LMS->forcePasswordChange($id);
+    $SESSION->redirect($_SERVER['HTTP_REFERER']);
+}
+
 $userinfo = isset($_POST['userinfo']) ? $_POST['userinfo'] : false;
 
 if ($userinfo) {

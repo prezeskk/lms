@@ -33,6 +33,11 @@ if (!$userinfo || $userinfo['deleted']) {
     $SESSION->redirect('?m=userlist');
 }
 
+if (isset($_GET['removetrusteddevices'])) {
+    $AUTH->removeTrustedDevices($userid, isset($_GET['deviceid']) ? $_GET['deviceid'] : null);
+    $SESSION->redirect($_SERVER['HTTP_REFERER']);
+}
+
 $layout['pagetitle'] = trans('Authentication Modification: $a', $userinfo['login']);
 
 if (isset($_POST['userinfo'])) {
