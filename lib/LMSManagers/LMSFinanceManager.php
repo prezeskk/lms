@@ -449,8 +449,7 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
                         if ($diffdays > 0) {
                             list ($y, $m) = explode('/', date('Y/m', $partial_dateto - 1));
                             $month_days = strftime("%d", mktime(0, 0, 0, $m + 1, 0, $y));
-                            $v = $diffdays * $discounted_val / $month_days;
-                            $partial_vdiscount = str_replace(',', '.', round(abs($v - $val), 2));
+
                             $partial_dateto--;
                             if ($data['at'] >= $dom + 1) {
                                 $partial_at = $data['at'];
@@ -459,11 +458,15 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
                             }
 
                             if ($value != 'NULL') {
+                                $v = $diffdays * $discounted_val / $month_days;
+                                $partial_vdiscount = str_replace(',', '.', round(abs($v - $val), 2));
+
                                 $args = array(
                                     SYSLOG::RES_TARIFF => $tariffid,
                                     SYSLOG::RES_CUST => $data['customerid'],
                                     'period' => $period,
                                     'at' => $partial_at,
+                                    'count' => 1,
                                     'invoice' => isset($data['invoice']) ? $data['invoice'] : 0,
                                     'separatedocument' => isset($data['separatedocument']) ? 1 : 0,
                                     'settlement' => 0,
@@ -545,6 +548,7 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
                                 SYSLOG::RES_CUST    => $data['customerid'],
                                 'period'            => $period,
                                 'at'                => $partial_at,
+                                'count'             => 1,
                                 'invoice'           => isset($data['invoice']) ? $data['invoice'] : 0,
                                 'separatedocument'  => isset($data['separatedocument']) ? 1 : 0,
                                 'settlement'        => 0,
@@ -577,6 +581,7 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
                             SYSLOG::RES_CUST => $data['customerid'],
                             'period' => $period,
                             'at' => $at,
+                            'count' => 1,
                             'invoice' => isset($data['invoice']) ? $data['invoice'] : 0,
                             'separatedocument' => isset($data['separatedocument']) ? 1 : 0,
                             'settlement' => isset($data['settlement']) && $data['settlement'] == 1 && $idx == 1 ? 1 : 0,
@@ -1185,7 +1190,7 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
         $stariffs = $data['stariffid'][$schemaid];
         $values = $data['values'][$schemaid];
 
-        if (!is_array($values)) {
+        if (is_array($values)) {
             foreach ($values as $label => &$tariffs) {
                 if (!isset($stariffs[$label]) || empty($stariffs[$label])) {
                     unset($values[$label]);

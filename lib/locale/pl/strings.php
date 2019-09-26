@@ -3207,7 +3207,7 @@ $_LANG['node assignment<!syslog>'] = 'powiązanie zobowiązania z komputerem';
 $_LANG['node<!syslog>'] = 'komputer';
 $_LANG['mac<!syslog>'] = 'mac';
 $_LANG['customer<!syslog>'] = 'klient';
-$_LANG['customer contact<!syslog>'] = 'numer telefonu klienta';
+$_LANG['customer contact<!syslog>'] = 'kontakt klienta';
 $_LANG['IM contact<!syslog>'] = 'kontakt IM';
 $_LANG['customer group<!syslog>'] = 'grupa klientów';
 $_LANG['customer assignment<!syslog>'] = 'powiązanie klienta z grupą';
@@ -4461,3 +4461,5 @@ $_LANG['No trusted devices in database.'] = 'Brak zaufanych urządzeń w bazie d
 
 $_LANG['Force password change'] = 'Wymuś zmianę hasła';
 $_LANG['Force password change:'] = 'Wymuś zmianę hasła:';
+
+$_LANG['overdue receivables'] = 'przeterminowane należności';

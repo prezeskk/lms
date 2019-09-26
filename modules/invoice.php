@@ -24,10 +24,8 @@
  *  $Id$
  */
 
-/*use setasign\Fpdi\Tcpdf\Fpdi;
-use setasign\Fpdi\PdfParser\StreamReader;*/
-
-include(LIB_DIR . DIRECTORY_SEPARATOR . 'FPDI' . DIRECTORY_SEPARATOR . 'VarStream.php');
+use setasign\Fpdi\Tcpdf\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 
 function invoice_body($document, $invoice)
 {
@@ -86,8 +84,7 @@ function try_generate_archive_invoices($ids)
         header('Pragma: public');
 
         if ($invoice_type == 'pdf') {
-            $pdf = new FPDI();
-//          $pdf = new Fpdi();
+            $pdf = new Fpdi();
             $pdf->setPrintHeader(false);
             $pdf->setPrintFooter(false);
         }
@@ -124,8 +121,7 @@ function try_generate_archive_invoices($ids)
             }
 
             if ($invoice_type == 'pdf') {
-                $pageCount = $pdf->setSourceFile(VarStream::createReference($file['data']));
-                //$pageCount = $pdf->setSourceFile(StreamReader::createByString($file['data']));
+                $pageCount = $pdf->setSourceFile(StreamReader::createByString($file['data']));
                 for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
                     // import a page
                     $templateId = $pdf->importPage($pageNo);
@@ -133,12 +129,7 @@ function try_generate_archive_invoices($ids)
                     $size = $pdf->getTemplateSize($templateId);
 
                     // create a page (landscape or portrait depending on the imported page size)
-                    if ($size['w'] > $size['h']) {
-                        $pdf->AddPage('L', array($size['w'], $size['h']));
-                    } else {
-                        $pdf->AddPage('P', array($size['w'], $size['h']));
-                    }
-                    //$pdf->AddPage($size['orientation'], $size);
+                    $pdf->AddPage($size['orientation'], $size);
 
                     // use the imported page
                     $pdf->useTemplate($templateId);
@@ -467,10 +458,8 @@ if (isset($_GET['print']) && $_GET['print'] == 'cached') {
                 $jpk_data .= "\t<SprzedazWiersz" . ($jpk_vat_version == 2 ? " typ=\"G\"" : '') . ">\n";
 
                 $jpk_data .= "\t\t<LpSprzedazy>" . ($idx + 1) . "</LpSprzedazy>\n";
-                if (empty($invoice['ten'])) {
-                    $invoice['ten'] = 'brak';
-                }
-                $jpk_data .= "\t\t<NrKontrahenta>" . preg_replace('/[\s\-]/', '', $invoice['ten']) . "</NrKontrahenta>\n";
+                $ten = empty($invoice['ten']) ? 'brak' : preg_replace('/[\s\-]/', '', $invoice['ten']);
+                $jpk_data .= "\t\t<NrKontrahenta>" . $ten . "</NrKontrahenta>\n";
                 $jpk_data .= "\t\t<NazwaKontrahenta>" . str_replace('&', '&amp;', $invoice['name']) . "</NazwaKontrahenta>\n";
                 $jpk_data .= "\t\t<AdresKontrahenta>" . ($invoice['postoffice'] && $invoice['postoffice'] != $invoice['city'] && $invoice['street'] ? $invoice['city'] . ', ' : '')
                     . $invoice['address'] . ', ' . (empty($invoice['zip']) ? '' : $invoice['zip'] . ' ') . ($invoice['postoffice'] ? $invoice['postoffice'] : $invoice['city']) . "</AdresKontrahenta>\n";

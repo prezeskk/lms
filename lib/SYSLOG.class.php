@@ -380,7 +380,7 @@ class SYSLOG
 
     public function DecodeMessageData(&$data)
     {
-        global $PERIODS, $PAYTYPES, $LINKTYPES, $LINKSPEEDS;
+        global $PERIODS, $PAYTYPES, $LINKTYPES, $LINKSPEEDS, $CSTATUSES;
 
         switch ($data['name']) {
             case 'datefrom':
@@ -435,6 +435,13 @@ class SYSLOG
                 break;
             case 'port':
                 $data['value'] = $data['value'] == 0 ? trans('none') : $data['value'];
+                break;
+            case 'status':
+                if ($data['resource'] == self::RES_CUST) {
+                    $data['value'] = $CSTATUSES[$data['value']]['singularlabel'];
+                } else {
+                    $data['value'] = $data['value'];
+                }
                 break;
             default:
                 $data['value'] = $data['value'];
