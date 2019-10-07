@@ -599,13 +599,11 @@ if (isset($_POST['message']) && !isset($_GET['sent'])) {
                 $DB->Execute('INSERT INTO messageitems (messageid, customerid,
 					destination, status)
 					VALUES (?, ?, ?, ?)', array($msgid, empty($customerid) ? null : $customerid, $destination, MSG_NEW));
-                if ($message['type'] == MSG_MAIL && (!empty($dsn_email) || !empty($mdn_email))) {
-                    $msgitemid = $DB->GetLastInsertID('messageitems');
-                    if (!isset($msgitems[$customerid])) {
-                        $msgitems[$customerid] = array();
-                    }
-                    $msgitems[$customerid][$destination] = $msgitemid;
+                $msgitemid = $DB->GetLastInsertID('messageitems');
+                if (!isset($msgitems[$customerid])) {
+                    $msgitems[$customerid] = array();
                 }
+                $msgitems[$customerid][$destination] = $msgitemid;
             }
         }
 
@@ -660,6 +658,10 @@ if (isset($_POST['message']) && !isset($_GET['sent'])) {
             }
         }
 
+        if ($message['type'] == MSG_SMS || $message['type'] == MSG_ANYSMS) {
+            $sms_options = $LMS->getCustomerSMSOptions();
+        }
+
         foreach ($recipients as $key => $row) {
             $body = $message['body'];
 
@@ -702,7 +704,7 @@ if (isset($_POST['message']) && !isset($_GET['sent'])) {
                 } elseif ($message['type'] == MSG_WWW || $message['type'] == MSG_USERPANEL || $message['type'] == MSG_USERPANEL_URGENT) {
                     $result = MSG_SENT;
                 } else {
-                    $result = $LMS->SendSMS($destination, $body, $msgid);
+                    $result = $LMS->SendSMS($destination, $body, $msgitems[$customerid][$orig_destination], $sms_options);
                 }
 
                 if (is_string($result)) {
