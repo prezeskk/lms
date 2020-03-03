@@ -445,18 +445,17 @@
 		</TD>
 	</TR>
 {if $invoice.comment}
-        <TR>
-                <TD WIDTH="100%" COLSPAN="2">
-                        <B>{trans("Comment:")}</B><BR>
+	<TR>
+		<TD WIDTH="100%" COLSPAN="2">
+			<strong>{trans("Comment:")}</strong><BR>
 			<BLOCKQUOTE>
 			{$invoice.comment}
 			</BLOCKQUOTE>
 		</TD>
-        </TR>
+	</TR>
 {/if}
 </TABLE>
-</TD>
-</TR>
+
 <TABLE WIDTH="100%" CELLPADDING="3">
 	<TR>
 		<TD WIDTH="100%" ALIGN="CENTER" COLSPAN="2" CLASS="hd1">
@@ -471,6 +470,19 @@
 	</TR>
 	{/if}
 </TABLE>
+
+{if $invoice.memo}
+<TABLE WIDTH="100%" CELLPADDING="3">
+	<TR>
+		<TD WIDTH="100%" COLSPAN="2">
+			<strong>{trans("Memo:")}</strong><BR>
+			<BLOCKQUOTE>
+				{$invoice.memo}
+			</BLOCKQUOTE>
+		</TD>
+	</TR>
+</TABLE>
+{/if}
 
 <!-- The Other Page of Invoice customerbalancelist + customerpin -->
 <!-- insert page break here and buy auto-duplex printer :p -->
