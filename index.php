@@ -141,8 +141,9 @@ if ($_FORCE_SSL && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] != 'on')) {
 
 // Include required files (including sequence is important)
 
+$_SERVER['REMOTE_ADDR'] = str_replace("::ffff:", "", $_SERVER['REMOTE_ADDR']);
+
 require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'language.php');
-require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'unstrip.php');
 require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'definitions.php');
 require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'checkip.php');
 require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'accesstable.php');
@@ -160,6 +161,12 @@ $AUTH = new Auth($DB, $SESSION);
 $LMS = new LMS($DB, $AUTH, $SYSLOG);
 $LMS->ui_lang = $_ui_language;
 $LMS->lang = $_language;
+
+LMS::$currency = $_currency;
+LMS::$default_currency = ConfigHelper::getConfig('phpui.default_currency', '', true);
+if (empty(LMS::$default_currency) || !isset($CURRENCIES[LMS::$default_currency])) {
+    LMS::$default_currency = $_currency;
+}
 
 $plugin_manager = new LMSPluginManager();
 $LMS->setPluginManager($plugin_manager);
@@ -191,8 +198,8 @@ $layout['logname'] = $AUTH->logname;
 $layout['logid'] = Auth::GetCurrentUser();
 $layout['lmsdbv'] = $DB->GetVersion();
 $layout['hostname'] = hostname();
-$layout['lmsv'] = $LMS->_version;
-$layout['lmsvr'] = $LMS->_revision;
+$layout['lmsv'] = LMS::SOFTWARE_VERSION;
+$layout['lmsvr'] = LMS::getSoftwareRevision();
 $layout['dberrors'] = &$DB->GetErrors();
 $layout['dbdebug'] = isset($_DBDEBUG) ? $_DBDEBUG : false;
 $layout['popup'] = isset($_GET['popup']) ? true : false;
@@ -202,6 +209,8 @@ if (!$api) {
     $SMARTY->assignByRef('LANGDEFS', $LANGDEFS);
     $SMARTY->assignByRef('_ui_language', $LMS->ui_lang);
     $SMARTY->assignByRef('_language', $LMS->lang);
+    $SMARTY->assignByRef('_currency', LMS::$currency);
+    $SMARTY->assignByRef('_default_currency', LMS::$default_currency);
 }
 
 $error = null; // initialize error variable needed for (almost) all modules
@@ -286,6 +295,11 @@ if ($AUTH->islogged) {
         'force_user_settings_only' => true,
         'user_id' => Auth::GetCurrentUser(),
     ));
+
+    LMS::$default_currency = ConfigHelper::getConfig('phpui.default_currency', '', true);
+    if (empty(LMS::$default_currency) || !isset($CURRENCIES[LMS::$default_currency])) {
+        LMS::$default_currency = LMS::$currency;
+    }
 
     $module = isset($_GET['m']) ? preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['m']) : '';
     $deny = $allow = false;

@@ -29,6 +29,9 @@
 
 class LMS
 {
+    const SOFTWARE_NAME = 'LMS';
+    const SOFTWARE_VERSION = '25-git';
+    const SOFTWARE_REVISION = '$Format:%cI$'; // %H for last commit checksum
 
     public $DB;   // database object
     public $AUTH;   // object from Session.class.php (session management)
@@ -36,8 +39,8 @@ class LMS
     public $cache;  // internal cache
     public $hooks = array(); // registered plugin hooks
     public $xajax;  // xajax object
-    public $_version = '25-git'; // class version
-    public $_revision = '$Format:%cI$'; // %H for last commit checksum
+    public static $currency = null;
+    public static $default_currency = null;
     private $mail_object = null;
     private static $lms = null;
     protected $plugin_manager;
@@ -56,7 +59,7 @@ class LMS
     protected $finance_manager;
     protected $event_manager;
     protected $document_manager;
-    protected $massage_manager;
+    protected $message_manager;
     protected $config_manager;
     protected $user_group_manager;
     protected $division_manager;
@@ -67,18 +70,23 @@ class LMS
 
     public function __construct(&$DB, &$AUTH, &$SYSLOG)
     {
-    // class variables setting
+        // class variables setting
         $this->DB = &$DB;
         $this->AUTH = &$AUTH;
         $this->SYSLOG = &$SYSLOG;
 
         $this->cache = new LMSCache();
 
-        if (preg_match('/.+Format:.+/', $this->_revision)) {
-            $this->_revision = '';
-        }
-
         self::$lms = $this;
+    }
+
+    public static function getSoftwareRevision()
+    {
+        if (preg_match('/.+Format:.+/', self::SOFTWARE_REVISION)) {
+            return '';
+        } else {
+            return self::SOFTWARE_REVISION;
+        }
     }
 
     public function _postinit()
@@ -215,7 +223,7 @@ class LMS
 
     public function DBDump($filename = null, $gzipped = false, $stats = false)
     {
- // dump database to file
+        // dump database to file
         $dbtype = ConfigHelper::getConfig('database.type');
 
         if (!$filename) {
@@ -265,13 +273,13 @@ class LMS
                 'voip_rule_states', 'voip_prefixes', 'voip_cdr', 'voip_price_groups',
                 'tariffs', 'voip_numbers', 'voip_pool_numbers', 'voip_emergency_numbers',
                 'liabilities', 'assignments', 'voip_number_assignments', 'invoicecontents',
-                'debitnotecontents', 'cashsources', 'sourcefiles', 'cashimport', 'cash', 'pna',
-                'ewx_channels', 'ewx_stm_channels', 'hosts', 'networks', 'invprojects',
-                'netnodes', 'netdeviceproducers', 'netdevicemodels', 'netdevices',
-                'netradiosectors', 'nodes', 'ewx_stm_nodes', 'nodelocks', 'macs', 'nodegroups',
-                'nodegroupassignments', 'nodeassignments', 'tarifftags', 'tariffassignments',
-                'promotions', 'promotionschemas', 'promotionassignments', 'payments',
-                'numberplanassignments', 'customergroups', 'customerassignments',
+                'debitnotecontents', 'cashsources', 'sourcefiles', 'cashimport',
+                'customerbalances', 'cash', 'pna', 'ewx_channels', 'ewx_stm_channels', 'hosts',
+                'networks', 'invprojects', 'netnodes', 'netdeviceproducers', 'netdevicemodels',
+                'netdevices', 'netradiosectors', 'nodes', 'ewx_stm_nodes', 'nodelocks', 'macs',
+                'nodegroups', 'nodegroupassignments', 'nodeassignments', 'tarifftags',
+                'tariffassignments', 'promotions', 'promotionschemas', 'promotionassignments',
+                'payments', 'numberplanassignments', 'customergroups', 'customerassignments',
                 'nodesessions', 'stats', 'netlinks', 'rtqueues', 'rttickets',
                 'rtticketlastview', 'rtmessages', 'rtrights', 'rtattachments', 'rtcategories',
                 'rtcategoryusers', 'rtticketcategories', 'rtqueuecategories', 'domains',
@@ -348,7 +356,7 @@ class LMS
 
     public function DatabaseCreate($gzipped = false, $stats = false)
     {
- // create database backup
+        // create database backup
         $basename = 'lms-' . time() . '-' . DBVERSION;
         if (($gzipped) && (extension_loaded('zlib'))) {
             $filename = $basename . '.sql.gz';
@@ -623,6 +631,12 @@ class LMS
         return $manager->getCustomerShortBalanceList($customerid, $limit, $order);
     }
 
+    public function getLastNInTable($body, $customerid, $eol)
+    {
+        $manager = $this->getCustomerManager();
+        return $manager->getLastNInTable($body, $customerid, $eol);
+    }
+
     public function CustomerStats()
     {
         $manager = $this->getCustomerManager();
@@ -675,6 +689,24 @@ class LMS
     {
         $manager = $this->getCustomerManager();
         return $manager->getCustomerSMSOptions();
+    }
+
+    public function GetCustomerAddressesWithoutEndPoints($customerid)
+    {
+        $manager = $this->getCustomerManager();
+        return $manager->GetCustomerAddressesWithoutEndPoints($customerid);
+    }
+
+    public function checkCustomerTenExistence($customerid, $ten, $divisionid = null)
+    {
+        $manager = $this->getCustomerManager();
+        return $manager->checkCustomerTenExistence($customerid, $ten, $divisionid);
+    }
+
+    public function checkCustomerSsnExistence($customerid, $ssn, $divisionid = null)
+    {
+        $manager = $this->getCustomerManager();
+        return $manager->checkCustomerSsnExistence($customerid, $ssn, $divisionid);
     }
 
     /*
@@ -1052,6 +1084,12 @@ class LMS
     {
         $manager = $this->getFinanceManager();
         return $manager->GetCustomerAssignments($id, $show_expired, $show_approved);
+    }
+
+    public function GetCustomerServiceSummary($id)
+    {
+        $manager = $this->getFinanceManager();
+        return $manager->GetCustomerServiceSummary($id);
     }
 
     public function DeleteAssignment($id)
@@ -1433,6 +1471,12 @@ class LMS
         return $manager->NetworkRemap($src, $dst);
     }
 
+    public function MoveHostsBetweenNetworks($src, $dst)
+    {
+        $manager = $this->getNetworkManager();
+        return $manager->MoveHostsBetweenNetworks($src, $dst);
+    }
+
     public function GetNetworkRecord($id, $page = 0, $plimit = 4294967296, $firstfree = false)
     {
         $manager = $this->getNetworkManager();
@@ -1561,6 +1605,12 @@ class LMS
     {
         $manager = $this->getNetDevManager();
         return $manager->GetModels($producerid);
+    }
+
+    public function GetModelList($pid = null)
+    {
+        $manager = $this->getNetDevManager();
+        return $manager->GetModelList($pid);
     }
 
     public function GetRadioSectors($netdevid, $technology = 0)
@@ -1946,10 +1996,10 @@ class LMS
         return $manager->DetermineSenderEmail($queue_email, $ticket_email, $user_email, $forced_order);
     }
 
-    public function GetTicketPhoneFrom($ticketid)
+    public function GetTicketRequestorPhone($ticketid)
     {
         $manager = $this->getHelpdeskManager();
-        return $manager->GetTicketPhoneFrom($ticketid);
+        return $manager->GetTicketRequestorPhone($ticketid);
     }
 
     public function CheckTicketAccess($ticketid)
@@ -1981,9 +2031,26 @@ class LMS
         return $manager->GetRTSmtpOptions();
     }
 
-        /*
-         *  LMS-UI configuration
-         */
+    public function CopyQueuePermissions($src_userid, $dst_userid)
+    {
+        $manager = $this->getHelpdeskManager();
+        return $manager->CopyQueuePermissions($src_userid, $dst_userid);
+    }
+
+    public function CopyCategoryPermissions($src_userid, $dst_userid)
+    {
+        $manager = $this->getHelpdeskManager();
+        return $manager->CopyCategoryPermissions($src_userid, $dst_userid);
+    }
+
+    public function TicketIsAssigned($ticketid)
+    {
+        $manager = $this->getHelpdeskManager();
+        return $manager->TicketIsAssigned($ticketid);
+    }
+    /*
+     *  LMS-UI configuration
+     */
 
     public function GetConfigOptionId($var, $section)
     {
@@ -2116,7 +2183,7 @@ class LMS
             $lastcheck = 0;
         }
         if ($lastcheck + ConfigHelper::getConfig('phpui.check_for_updates_period') < $time) {
-            list($v, ) = explode(' ', $this->_version);
+            list($v, ) = explode(' ', self::SOFTWARE_VERSION);
 
             if ($content = fetch_url('http://register.lms.org.pl/update.php?uiid=' . $uiid . '&v=' . $v)) {
                 if ($lastcheck == 0) {
@@ -2201,7 +2268,7 @@ class LMS
                 }
             }
 
-            $headers['X-Mailer'] = 'LMS-' . $this->_version;
+            $headers['X-Mailer'] = 'LMS-' . self::SOFTWARE_VERSION;
             if (!ConfigHelper::checkConfig('mail.hide_sensitive_headers')) {
                 if (!empty($_SERVER['REMOTE_ADDR'])) {
                     $headers['X-Remote-IP'] = $_SERVER['REMOTE_ADDR'];
@@ -2308,7 +2375,7 @@ class LMS
                 )
             );
 
-            $this->mail_object->XMailer = 'LMS-' . $this->_version;
+            $this->mail_object->XMailer = 'LMS-' . self::SOFTWARE_VERSION;
             if (!ConfigHelper::checkConfig('mail.hide_sensitive_headers')) {
                 if (!empty($_SERVER['REMOTE_ADDR'])) {
                     $this->mail_object->addCustomHeader('X-Remote-IP: '.$_SERVER['REMOTE_ADDR']);
@@ -2335,7 +2402,7 @@ class LMS
                 $this->mail_object->ConfirmReadingTo = $headers['Return-Receipt-To'];
             }
 
-            $this->mail_object->Dsn = isset($headers['Delivery-Status-Notification-To']);
+            $this->mail_object->dsn = isset($headers['Delivery-Status-Notification-To']) ? 'SUCCESS,FAILURE' : '';
 
             preg_match('/^(?:(?<name>.*) )?<?(?<mail>[a-z0-9_\.-]+@[\da-z\.-]+\.[a-z\.]{2,6})>?$/iA', $headers['From'], $from);
             $this->mail_object->setFrom($from['mail'], isset($from['name']) ? trim($from['name'], "\"") : '');
@@ -2373,7 +2440,7 @@ class LMS
             if ($headers['X-LMS-Format'] == 'html') {
                 $this->mail_object->isHTML(true);
                 $this->mail_object->AltBody = trans("To view the message, please use an HTML compatible email viewer");
-                $this->mail_object->msgHTML(preg_replace('/\r?\n/', '<br>', $body));
+                $this->mail_object->msgHTML(preg_replace('/\r?\n/', "\n", $body));
             } else {
                 $this->mail_object->isHTML(false);
                 $this->mail_object->Body = $body;
@@ -2446,7 +2513,7 @@ class LMS
         $message = preg_replace("/\r/", "", $message);
 
         $transliterate_message = isset($sms_options['transliterate_message']) ? $sms_options['transliterate_message']
-            : ConfigHelper::getConfig('sms.transliterate_message');
+            : ConfigHelper::getConfig('sms.transliterate_message', 'false');
         if (ConfigHelper::checkValue($transliterate_message)) {
             $message = iconv('UTF-8', 'ASCII//TRANSLIT', $message);
         }
@@ -2954,6 +3021,18 @@ class LMS
         return $manager->SendDocuments($docs, $type, $params);
     }
 
+    public function DeleteDocument($docid)
+    {
+        $manager = $this->getDocumentManager();
+        return $manager->DeleteDocument($docid);
+    }
+
+    public function CopyDocumentPermissions($src_userid, $dst_userid)
+    {
+        $manager = $this->getDocumentManager();
+        return $manager->CopyDocumentPermissions($src_userid, $dst_userid);
+    }
+
     /*
      *  Location
      */
@@ -3083,6 +3162,12 @@ class LMS
         return $manager->isDocumentReferenced($id);
     }
 
+    public function MarkDocumentsAsSent($ids)
+    {
+        $manager = $this->getFinanceManager();
+        return $manager->MarkDocumentsAsSent($ids);
+    }
+
     public function GetReceiptList(array $params)
     {
         $manager = $this->getFinanceManager();
@@ -3131,10 +3216,28 @@ class LMS
         return $manager->GetDocumentLastReference($docid);
     }
 
-    public function CheckNodeTariffRestrictions($aid, $nodes)
+    public function CheckNodeTariffRestrictions($aid, $nodes, $datefrom, $dateto)
     {
         $manager = $this->getFinanceManager();
-        return $manager->CheckNodeTariffRestrictions($aid, $nodes);
+        return $manager->CheckNodeTariffRestrictions($aid, $nodes, $datefrom, $dateto);
+    }
+
+    public function getCurrencyValue($currency, $date = null)
+    {
+        $manager = $this->getFinanceManager();
+        return $manager->getCurrencyValue($currency, $date);
+    }
+
+    public function CopyCashRegistryPermissions($src_userid, $dst_userid)
+    {
+        $manager = $this->getFinanceManager();
+        return $manager->CopyCashRegistryPermissions($src_userid, $dst_userid);
+    }
+
+    public function CopyPromotionTariffPermissions($src_userid, $dst_userid)
+    {
+        $manager = $this->getFinanceManager();
+        return $manager->CopyPromotionTariffPermissions($src_userid, $dst_userid);
     }
 
     /**
@@ -3940,6 +4043,18 @@ class LMS
         return $manager->TarifftagGetAll();
     }
 
+    public function getTariffTagsForTariff($tariffid)
+    {
+        $manager = $this->getTariffTagManager();
+        return $manager->getTariffTagsForTariff($tariffid);
+    }
+
+    public function updateTariffTagsForTariff($tariffid, $tags)
+    {
+        $manager = $this->getTariffTagManager();
+        return $manager->updateTariffTagsForTariff($tariffid, $tags);
+    }
+
     /*
      * divisions
      */
@@ -4183,31 +4298,14 @@ class LMS
             $body = preg_replace('/%pin/', $document['document']['customerpin'], $body);
             $body = preg_replace('/%cid/', $doc['customerid'], $body);
             // invoices, debit notes
-            $body = preg_replace('/%value/', $document['document']['total'], $body);
+            $body = preg_replace('/%value/', moneyf($document['document']['total'], $document['document']['currency']), $body);
             $body = preg_replace('/%cdate-y/', strftime("%Y", $document['document']['cdate']), $body);
             $body = preg_replace('/%cdate-m/', strftime("%m", $document['document']['cdate']), $body);
             $body = preg_replace('/%cdate-d/', strftime("%d", $document['document']['cdate']), $body);
             list ($now_y, $now_m) = explode('/', strftime("%Y/%m", time()));
             $body = preg_replace('/%lastday/', strftime("%d", mktime(12, 0, 0, $now_m + 1, 0, $now_y)), $body);
 
-            if (preg_match('/%last_(?<number>[0-9]+)_in_a_table/', $body, $m)) {
-                $lastN = $this->GetCustomerShortBalanceList($doc['customerid'], $m['number']);
-                if (empty($lastN)) {
-                    $lN = '';
-                } else {
-                    // ok, now we are going to rise up system's load
-                    $lN = "-----------+-----------+-----------+----------------------------------------------------\n";
-                    foreach ($lastN as $row_s) {
-                        $op_time = strftime("%Y/%m/%d", $row_s['time']);
-                        $op_amount = sprintf("%9.2f", $row_s['value']);
-                        $op_after = sprintf("%9.2f", $row_s['after']);
-                        $for_what = sprintf("%-52s", $row_s['comment']);
-                        $lN = $lN . "$op_time | $op_amount | $op_after | $for_what\n";
-                    }
-                    $lN = $lN . "-----------+-----------+-----------+----------------------------------------------------\n";
-                }
-                $body = preg_replace('/%last_[0-9]+_in_a_table/', $lN, $body);
-            }
+            $body = $this->getLastNInTable($body, $doc['customerid'], '<eol>');
 
             $mailto = array();
             $mailto_qp_encoded = array();
@@ -4283,6 +4381,11 @@ class LMS
 
                 if (isset($mail_format) && $mail_format == 'html') {
                     $headers['X-LMS-Format'] = 'html';
+                    $content_type = 'text/html';
+                    $body = str_replace('<eol>', '<br>', $body);
+                } else {
+                    $content_type = 'text/plain';
+                    $body = str_replace('<eol>', "\n", $body);
                 }
 
                 $data = array(
@@ -4297,11 +4400,28 @@ class LMS
 
                 if ($add_message) {
                     $this->DB->Execute(
-                        'INSERT INTO messages (subject, body, cdate, type, userid)
-						VALUES (?, ?, ?NOW?, ?, ?)',
-                        array($subject, $body, MSG_MAIL, Auth::GetCurrentUser())
+                        'INSERT INTO messages (subject, body, cdate, type, userid, contenttype)
+						VALUES (?, ?, ?NOW?, ?, ?, ?)',
+                        array($subject, $body, MSG_MAIL, Auth::GetCurrentUser(), $content_type)
                     );
                     $msgid = $this->DB->GetLastInsertID('messages');
+
+                    if ($message_attachments) {
+                        if (!empty($files)) {
+                            foreach ($files as &$file) {
+                                $file['name'] = $file['filename'];
+                                $file['type'] = $file['content_type'];
+                            }
+                            unset($file);
+                            $this->AddFileContainer(array(
+                                'description' => 'message-' . $msgid,
+                                'files' => $files,
+                                'type' => 'messageid',
+                                'resourceid' => $msgid,
+                            ));
+                        }
+                    }
+
                     foreach (explode(',', $custemail) as $email) {
                         $this->DB->Execute(
                             'INSERT INTO messageitems (messageid, customerid, destination, lastdate, status)
@@ -4347,6 +4467,7 @@ class LMS
 
                     if ($status == MSG_SENT) {
                         $this->PublishDocuments($doc['id']);
+                        $this->MarkDocumentsAsSent($doc['id']);
                         $published = true;
                     }
 
@@ -4363,6 +4484,40 @@ class LMS
                         }
                         usleep($delay);
                     }
+                }
+            }
+        }
+    }
+
+    public function CopyPermissions($src_userid, $dst_userid, $permissions = null)
+    {
+        if (!isset($permissions)) {
+            $this->CopyQueuePermissions($src_userid, $dst_userid);
+            $this->CopyCategoryPermissions($src_userid, $dst_userid);
+            $this->CopyDocumentPermissions($src_userid, $dst_userid);
+            $this->CopyCashRegistryPermissions($src_userid, $dst_userid);
+            $this->CopyPromotionTariffPermissions($src_userid, $dst_userid);
+        } else {
+            if (empty($permissions)) {
+                return;
+            }
+            foreach ($permissions as $permission) {
+                switch ($permission) {
+                    case 'helpdesk-queues':
+                        $this->CopyQueuePermissions($src_userid, $dst_userid);
+                        break;
+                    case 'helpdesk-categories':
+                        $this->CopyCategoryPermissions($src_userid, $dst_userid);
+                        break;
+                    case 'documents':
+                        $this->CopyDocumentPermissions($src_userid, $dst_userid);
+                        break;
+                    case 'cash-registries':
+                        $this->CopyCashRegistryPermissions($src_userid, $dst_userid);
+                        break;
+                    case 'promotion-tariffs':
+                        $this->CopyPromotionTariffPermissions($src_userid, $dst_userid);
+                        break;
                 }
             }
         }

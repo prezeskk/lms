@@ -76,7 +76,7 @@ function GetItemList($id, $order = 'id,desc', $search = null, $cat = null, $stat
         $where = ' AND '.implode(' AND ', $where);
     }
 
-    $result = $DB->GetAll('SELECT i.id, i.customerid, i.status, i.error,
+    $result = $DB->GetAll('SELECT i.id, i.customerid, i.status, i.error, i.body,
 			i.destination, i.lastdate, i.lastreaddate,'
             .$DB->Concat('UPPER(c.lastname)', "' '", 'c.name').' AS customer
 		FROM messageitems i
@@ -167,8 +167,11 @@ if ($SESSION->is_set('milp') && !isset($_GET['page'])) {
     $SESSION->restore('milp', $_GET['page']);
 }
 
-$page = (empty($_GET['page']) ? 1 : $_GET['page']);
 $pagelimit = ConfigHelper::getConfig('phpui.messagelist_pagelimit', $listdata['total']);
+$page = (empty($_GET['page']) ? 1 : $_GET['page']);
+if (($page - 1) * $pagelimit >= $listdata['total']) {
+    $page = 1;
+}
 $SESSION->save('milp', $page);
 
 $layout['pagetitle'] = trans('Message Info: $a', $subject);
@@ -182,5 +185,6 @@ $SMARTY->assign('start', ($page - 1) * $pagelimit);
 $SMARTY->assign('page', $page);
 $SMARTY->assign('marks', $marks);
 $SMARTY->assign('itemlist', $itemlist);
+$SMARTY->assign('filecontainers', $LMS->GetFileContainers('messageid', $message['id']));
 
 $SMARTY->display('message/messageinfo.html');

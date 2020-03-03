@@ -73,20 +73,25 @@ if (isset($_POST['assignment'])) {
             break;
 
         case MONTHLY:
-            $at = sprintf('%d', $a['at']);
-
-            if (ConfigHelper::checkConfig('phpui.use_current_payday') && $at == 0) {
-                $at = date('j', time());
-            } elseif (!ConfigHelper::checkConfig('phpui.use_current_payday')
-                 && ConfigHelper::getConfig('phpui.default_monthly_payday') > 0 && $at == 0) {
-                $at = ConfigHelper::getConfig('phpui.default_monthly_payday');
+            if ($a['at'] == '') {
+                if (ConfigHelper::checkConfig('phpui.use_current_payday')) {
+                    $at = date('j', time());
+                } elseif (!ConfigHelper::checkConfig('phpui.use_current_payday')
+                    && ConfigHelper::getConfig('phpui.default_monthly_payday') > 0) {
+                    $at = ConfigHelper::getConfig('phpui.default_monthly_payday');
+                } else {
+                    $at = -1;
+                }
+            } else {
+                $at = intval($a['at']);
             }
 
-            $a['at'] = $at;
-
-            if ($at > 28 || $at < 1) {
+            if ($at > 28 || $at < 0) {
                 $error['at'] = trans('Incorrect day of month (1-28)!');
+            } else {
+                $a['at'] = $at;
             }
+
             break;
 
         case QUARTERLY:
@@ -246,7 +251,7 @@ if (isset($_POST['assignment'])) {
             $error['discount'] = trans('Value less than discount are not allowed!');
         }
     } else {
-        if ($a['discount_type'] == 2 && $a['discount']
+        if ($a['discount_type'] == DISCOUNT_AMOUNT && $a['discount']
             && $DB->GetOne('SELECT value FROM tariffs WHERE id = ?', array($a['tariffid'])) - $a['discount'] < 0) {
             $error['value'] = trans('Value less than discount are not allowed!');
             $error['discount'] = trans('Value less than discount are not allowed!');
@@ -261,24 +266,28 @@ if (isset($_POST['assignment'])) {
 
     // try to restrict node assignment sharing
     if ($a['tariffid'] > 0 && isset($a['nodes']) && !empty($a['nodes'])) {
-        $restricted_nodes = $LMS->CheckNodeTariffRestrictions($a['id'], $a['nodes']);
+        $restricted_nodes = $LMS->CheckNodeTariffRestrictions($a['id'], $a['nodes'], $from, $to);
         $node_multi_tariff_restriction = ConfigHelper::getConfig(
             'phpui.node_multi_tariff_restriction',
             '',
             true
         );
         if (preg_match('/^(error|warning)$/', $node_multi_tariff_restriction) && !empty($restricted_nodes)) {
-            foreach ($restricted_nodes as $idx => $nodeid) {
+            foreach ($restricted_nodes as $nodeid) {
                 if ($node_multi_tariff_restriction == 'error') {
-                    $error['assignment[nodes][' . $idx . ']'] = trans('This item is already bound with another assignment!');
+                    $error['assignment[nodes][' . $nodeid . ']'] = trans('This item is already bound with another assignment!');
                 } else {
-                    if (!isset($a['node_warns'][$idx])) {
-                        $error['assignment[nodes][' . $idx . ']'] = trans('This item is already bound with another assignment!');
+                    if (!isset($a['node_warns'][$nodeid])) {
+                        $error['assignment[nodes][' . $nodeid . ']'] = trans('This item is already bound with another assignment!');
                     }
-                    $a['node_warns'][$idx] = 1;
+                    $a['node_warns'][$nodeid] = $nodeid;
                 }
             }
         }
+    }
+
+    if (!isset($CURRENCIES[$a['currency']])) {
+        $error['currency'] = trans('Invalid currency selection!');
     }
 
     $hook_data = $LMS->executeHook(
@@ -312,12 +321,14 @@ if (isset($_POST['assignment'])) {
             } else {
                 $args = array(
                     'value' => str_replace(',', '.', $a['value']),
+                    'splitpayment' => isset($a['splitpayment']) ? 1 : 0,
+                    'currency' => $a['currency'],
                     'name' => $a['name'],
                     SYSLOG::RES_TAX => intval($a['taxid']),
                     'prodid' => $a['prodid'],
                     SYSLOG::RES_LIAB => $a['liabilityid']
                 );
-                $DB->Execute('UPDATE liabilities SET value=?, name=?, taxid=?, prodid=? WHERE id=?', array_values($args));
+                $DB->Execute('UPDATE liabilities SET value=?, splitpayment=?, currency=?, name=?, taxid=?, prodid=? WHERE id=?', array_values($args));
                 if ($SYSLOG) {
                     $args[SYSLOG::RES_CUST] = $customer['id'];
                     $SYSLOG->AddMessage(SYSLOG::RES_LIAB, SYSLOG::OPER_UPDATE, $args);
@@ -327,11 +338,13 @@ if (isset($_POST['assignment'])) {
             $args = array(
                 'name' => $a['name'],
                 'value' => $a['value'],
+                'splitpayment' => isset($a['splitpayment']) ? 1 : 0,
+                'currency' => $a['currency'],
                 SYSLOG::RES_TAX => intval($a['taxid']),
                 'prodid' => $a['prodid']
             );
-            $DB->Execute('INSERT INTO liabilities (name, value, taxid, prodid)
-				VALUES (?, ?, ?, ?)', array_values($args));
+            $DB->Execute('INSERT INTO liabilities (name, value, splitpayment, currency, taxid, prodid)
+				VALUES (?, ?, ?, ?, ?, ?)', array_values($args));
 
             $a['liabilityid'] = $DB->GetLastInsertID('liabilities');
 
@@ -442,9 +455,12 @@ if (isset($_POST['assignment'])) {
 } else {
     $a = $DB->GetRow('SELECT a.id AS id, a.customerid, a.tariffid, a.period,
 				a.at, a.count, a.datefrom, a.dateto, a.numberplanid, a.paytype,
-				a.invoice, a.separatedocument, a.settlement, a.pdiscount, a.vdiscount, a.attribute, a.liabilityid,
+				a.invoice, a.separatedocument,
+				(CASE WHEN liabilityid IS NULL THEN tariffs.splitpayment ELSE liabilities.splitpayment END) AS splitpayment,
+				a.settlement, a.pdiscount, a.vdiscount, a.attribute, a.liabilityid,
 				(CASE WHEN liabilityid IS NULL THEN tariffs.name ELSE liabilities.name END) AS name,
-				liabilities.value AS value, liabilities.prodid AS prodid, liabilities.taxid AS taxid,
+				liabilities.value AS value, liabilities.currency AS currency,
+				liabilities.prodid AS prodid, liabilities.taxid AS taxid,
 				recipient_address_id
 				FROM assignments a
 				LEFT JOIN tariffs ON (tariffs.id = a.tariffid)
@@ -498,6 +514,10 @@ if (isset($_POST['assignment'])) {
 
     // phone numbers assignments
     $a['phones'] = $DB->GetCol('SELECT number_id FROM voip_number_assignments WHERE assignment_id=?', array($a['id']));
+
+    if (empty($a['currency'])) {
+        $a['currency'] = $_default_currency;
+    }
 }
 
 $layout['pagetitle'] = trans('Liability Edit: $a', '<A href="?m=customerinfo&id='.$customer['id'].'">'.$customer['name'].'</A>');
@@ -529,6 +549,9 @@ $SMARTY->assign('tags', $LMS->TarifftagGetAll());
 
 $SMARTY->assign('tariffs', $LMS->GetTariffs($a['tariffid']));
 $SMARTY->assign('taxeslist', $LMS->GetTaxes());
+if (is_array($a['nodes'])) {
+    $a['nodes'] = array_flip($a['nodes']);
+}
 $SMARTY->assign('assignment', $a);
 $SMARTY->assign('assignments', $LMS->GetCustomerAssignments($customer['id'], true, false));
 $SMARTY->assign('customerinfo', $customer);

@@ -55,6 +55,12 @@ class Session
         }
 
         if (isset($remindform)) {
+            $sms_service = ConfigHelper::getConfig('sms.service', '', true);
+            if (($remindform['type'] == 1 && !ConfigHelper::checkConfig('userpanel.mail_credential_reminders'))
+                || ($remindform['type'] == 2 && (!ConfigHelper::checkConfig('userpanel.sms_credential_reminders')) || empty($sms_service))) {
+                return;
+            }
+
             if (ConfigHelper::getConfig('userpanel.google_recaptcha_sitekey') && !$this->ValidateRecaptchaResponse()) {
                 return;
             }
@@ -174,7 +180,7 @@ class Session
                         $authinfo['lastloginip'] = '';
                         $authinfo['failedlogindate'] = 0;
                     }
-                    
+
                     if (time() - $authinfo['failedlogindate'] < 600) {
                         if (isset($authinfo['enabled']) && $authinfo['enabled'] > 0) {
                             $authinfo['enabled'] -= 1;
@@ -188,10 +194,10 @@ class Session
                     $authinfo['failedloginip'] = $this->ip;
                     $this->SetCustomerAuthInfo($authinfo);
                 }
-                
+
                 $this->error = trans('Access denied!');
             }
-            
+
             $this->LogOut();
         }
     }
@@ -258,9 +264,18 @@ class Session
         }
     }
 
+    private function validPIN()
+    {
+        $string = $this->passwd;
+        for ($i = 0; $i < strlen($this->pin_allowed_characters); $i++) {
+            $string = str_replace($this->pin_allowed_characters[$i], '', $string);
+        }
+        return !strlen($string);
+    }
+
     private function GetCustomerIDByPhoneAndPIN()
     {
-        if (!preg_match('/^[' . $this->pin_allowed_characters . ']+$/', $this->passwd)) {
+        if (!$this->validPIN()) {
             return null;
         }
 
@@ -282,7 +297,7 @@ class Session
 
     private function GetCustomerIDByIDAndPIN()
     {
-        if (!preg_match('/^[' . $this->pin_allowed_characters . ']+$/', $this->passwd) || !preg_match('/^[0-9]+$/', $this->login)) {
+        if (!$this->validPIN() || !preg_match('/^[0-9]+$/', $this->login)) {
             return null;
         }
 
@@ -301,7 +316,7 @@ class Session
 
     private function GetCustomerIDByDocumentAndPIN()
     {
-        if (!preg_match('/^[' . $this->pin_allowed_characters . ']+$/', $this->passwd)) {
+        if (!$this->validPIN()) {
             return null;
         }
 
@@ -324,7 +339,7 @@ class Session
 
     private function GetCustomerIDByEmailAndPIN()
     {
-        if (!preg_match('/^[' . $this->pin_allowed_characters . ']+$/', $this->passwd)) {
+        if (!$this->validPIN()) {
             return null;
         }
 

@@ -45,21 +45,21 @@ if (isset($_POST['assignment'])) {
 
     // try to restrict node assignment sharing
     if ($a['tariffid'] > 0 && isset($a['nodes']) && !empty($a['nodes'])) {
-        $restricted_nodes = $LMS->CheckNodeTariffRestrictions($a['id'], $a['nodes']);
+        $restricted_nodes = $LMS->CheckNodeTariffRestrictions($a['id'], $a['nodes'], $from, $to);
         $node_multi_tariff_restriction = ConfigHelper::getConfig(
             'phpui.node_multi_tariff_restriction',
             '',
             true
         );
         if (preg_match('/^(error|warning)$/', $node_multi_tariff_restriction) && !empty($restricted_nodes)) {
-            foreach ($restricted_nodes as $idx => $nodeid) {
+            foreach ($restricted_nodes as $nodeid) {
                 if ($node_multi_tariff_restriction == 'error') {
-                    $error['assignment[nodes][' . $idx . ']'] = trans('This item is already bound with another assignment!');
+                    $error['assignment[nodes][' . $nodeid . ']'] = trans('This item is already bound with another assignment!');
                 } else {
-                    if (!isset($a['node_warns'][$idx])) {
-                        $error['assignment[nodes][' . $idx . ']'] = trans('This item is already bound with another assignment!');
+                    if (!isset($a['node_warns'][$nodeid])) {
+                        $error['assignment[nodes][' . $nodeid . ']'] = trans('This item is already bound with another assignment!');
                     }
-                    $a['node_warns'][$idx] = 1;
+                    $a['node_warns'][$nodeid] = $nodeid;
                 }
             }
         }
@@ -87,19 +87,21 @@ if (isset($_POST['assignment'])) {
 
         $LMS->UpdateExistingAssignments($a);
 
-        if (is_array($a['stariffid'][$schemaid])) {
+        if (is_array($a['sassignmentid'][$schemaid])) {
             $modifiedvalues = $a['values'][$schemaid];
+            $counts = $a['counts'][$schemaid];
             $copy_a = $a;
             $snodes = $a['snodes'][$schemaid];
             $sphones = $a['sphones'][$schemaid];
 
-            foreach ($a['stariffid'][$schemaid] as $label => $v) {
+            foreach ($a['sassignmentid'][$schemaid] as $label => $v) {
                 if (!$v) {
                     continue;
                 }
 
-                $copy_a['promotiontariffid'] = $v;
+                $copy_a['promotionassignmentid'] = $v;
                 $copy_a['modifiedvalues'] = isset($modifiedvalues[$label][$v]) ? $modifiedvalues[$label][$v] : array();
+                $copy_a['count'] = $counts[$label];
                 $copy_a['nodes'] = $snodes[$label];
                 $copy_a['phones'] = $sphones[$label];
                 $tariffid = $LMS->AddAssignment($copy_a);
@@ -154,7 +156,12 @@ if (isset($_POST['assignment'])) {
     if (!empty($default_assignment_at)) {
         $a['at'] = $default_assignment_at;
     }
+
+    $a['check_all_terminals'] =
+        ConfigHelper::checkConfig('phpui.promotion_schema_all_terminal_check');
+
     $a['count'] = 1;
+    $a['currency'] = LMS::$default_currency;
 }
 
 $layout['pagetitle'] = trans('New Liability: $a', '<A href="?m=customerinfo&id='.$customer['id'].'">'.$customer['name'].'</A>');

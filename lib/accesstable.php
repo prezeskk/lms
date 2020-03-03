@@ -25,7 +25,7 @@
  */
 
 // modules with access for everyone
-$global_access_regexp = '^(welcome|copyrights|logout|chpasswd|twofactorauth(info|edit)|quicksearch|calendar|persistentsetting|zipcode|indicators)$';
+$global_access_regexp = '^(welcome|copyrights|logout|chpasswd|twofactorauth(info|edit)|quicksearch|calendar|persistentsetting|zipcode|indicators|dns)$';
 
 $access_table = array(
     'full_access' => array(
@@ -43,6 +43,10 @@ $access_table = array(
     'finances_management' => array(
         'label' => trans('finances management'),
         'allow_regexp' => '^((tariff|customerassignment)(add|info|list|move|edit|del)|(payment)(add|del|edit|info|list)|(balance|customerbalance)(new|add|ok|del|list|)|(cashreg(list|info))|(invoice|invoice(list|new|edit|del|note|report|paid|info|send))|(note|note(list|add|edit|del|paid))|number|export|print|cashimport|cashimportparser|cashpackagedel|customertransferform)$',
+    ),
+    'promotion_management' => array(
+        'label' => trans('promotion management'),
+        'allow_regexp' => '^(promotion|promotionschema)(list|edit|add|del|set|info|clone)$',
     ),
     'trade_document_archiving' => array(
         'label' => trans('trade document archiving'),
@@ -116,7 +120,7 @@ $access_table = array(
     ),
     'timetable_management' => array(
         'label' => trans('timetable management'),
-        'allow_regexp' => '^(event(list|edit|add|del|info|print|search|note)|choosecustomer)$',
+        'allow_regexp' => '^(event(list|edit|add|del|info|print|search|note|schedule)|choosecustomer)$',
     ),
     'daemon_management' => array(
         'label' => trans('daemon management and configuration'),

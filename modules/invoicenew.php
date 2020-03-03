@@ -28,7 +28,7 @@ include(MODULES_DIR . DIRECTORY_SEPARATOR . 'invoicexajax.inc.php');
 include(MODULES_DIR . DIRECTORY_SEPARATOR . 'invoiceajax.inc.php');
 
 // Invoiceless liabilities: Zobowiazania/obciazenia na ktore nie zostala wystawiona faktura
-function GetCustomerCovenants($customerid)
+function GetCustomerCovenants($customerid, $currency)
 {
     global $DB;
 
@@ -36,21 +36,21 @@ function GetCustomerCovenants($customerid)
         return null;
     }
 
-    return $DB->GetAll('SELECT c.time, c.value*-1 AS value, c.comment, c.taxid, 
+    return $DB->GetAll('SELECT c.time, c.value*-1 AS value, c.currency, c.comment, c.taxid, 
 			taxes.label AS tax, c.id AS cashid,
 			ROUND(c.value / (taxes.value/100+1), 2)*-1 AS net
 			FROM cash c
 			LEFT JOIN taxes ON (c.taxid = taxes.id)
-			WHERE c.customerid = ? AND c.docid IS NULL AND c.value < 0
-			ORDER BY time', array($customerid));
+			WHERE c.customerid = ? AND c.docid IS NULL AND c.currency = ? AND c.value < 0
+			ORDER BY time', array($customerid, $currency));
 }
 
 $taxeslist = $LMS->GetTaxes();
 
-$SESSION->restore('invoicecontents', $contents);
-$SESSION->restore('invoicecustomer', $customer);
-$SESSION->restore('invoice', $invoice);
-$SESSION->restore('invoicenewerror', $error);
+$SESSION->restore('invoicecontents', $contents, true);
+$SESSION->restore('invoicecustomer', $customer, true);
+$SESSION->restore('invoice', $invoice, true);
+$SESSION->restore('invoicenewerror', $error, true);
 
 $itemdata = r_trim($_POST);
 
@@ -114,6 +114,7 @@ switch ($action) {
                 $customer = $LMS->GetCustomer($_GET['customerid'], true);
                 $invoice['customerid'] = $_GET['customerid'];
             }
+            $invoice['currency'] = LMS::$default_currency;
         }
         $invoice['number'] = '';
         $invoice['numberplanid'] = null;
@@ -214,7 +215,7 @@ switch ($action) {
 
         if ($itemdata['count'] > 0 && $itemdata['name'] != '') {
             $taxvalue = isset($itemdata['taxid']) ? $taxeslist[$itemdata['taxid']]['value'] : 0;
-            if ($itemdata['valuenetto'] != 0) {
+            if ($itemdata['valuenetto'] != 0 && $itemdata['valuebrutto'] == 0) {
                 $itemdata['valuenetto'] = f_round(($itemdata['valuenetto'] - $itemdata['valuenetto'] * $itemdata['pdiscount'] / 100)
                     - ((100 * $itemdata['vdiscount']) / (100 + $taxvalue)));
                 $itemdata['valuebrutto'] = $itemdata['valuenetto'] * ($taxvalue / 100 + 1);
@@ -392,6 +393,10 @@ switch ($action) {
             }
         }
 
+        if (!isset($CURRENCIES[$invoice['currency']])) {
+            $error['currency'] = trans('Invalid currency selection!');
+        }
+
         if ($LMS->CustomerExists($cid)) {
             $customer = $LMS->GetCustomer($cid, true);
         }
@@ -455,6 +460,10 @@ switch ($action) {
             $invoice['sdate'] = $invoice['cdate'];
         }
 
+        if (!isset($CURRENCIES[$invoice['currency']])) {
+            $error['currency'] = trans('Invalid currency selection!');
+        }
+
         $hook_data = array(
             'customer' => $customer,
             'contents' => $contents,
@@ -467,6 +476,11 @@ switch ($action) {
 
         if (!empty($error)) {
             break;
+        }
+
+        $invoice['currencyvalue'] = $LMS->getCurrencyValue($invoice['currency'], $invoice['sdate']);
+        if (!isset($invoice['currencyvalue'])) {
+            die('Fatal error: couldn\'t get quote for ' . $invoice['currency'] . ' currency!<br>');
         }
 
         $DB->BeginTrans();
@@ -555,15 +569,15 @@ switch ($action) {
         $DB->UnLockTables();
         $DB->CommitTrans();
 
-        $SESSION->remove('invoicecontents');
-        $SESSION->remove('invoicecustomer');
-        $SESSION->remove('invoice');
-        $SESSION->remove('invoicenewerror');
+        $SESSION->remove('invoicecontents', true);
+        $SESSION->remove('invoicecustomer', true);
+        $SESSION->remove('invoice', true);
+        $SESSION->remove('invoicenewerror', true);
 
         if (isset($_GET['print'])) {
-            $SESSION->save('invoiceprint', array('invoice' => $iid,
-                'original' => !empty($_GET['original']) ? 1 : 0,
-                'copy' => !empty($_GET['copy']) ? 1 : 0));
+            $which = isset($_GET['which']) ? $_GET['which'] : 0;
+
+            $SESSION->save('invoiceprint', array('invoice' => $iid, 'which' => $which), true);
         }
 
         if (isset($_POST['reuse']) || isset($_GET['print'])) {
@@ -574,10 +588,10 @@ switch ($action) {
         break;
 }
 
-$SESSION->save('invoice', $invoice);
-$SESSION->save('invoicecontents', isset($contents) ? $contents : null);
-$SESSION->save('invoicecustomer', isset($customer) ? $customer : null);
-$SESSION->save('invoicenewerror', isset($error) ? $error : null);
+$SESSION->save('invoice', $invoice, true);
+$SESSION->save('invoicecontents', isset($contents) ? $contents : null, true);
+$SESSION->save('invoicecustomer', isset($customer) ? $customer : null, true);
+$SESSION->save('invoicenewerror', isset($error) ? $error : null, true);
 
 
 if ($action) {
@@ -586,7 +600,7 @@ if ($action) {
 }
 
 $covenantlist = array();
-$list = GetCustomerCovenants($customer['id']);
+$list = GetCustomerCovenants($customer['id'], $invoice['currency']);
 
 if (isset($list)) {
     if ($contents) {
@@ -611,9 +625,9 @@ if (!ConfigHelper::checkConfig('phpui.big_networks')) {
     $SMARTY->assign('customers', $LMS->GetCustomerNames());
 }
 
-if ($newinvoice = $SESSION->get('invoiceprint')) {
-        $SMARTY->assign('newinvoice', $newinvoice);
-        $SESSION->remove('invoiceprint');
+if ($newinvoice = $SESSION->get('invoiceprint', true)) {
+    $SMARTY->assign('newinvoice', $newinvoice);
+    $SESSION->remove('invoiceprint', true);
 }
 
 $SMARTY->assign('covenantlist', $covenantlist);

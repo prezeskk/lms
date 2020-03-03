@@ -38,6 +38,8 @@ interface LMSFinanceManagerInterface
 
     public function GetCustomerAssignments($id, $show_expired = false, $show_approved = true);
 
+    public function GetCustomerServiceSummary($id);
+
     public function DeleteAssignment($id);
 
     public function AddAssignment($data);
@@ -130,6 +132,8 @@ interface LMSFinanceManagerInterface
 
     public function isDocumentReferenced($id);
 
+    public function MarkDocumentsAsSent($id);
+
     public function GetReceiptList(array $params);
 
     public function AddReceipt(array $receipt);
@@ -146,5 +150,11 @@ interface LMSFinanceManagerInterface
 
     public function GetDocumentLastReference($docid);
 
-    public function CheckNodeTariffRestrictions($aid, $nodes);
+    public function CheckNodeTariffRestrictions($aid, $nodes, $datefrom, $dateto);
+
+    public function getCurrencyValue($currency, $date = null);
+
+    public function CopyCashRegistryPermissions($src_userid, $dst_userid);
+
+    public function CopyPromotionTariffPermissions($src_userid, $dst_userid);
 }

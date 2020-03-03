@@ -540,6 +540,16 @@ $DOCTYPES = array(
     DOC_OTHER       =>  trans('other')
 );
 
+define('DOC_ENTITY_ORIGINAL', 1);
+define('DOC_ENTITY_COPY', 2);
+define('DOC_ENTITY_DUPLICATE', 4);
+
+$DOCENTITIES = array(
+    DOC_ENTITY_ORIGINAL => trans('original'),
+    DOC_ENTITY_COPY => trans('copy'),
+    DOC_ENTITY_DUPLICATE => trans('duplicate'),
+);
+
 define('DOCRIGHT_VIEW', 1);
 define('DOCRIGHT_CREATE', 2);
 define('DOCRIGHT_CONFIRM', 4);
@@ -941,6 +951,48 @@ define('EXISTINGASSIGNMENT_SUSPEND', 1);
 define('EXISTINGASSIGNMENT_CUT', 2);
 define('EXISTINGASSIGNMENT_DELETE', 3);
 
+$CURRENCIES = array(
+    'AUD' => 'AUD',
+    'BGN' => 'BGN',
+    'BRL' => 'BRL',
+    'CAD' => 'CAD',
+    'CHF' => 'CHF',
+    'CLP' => 'CLP',
+    'CNY' => 'CNY',
+    'CZK' => 'CZK',
+    'DKK' => 'DKK',
+    'EUR' => 'EUR',
+    'GBP' => 'GBP',
+    'GYD' => 'GYD',
+    'HKD' => 'HKO',
+    'HRK' => 'HRK',
+    'HUF' => 'HUF',
+    'IDR' => 'IDR',
+    'ILS' => 'ILS',
+    'INR' => 'INR',
+    'ISK' => 'ISK',
+    'JPY' => 'JPY',
+    'KRW' => 'KRW',
+    'LTL' => 'LTL',
+    'LVL' => 'LVL',
+    'MXN' => 'MXN',
+    'MYR' => 'MYR',
+    'NOK' => 'NOK',
+    'NZD' => 'NZD',
+    'PHP' => 'PHP',
+    'PLN' => 'PLN',
+    'RON' => 'RON',
+    'RUB' => 'RUB',
+    'SEK' => 'SEK',
+    'SGD' => 'SGD',
+    'THB' => 'THB',
+    'TRY' => 'TRY',
+    'UAH' => 'UAH',
+    'USD' => 'USD',
+    'XDR' => 'XOR',
+    'ZAR' => 'ZAR',
+);
+
 $EXISTINGASSIGNMENTS = array(
     EXISTINGASSIGNMENT_KEEP => trans('<!existingassignment>keep'),
     EXISTINGASSIGNMENT_SUSPEND => trans('<!existingassignment>suspend'),
@@ -955,6 +1007,7 @@ if (isset($SMARTY)) {
     $SMARTY->assign('_MESSAGETEMPLATES', $MESSAGETEMPLATES);
     $SMARTY->assign('_ACCOUNTTYPES', $ACCOUNTTYPES);
     $SMARTY->assign('_DOCTYPES', $DOCTYPES);
+    $SMARTY->assign('_DOCENTITIES', $DOCENTITIES);
     $SMARTY->assign('_DOCRIGHTS', $DOCRIGHTS);
     $SMARTY->assign('_PERIODS', $PERIODS);
     $SMARTY->assign('_GUARANTEEPERIODS', $GUARANTEEPERIODS);
@@ -985,6 +1038,7 @@ if (isset($SMARTY)) {
     $SMARTY->assign('_SESSIONTYPES', $SESSIONTYPES);
     $SMARTY->assign('_CATEGORY_DEFAULT_STYLE', $CATEGORY_DEFAULT_STYLE);
     $SMARTY->assign('_EXISTINGASSIGNMENTS', $EXISTINGASSIGNMENTS);
+    $SMARTY->assign('_CURRENCIES', $CURRENCIES);
 }
 
 define('DEFAULT_NUMBER_TEMPLATE', '%N/LMS/%Y');

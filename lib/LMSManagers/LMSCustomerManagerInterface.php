@@ -56,6 +56,8 @@ interface LMSCustomerManagerInterface
 
     public function GetCustomerShortBalanceList($customerid, $limit = 10, $order = 'DESC');
 
+    public function getLastNInTable($body, $customerid, $eol);
+
     public function customerStats();
 
     public function customerAdd($customeradd);
@@ -91,4 +93,10 @@ interface LMSCustomerManagerInterface
     public function isSplitPaymentSuggested($customerid, $cdate, $value);
 
     public function getCustomerSMSOptions();
+
+    public function GetCustomerAddressesWithoutEndPoints($customerid);
+
+    public function checkCustomerTenExistence($customerid, $ten, $divisionid = null);
+
+    public function checkCustomerSsnExistence($customerid, $ssn, $divisionid = null);
 }

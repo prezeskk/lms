@@ -360,7 +360,9 @@ class Auth
 
                             $this->authcoderequired = '';
                             $this->islogged = true;
-                            $this->addTrustedDevice();
+                            if ($this->trusteddevice) {
+                                $this->addTrustedDevice();
+                            }
                         }
                     } else {
                         $this->DB->Execute('INSERT INTO twofactorauthcodehistory (userid, authcode, uts, ipaddr)
@@ -531,7 +533,7 @@ class Auth
                         $cmp = strlen($signature) ^ strlen($signature_verification);
                         $signature = $signature ^ $signature_verification;
                         for ($i = 0; $i < strlen($signature); $i++) {
-                            $cmp += ord($signature{$i});
+                            $cmp += ord($signature[$i]);
                         }
                         return ($cmp === 0);
                     }

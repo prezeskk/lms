@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2015 LMS Developers
+ *  (C) Copyright 2001-2019 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -54,7 +54,7 @@ class LMSTcpdfBackend extends LMSTCPDF
         $this->setLanguageArray($l);
 
         /* disable font subsetting to improve performance */
-        $this->setFontSubsetting(false);
+        $this->setFontSubsetting(true);
 
         $this->AppendPage();
     }

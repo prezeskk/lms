@@ -81,7 +81,7 @@ class LMSNetNodeManager extends LMSManager implements LMSNetNodeManagerInterface
                     }
                     break;
                 case 'divisionid':
-                    if ($val != -1) {
+                    if ($val != -1 && !empty($val)) {
                         $where[] = 'n.divisionid = ' . $val;
                     }
             }
@@ -118,12 +118,27 @@ class LMSNetNodeManager extends LMSManager implements LMSNetNodeManagerInterface
         );
 
         if (!$short && $nlist) {
+            $filecontainers = $this->db->GetAllByKey('SELECT fc.netnodeid
+			FROM filecontainers fc
+			WHERE fc.netnodeid IS NOT NULL
+			GROUP BY fc.netnodeid', 'netnodeid');
+
+            if (!empty($filecontainers)) {
+                if (!isset($file_manager)) {
+                    $file_manager = new LMSFileManager($this->db, $this->auth, $this->cache, $this->syslog);
+                }
+                foreach ($filecontainers as &$filecontainer) {
+                    $filecontainer = $file_manager->GetFileContainers('netnodeid', $filecontainer['netnodeid']);
+                }
+            }
+
             foreach ($nlist as &$netnode) {
                 $netnode['terc'] = empty($netnode['location_state_ident']) ? null
                     : $netnode['location_state_ident'] . $netnode['location_district_ident']
                     . $netnode['location_borough_ident'] . $netnode['location_borough_type'];
                 $netnode['simc'] = empty($netnode['location_city_ident']) ? null : $netnode['location_city_ident'];
                 $netnode['ulic'] = empty($netnode['location_street_ident']) ? null : $netnode['location_street_ident'];
+                $netnode['filecontainers'] = isset($filecontainers[$netnode['id']]) ? $filecontainers[$netnode['id']] : array();
             }
             unset($netnode);
         }
@@ -278,7 +293,7 @@ class LMSNetNodeManager extends LMSManager implements LMSNetNodeManagerInterface
             );
         } else {
             if (!$netnodedata['address_id'] || $netnodedata['address_id']
-                && $this->db->GetOne('SELECT 1 FROM customer_addresses WHERE address_id = ?', array($netnodedata['address_id'])) ) {
+                && $this->db->GetOne('SELECT 1 FROM customer_addresses WHERE address_id = ?', array($netnodedata['address_id']))) {
                 $address_id = $location_manager->InsertAddress($netnodedata);
 
                 $this->db->Execute(

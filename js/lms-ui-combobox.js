@@ -179,6 +179,7 @@
 				if ($options.length == 0) {
 					// TODO restore, using $p.data(pname).key if provided instead
 				} else { // here are options:
+					$div.empty();
 					$options.each(function () {
 						var $t = $(this);
 						var $p = $('<p />');
@@ -515,6 +516,9 @@
 			$(O.altField).val('');
 			$(O.altInvalidField).val(value);
 			$valueInput.val(value);
+			$valueInput.attr('name', function() {
+				return $select.attr('name') || '';
+			});
 			$display.val(value);
 			return;
 		}

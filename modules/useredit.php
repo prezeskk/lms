@@ -5,7 +5,7 @@ use PragmaRX\Google2FA\Google2FA;
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2019 LMS Developers
+ *  (C) Copyright 2001-2020 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -45,6 +45,8 @@ if (isset($_GET['forcepasswdchange'])) {
     $LMS->forcePasswordChange($id);
     $SESSION->redirect($_SERVER['HTTP_REFERER']);
 }
+
+include(MODULES_DIR . DIRECTORY_SEPARATOR . 'usercopypermissions.inc.php');
 
 $userinfo = isset($_POST['userinfo']) ? $_POST['userinfo'] : false;
 
@@ -127,6 +129,18 @@ if ($userinfo) {
         $userinfo['accessfrom'] = $accessfrom;
         $userinfo['accessto'] = $accessto;
         $LMS->UserUpdate($userinfo);
+
+        if (isset($userinfo['copy-permissions']) && !empty($userinfo['src_userid'])) {
+            $LMS->CopyPermissions($userinfo['src_userid'], $userinfo['id'], array_flip($userinfo['copy-permissions']));
+            $LMS->executeHook(
+                'user_modify_copy_permissions',
+                array(
+                    'src-userid' => $userinfo['src_userid'],
+                    'dst-userid' => $userinfo['id'],
+                    'copy-permissions' => $userinfo['copy-permissions'],
+                )
+            );
+        }
 
         if ($SYSLOG) {
             $groups = $DB->GetAll(

@@ -639,6 +639,7 @@ switch ($action) {
 if (isset($netdev)) {
     $netdev['id'] = $id;
 
+    $netdev['name'] = trim($netdev['name']);
     if ($netdev['name'] == '') {
         $error['name'] = trans('Device name is required!');
     } elseif (strlen($netdev['name']) > 60) {
@@ -696,6 +697,9 @@ if (isset($netdev)) {
             if (!isset($netdev['shortname'])) {
                 $netdev['shortname'] = '';
             }
+            if (!isset($netdev['login'])) {
+                $netdev['login'] = '';
+            }
             if (!isset($netdev['secret'])) {
                 $netdev['secret'] = '';
             }
@@ -743,10 +747,6 @@ if (isset($netdev)) {
         die;
     }
 } else {
-    $attachmenttype = 'netdevid';
-    $attachmentresourceid = $id;
-    include(MODULES_DIR . DIRECTORY_SEPARATOR . 'attachments.php');
-
     $netdev = $LMS->GetNetDev($id);
 
     if (preg_match('/^[0-9]+$/', $netdev['producerid'])
@@ -754,6 +754,27 @@ if (isset($netdev)) {
         $netdev['producer'] = $netdev['producerid'];
         $netdev['model'] = $netdev['modelid'];
     }
+
+    $attachmenttype = 'netdevid';
+    $attachmentresourceid = $id;
+    $SMARTY->assign('attachmenttype', $attachmenttype);
+    $SMARTY->assign('attachmentresourceid', $attachmentresourceid);
+
+    $filecontainers = array(
+        'netdevid' => array(
+            'id' => $id,
+            'prefix' => trans('Device attachments'),
+            'containers' => $LMS->GetFileContainers('netdevid', $id),
+        ),
+        'netdevmodelid' => array(
+            'id' => $netdev['modelid'],
+            'prefix' => trans('Model attachments'),
+            'containers' => $LMS->GetFileContainers('netdevmodelid', $netdev['model']),
+        ),
+    );
+    $SMARTY->assign('filecontainers', $filecontainers);
+
+    include(MODULES_DIR . DIRECTORY_SEPARATOR . 'attachments.php');
 
     if ($netdev['purchasetime']) {
         $netdev['purchasedate'] = date('Y/m/d', $netdev['purchasetime']);

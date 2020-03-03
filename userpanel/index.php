@@ -134,7 +134,8 @@ $_TIMEOUT = ConfigHelper::getConfig('userpanel.timeout');
 require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'common.php');
 require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'language.php');
 include_once(LIB_DIR . DIRECTORY_SEPARATOR . 'definitions.php');
-require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'unstrip.php');
+
+$_SERVER['REMOTE_ADDR'] = str_replace("::ffff:", "", $_SERVER['REMOTE_ADDR']);
 
 $AUTH = null;
 $SYSLOG = SYSLOG::getInstance();
@@ -147,6 +148,7 @@ $LMS = new LMS($DB, $AUTH, $SYSLOG);
 require_once(USERPANEL_LIB_DIR . DIRECTORY_SEPARATOR . 'Session.class.php');
 require_once(USERPANEL_LIB_DIR . DIRECTORY_SEPARATOR . 'Userpanel.class.php');
 require_once(USERPANEL_LIB_DIR . DIRECTORY_SEPARATOR . 'ULMS.class.php');
+
 @include(USERPANEL_DIR . DIRECTORY_SEPARATOR . 'lib' . DIRECTORY_SEPARATOR . 'locale' . DIRECTORY_SEPARATOR . $_ui_language . DIRECTORY_SEPARATOR . 'strings.php');
 
 unset($LMS); // reset LMS class to enable wrappers for LMS older versions
@@ -171,6 +173,7 @@ $SESSION = new Session($DB, $_TIMEOUT);
 $USERPANEL = new USERPANEL($DB, $SESSION);
 $LMS->ui_lang = $_ui_language;
 $LMS->lang = $_language;
+LMS::$currency = $_currency;
 
 // Initialize modules
 
@@ -188,8 +191,14 @@ foreach ($modules_dirs as $suspected_module_dir) {
     while (false !== ($filename = readdir($dh))) {
         if ((is_null($enabled_modules) || in_array($filename, $enabled_modules)) && (preg_match('/^[a-zA-Z0-9]/', $filename))
             && (is_dir($suspected_module_dir . $filename)) && file_exists($suspected_module_dir . $filename . DIRECTORY_SEPARATOR . 'configuration.php')) {
-                @include($suspected_module_dir . $filename . DIRECTORY_SEPARATOR . 'locale' . DIRECTORY_SEPARATOR . $_ui_language . DIRECTORY_SEPARATOR . 'strings.php');
-                include($suspected_module_dir . $filename . DIRECTORY_SEPARATOR . 'configuration.php');
+            $locale_filename = $suspected_module_dir . $filename . DIRECTORY_SEPARATOR . 'locale' . DIRECTORY_SEPARATOR . $_ui_language . DIRECTORY_SEPARATOR . 'strings.php';
+            if (@is_readable($locale_filename)) {
+                @include($locale_filename);
+            } else {
+                $locale_filename = $suspected_module_dir . $filename . DIRECTORY_SEPARATOR . 'locale' . DIRECTORY_SEPARATOR . substr($_ui_language, 0, 2) . DIRECTORY_SEPARATOR . 'strings.php';
+                @include($locale_filename);
+            }
+            include($suspected_module_dir . $filename . DIRECTORY_SEPARATOR . 'configuration.php');
             if (is_dir($suspected_module_dir . $filename . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR)) {
                 $plugins = glob($suspected_module_dir . $filename . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . '*.php');
                 if (!empty($plugins)) {
@@ -218,8 +227,8 @@ $SMARTY->debugging = ConfigHelper::checkConfig('phpui.smarty_debug');
 require_once(USERPANEL_LIB_DIR . DIRECTORY_SEPARATOR . 'smarty_addons.php');
 
 $layout['lmsdbv'] = $DB->GetVersion();
-$layout['lmsv'] = $LMS->_version;
-$layout['lmsvr'] = $LMS->_revision;
+$layout['lmsv'] = LMS::SOFTWARE_VERSION;
+$layout['lmsvr'] = LMS::getSoftwareRevision();
 $layout['smarty_version'] = SMARTY_VERSION;
 $layout['hostname'] = hostname();
 $layout['dberrors'] =& $DB->GetErrors();
@@ -237,7 +246,7 @@ $plugin_manager->executeHook('userpanel_lms_initialized', $LMS);
 $plugin_manager->executeHook('userpanel_smarty_initialized', $SMARTY);
 
 if ($SESSION->islogged) {
-    $module = isset($_GET['m']) ? $_GET['m'] : '';
+    $module = isset($_GET['m']) ? preg_replace('/[^a-zA-Z0-9_-]/', '', $_GET['m']) : '';
 
     if (isset($USERPANEL->MODULES[$module])) {
         $USERPANEL->MODULES[$module]['selected'] = true;

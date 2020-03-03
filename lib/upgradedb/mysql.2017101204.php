@@ -93,8 +93,14 @@ $this->Execute("ALTER TABLE messageitems ALTER COLUMN messageid DROP DEFAULT");
 $this->Execute("ALTER TABLE up_help MODIFY reference int(11) NULL");
 $this->Execute("ALTER TABLE up_help ALTER COLUMN reference SET DEFAULT NULL");
 
+$this->Execute("
+       UPDATE documents SET divisionid = (CASE WHEN divisionid = 0 THEN NULL ELSE divisionid END),
+               countryid = (CASE WHEN countryid = 0 THEN NULL ELSE countryid END),
+               div_countryid = (CASE WHEN div_countryid = 0 THEN NULL ELSE div_countryid END),
+               numberplanid = (CASE WHEN numberplanid = 0 THEN NULL ELSE numberplanid END)
+");
+
 $this->Execute("UPDATE customers SET divisionid = NULL WHERE divisionid = 0");
-$this->Execute("UPDATE documents SET divisionid = NULL WHERE divisionid = 0");
 $this->Execute("DELETE FROM numberplanassignments WHERE divisionid = 0");
 $ids = $this->GetCol("SELECT id FROM divisions");
 if (empty($ids)) {
@@ -110,8 +116,6 @@ if (empty($ids)) {
     $this->Execute("DELETE FROM numberplanassignments WHERE divisionid NOT IN (" . $sql_ids . ")");
 }
 
-$this->Execute("UPDATE documents SET countryid = NULL WHERE countryid = 0");
-$this->Execute("UPDATE documents SET div_countryid = NULL WHERE div_countryid = 0");
 $ids = $this->GetCol("SELECT id FROM countries");
 if (empty($ids)) {
     $this->Execute("UPDATE documents SET countryid = NULL WHERE countryid IS NOT NULL");
@@ -134,7 +138,6 @@ if (empty($ids)) {
 		WHERE stateid IS NOT NULL AND stateid NOT IN (" . $sql_ids . ")");
 }
 
-$this->Execute("UPDATE documents SET numberplanid = NULL WHERE numberplanid = 0");
 $this->Execute("UPDATE cashregs SET in_numberplanid = NULL WHERE in_numberplanid = 0");
 $this->Execute("UPDATE cashregs SET out_numberplanid = NULL WHERE out_numberplanid = 0");
 $this->Execute("DELETE FROM numberplanassignments WHERE planid = 0");
@@ -155,18 +158,46 @@ if (empty($ids)) {
     $this->Execute("DELETE FROM numberplanassignments WHERE planid NOT IN (" . $sql_ids . ")");
 }
 
+define('DOC_INVOICE', 1);
+define('DOC_RECEIPT', 2);
+define('DOC_CNOTE', 3);
+//define('DOC_CMEMO', 4);
+define('DOC_DNOTE', 5);
+define('DOC_INVOICE_PRO', 6);
+define('DOC_INVOICE_PURCHASE', 7);
+
 $this->Execute("UPDATE documents SET reference = NULL WHERE reference = 0");
 $this->Execute("UPDATE cash SET docid = NULL WHERE docid = 0");
-$ids = $this->GetCol("SELECT id FROM documents");
+$allids = $this->GetCol("SELECT id FROM documents");
 if (empty($ids)) {
     $this->Execute("UPDATE documents SET reference = NULL WHERE reference IS NOT NULL");
     $this->Execute("UPDATE cash SET docid = NULL WHERE docid IS NOT NULL");
 } else {
-    $sql_ids = implode(',', $ids);
-    $this->Execute("UPDATE documents SET reference = NULL
-		WHERE reference IS NOT NULL AND reference NOT IN (" . $sql_ids . ")");
-    $this->Execute("UPDATE cash SET docid = NULL
-		WHERE docid IS NOT NULL AND docid NOT IN (" . $sql_ids . ")");
+    $ids = $this->GetCol(
+        "SELECT id FROM documents WHERE type IN (?, ?, ?, ?, ?)",
+        array(DOC_INVOICE, DOC_RECEIPT, DOC_CNOTE, DOC_DNOTE, DOC_INVOICE_PRO)
+    );
+    $docids = $this->GetCol("SELECT DISTINCT docid FROM cash WHERE docid IS NOT NULL");
+    if (empty($docids)) {
+        $docids = array();
+    }
+    $diff = array_diff($docids, $ids);
+    if (!empty($diff)) {
+        foreach ($diff as $id) {
+            $this->Execute("UPDATE cash SET docid = NULL WHERE docid = ?", array($id));
+        }
+    }
+
+    $refids = $this->GetCol("SELECT reference FROM documents WHERE reference IS NOT NULL");
+    if (empty($refids)) {
+        $refids = array();
+    }
+    $diff = array_diff($refids, $allids);
+    if (!empty($diff)) {
+        foreach ($diff as $id) {
+            $this->Execute("UPDATE documents SET reference = NULL WHERE reference = ?", array($id));
+        }
+    }
 }
 
 $this->Execute("UPDATE receiptcontents SET regid = NULL WHERE regid = 0");
@@ -228,13 +259,21 @@ if (empty($ids)) {
 		WHERE liabilityid IS NOT NULL AND liabilityid NOT IN (" . $sql_ids . ")");
 }
 
-$ids = $this->GetCol("UPDATE cash SET importid = NULL WHERE importid = 0");
+$this->Execute("UPDATE cash SET importid = NULL WHERE importid = 0");
 $ids = $this->GetCol("SELECT id FROM cashimport");
 if (empty($ids)) {
-    $this->Execute("DELETE FROM cash WHERE importid IS NOT NULL");
+    $this->Execute("UPDATE cash SET importid = NULL WHERE importid IS NOT NULL");
 } else {
-    $sql_ids = implode(',', $ids);
-    $this->Execute("DELETE FROM cash WHERE importid IS NOT NULL AND importid NOT IN (" . $sql_ids . ")");
+    $importids = $this->GetCol("SELECT importid FROM cash WHERE importid IS NOT NULL");
+    if (empty($importids)) {
+        $importids = array();
+    }
+    $diff = array_diff($importids, $ids);
+    if (!empty($diff)) {
+        foreach ($diff as $id) {
+            $this->Execute("UPDATE cash SET importid = NULL WHERE importid = ?", array($id));
+        }
+    }
 }
 
 $ids = $this->GetCol("SELECT id FROM cashsources");

@@ -92,7 +92,7 @@ switch ($mode) {
 				post_name, post_full_address AS post_address, deleted,
 			    " . $DB->Concat('UPPER(lastname)', "' '", 'c.name') . " AS customername,
 			    va.name AS location_name, va.address AS location_address,
-			    c.status
+			    c.status, c.ten, c.ssn, c.info, c.notes
 				FROM customerview c
 				LEFT JOIN customer_addresses ca ON ca.customer_id = c.id AND ca.type IN (?, ?)
 				LEFT JOIN vaddresses va ON va.id = ca.address_id
@@ -104,8 +104,12 @@ switch ($mode) {
                     . (empty($properties) || isset($properties['post_address']) ? " OR LOWER(post_full_address) ?LIKE? LOWER($sql_search)" : '')
                     . (empty($properties) || isset($properties['location_name']) ? " OR LOWER(va.name) ?LIKE? LOWER($sql_search)" : '')
                     . (empty($properties) || isset($properties['location_address']) ? " OR LOWER(va.address) ?LIKE? LOWER($sql_search)" : '')
-                    . (empty($properties) || isset($properties['email']) ? " OR LOWER(cc.contact) ?LIKE? LOWER($sql_search)" : '') . "
-				ORDER by deleted, customername, cc.contact, full_address
+                    . (empty($properties) || isset($properties['email']) ? " OR LOWER(cc.contact) ?LIKE? LOWER($sql_search)" : '')
+                    . (empty($properties) || isset($properties['ten']) ? " OR REPLACE(REPLACE(c.ten, '-', ''), ' ', '') ?LIKE? REPLACE(REPLACE($sql_search, '-', ''), ' ', '')" : '')
+                    . (empty($properties) || isset($properties['ssn']) ? " OR REPLACE(REPLACE(c.ssn, '-', ''), ' ', '') ?LIKE? REPLACE(REPLACE($sql_search, '-', ''), ' ', '')" : '')
+                    . (empty($properties) || isset($properties['additional-info']) ? " OR LOWER(c.info) ?LIKE? LOWER($sql_search)" : '')
+                    . (empty($properties) || isset($properties['notes']) ? " OR LOWER(c.notes) ?LIKE? LOWER($sql_search)" : '') . "
+                ORDER by deleted, customername, cc.contact, full_address
 				LIMIT ?", array(DEFAULT_LOCATION_ADDRESS, LOCATION_ADDRESS, CONTACT_EMAIL, intval(ConfigHelper::getConfig('phpui.quicksearch_limit', 15))));
 
             $result = array();
@@ -156,6 +160,16 @@ switch ($mode) {
                         $description = trans('Address:') . ' ' . $row['location_address'];
                     } else if ((empty($properties) || isset($properties['email'])) && preg_match("~$search~i", $row['email'])) {
                         $description = trans('E-mail:') . ' ' . $row['email'];
+                    } else if ((empty($properties) || isset($properties['ten']))
+                        && preg_match('~' . preg_replace('/[\- ]/', '', $search) . '~i', preg_replace('/[\- ]/', '', $row['ten']))) {
+                        $description = trans('TEN:') . ' ' . $row['ten'];
+                    } else if ((empty($properties) || isset($properties['ssn']))
+                        && preg_match('~' . preg_replace('/[\- ]/', '', $search) . '~i', preg_replace('/[\- ]/', '', $row['ssn']))) {
+                        $description = trans('SSN:') . ' ' . $row['ssn'];
+                    } else if ((empty($properties) || isset($properties['additional-info'])) && preg_match("~$search~i", $row['info'])) {
+                        $description = trans('Additional information:') . ' ' . $row['info'];
+                    } else if ((empty($properties) || isset($properties['notes'])) && preg_match("~$search~i", $row['notes'])) {
+                        $description = trans('Notes:') . ' ' . $row['notes'];
                     }
 
                     $result[$row['id']] = compact('name', 'name_class', 'description', 'description_class', 'action');
@@ -192,6 +206,10 @@ switch ($mode) {
         $s['zip'] = $search;
         $s['city'] = $search;
         $s['email'] = $search;
+        $s['ten'] = $search;
+        $s['ssn'] = $search;
+        $s['info'] = $search;
+        $s['notes'] = $search;
 
         $SESSION->save('customersearch', $s);
         $SESSION->save('cslk', 'OR');

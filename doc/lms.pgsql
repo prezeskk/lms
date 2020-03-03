@@ -242,6 +242,7 @@ CREATE TABLE divisions (
 	rbe			varchar(255)	NOT NULL DEFAULT '',
 	rbename		varchar(255)	NOT NULL DEFAULT '',
 	telecomnumber varchar(255)    NOT NULL DEFAULT '',
+	bank        varchar(100)    DEFAULT NULL,
 	account		varchar(48) 	NOT NULL DEFAULT '',
 	inv_header 	text		NOT NULL DEFAULT '',
 	inv_footer 	text		NOT NULL DEFAULT '',
@@ -408,6 +409,7 @@ CREATE TABLE documents (
 		CONSTRAINT documents_div_countryid_fkey REFERENCES countries (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	div_ten varchar(255)	DEFAULT '' NOT NULL,
 	div_regon varchar(255)	DEFAULT '' NOT NULL,
+	div_bank varchar(100)   DEFAULT NULL,
 	div_account varchar(48)	DEFAULT '' NOT NULL,
 	div_inv_header text	DEFAULT '' NOT NULL,
 	div_inv_footer text	DEFAULT '' NOT NULL,
@@ -429,6 +431,9 @@ CREATE TABLE documents (
 	auserid integer DEFAULT NULL
 		CONSTRAINT documents_auserid_fkey REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	adate integer DEFAULT 0 NOT NULL,
+    currency varchar(3),
+    currencyvalue numeric(17,10) DEFAULT 1.0,
+    senddate integer	DEFAULT 0 NOT NULL,
 	PRIMARY KEY (id)
 );
 CREATE INDEX documents_cdate_idx ON documents(cdate);
@@ -548,6 +553,7 @@ CREATE TABLE voipaccounts (
 	cost_limit	numeric(12,2) NULL DEFAULT NULL,
 	address_id integer
 		REFERENCES addresses (id) ON DELETE SET NULL ON UPDATE CASCADE,
+    description text NOT NULL DEFAULT '',
 	PRIMARY KEY (id)
 );
 
@@ -695,6 +701,7 @@ CREATE TABLE tariffs (
 	name varchar(255) 	DEFAULT '' NOT NULL,
 	type smallint		DEFAULT 1 NOT NULL,
 	value numeric(9,2) 	DEFAULT 0 NOT NULL,
+    splitpayment smallint NOT NULL DEFAULT 0,
 	period smallint 	DEFAULT NULL,
 	taxid integer 		NOT NULL
 		CONSTRAINT tariffs_taxid_fkey REFERENCES taxes (id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -749,8 +756,9 @@ CREATE TABLE tariffs (
 	datefrom integer	NOT NULL DEFAULT 0,
 	dateto integer		NOT NULL DEFAULT 0,
 	authtype smallint 	DEFAULT 0 NOT NULL,
+    currency varchar(3),
 	PRIMARY KEY (id),
-	CONSTRAINT tariffs_name_key UNIQUE (name, value, period)
+	CONSTRAINT tariffs_name_key UNIQUE (name, value, currency, period)
 );
 CREATE INDEX tariffs_type_idx ON tariffs (type);
 
@@ -813,6 +821,8 @@ DROP TABLE IF EXISTS liabilities CASCADE;
 CREATE TABLE liabilities (
 	id integer DEFAULT nextval('liabilities_id_seq'::text) NOT NULL,
 	value numeric(9,2)  	DEFAULT 0 NOT NULL,
+    splitpayment smallint NOT NULL DEFAULT 0,
+	currency varchar(3),
 	name text           	DEFAULT '' NOT NULL,
 	taxid integer       	NOT NULL
 		CONSTRAINT liabilities_taxid_fkey REFERENCES taxes (id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -976,6 +986,15 @@ CREATE INDEX cashimport_customerid_idx ON cashimport (customerid);
 CREATE INDEX cashimport_sourcefileid_idx ON cashimport (sourcefileid);
 CREATE INDEX cashimport_sourceid_idx ON cashimport (sourceid);
 
+/* ---------------------------------------------------
+ Structure of table customerbalances
+------------------------------------------------------*/
+CREATE TABLE customerbalances (
+    customerid integer NOT NULL
+        CONSTRAINT customerbalances_customerid_fkey REFERENCES customers (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    balance numeric(9,2) NOT NULL
+);
+
 /* --------------------------------------------------------
   Structure of table "cash"
 -------------------------------------------------------- */
@@ -1002,6 +1021,8 @@ CREATE TABLE cash (
 	sourceid integer	DEFAULT NULL
 		CONSTRAINT cash_sourceid_fkey REFERENCES cashsources (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	linktechnology integer DEFAULT NULL,
+    currency varchar(3),
+    currencyvalue numeric(17,10) DEFAULT 1.0,
 	PRIMARY KEY (id)
 );
 CREATE INDEX cash_customerid_idx ON cash (customerid);
@@ -1220,6 +1241,7 @@ CREATE TABLE netdevices (
 	shortname varchar(32) 	DEFAULT '' NOT NULL,
 	nastype integer 	DEFAULT 0 NOT NULL,
 	clients integer 	DEFAULT 0 NOT NULL,
+    login varchar(60) 	DEFAULT '' NOT NULL,
 	secret varchar(60) 	DEFAULT '' NOT NULL,
 	community varchar(50) 	DEFAULT '' NOT NULL,
 	channelid integer 	DEFAULT NULL
@@ -1740,6 +1762,7 @@ CREATE TABLE rttickets (
 	CONSTRAINT rttickets_creatorid_fkey REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
   createtime integer 	DEFAULT 0 NOT NULL,
   resolvetime integer 	DEFAULT 0 NOT NULL,
+  modtime integer NOT NULL DEFAULT 0,
   source smallint	DEFAULT 0 NOT NULL,
   priority smallint	DEFAULT 0 NOT NULL,
   deleted smallint	DEFAULT 0 NOT NULL,
@@ -2073,7 +2096,7 @@ CREATE TABLE aliasassignments (
 	id              integer         DEFAULT nextval('aliasassignments_id_seq'::text) NOT NULL,
 	aliasid         integer         NOT NULL
 		CONSTRAINT aliasassignments_aliasid_fkey REFERENCES aliases (id) ON DELETE CASCADE ON UPDATE CASCADE,
-	accountid       integer         NOT NULL
+	accountid       integer         DEFAULT NULL
 		CONSTRAINT aliasassignments_accountid_fkey REFERENCES passwd (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	mail_forward    varchar(255)    DEFAULT '' NOT NULL,
 	PRIMARY KEY (id),
@@ -2336,6 +2359,7 @@ CREATE TABLE messages (
 	userid 	integer		DEFAULT NULL
 		CONSTRAINT messages_userid_fkey REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	sender 	varchar(255) 	DEFAULT NULL,
+	contenttype 	varchar(255) 	DEFAULT 'text/plain',
         PRIMARY KEY (id)
 );
 
@@ -2360,6 +2384,7 @@ CREATE TABLE messageitems (
 	error 		text		DEFAULT NULL,
 	lastreaddate 	integer		DEFAULT 0 NOT NULL,
 	externalmsgid	integer		DEFAULT 0 NOT NULL,
+    body 		text		DEFAULT NULL,
         PRIMARY KEY (id)
 );
 
@@ -2567,6 +2592,10 @@ CREATE TABLE filecontainers (
 		CONSTRAINT filecontainers_netdevid_fkey REFERENCES netdevices (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	netnodeid integer DEFAULT NULL
 		CONSTRAINT filecontainers_netnodeid_fkey REFERENCES netnodes (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	messageid integer DEFAULT NULL
+		CONSTRAINT filecontainers_messageid_fkey REFERENCES messages (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	netdevmodelid integer DEFAULT NULL
+		CONSTRAINT filecontainers_netdevmodelid_fkey REFERENCES netdevicemodels (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	PRIMARY KEY (id)
 );
 
@@ -3081,6 +3110,69 @@ CREATE VIEW vusers AS
 	SELECT *, (firstname || ' ' || lastname) AS name, (lastname || ' ' || firstname) AS rname
 	FROM users;
 
+CREATE FUNCTION customerbalances_update()
+    RETURNS trigger
+    LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF (TG_OP = 'TRUNCATE') THEN
+        DELETE FROM customerbalances;
+        RETURN NULL;
+    ELSEIF (TG_OP = 'DELETE') THEN
+        IF OLD.customerid IS NULL THEN
+            RETURN NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM cash WHERE customerid = OLD.customerid) THEN
+            DELETE FROM customerbalances WHERE customerid = OLD.customerid;
+        ELSE
+            IF EXISTS (SELECT 1 FROM customerbalances WHERE customerid = OLD.customerid) THEN
+                UPDATE customerbalances SET balance = (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = OLD.customerid) WHERE customerid = OLD.customerid;
+            ELSE
+                INSERT INTO customerbalances (customerid, balance) VALUES (OLD.customerid, (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = OLD.customerid));
+            END IF;
+        END IF;
+        RETURN NULL;
+    ELSEIF (TG_OP = 'UPDATE') THEN
+        IF OLD.value = NEW.value AND OLD.currencyvalue = NEW.currencyvalue THEN
+            RETURN NEW;
+        END IF;
+        IF OLD.customerid IS NOT NULL AND OLD.customerid <> NEW.customerid THEN
+            IF EXISTS (SELECT 1 FROM customerbalances WHERE customerid = OLD.customerid) THEN
+                UPDATE customerbalances SET balance = (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = OLD.customerid) WHERE customerid = OLD.customerid;
+            ELSE
+                INSERT INTO customerbalances (customerid, balance) VALUES (OLD.customerid, (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = OLD.customerid));
+            END IF;
+        END IF;
+        IF NEW.customerid IS NULL THEN
+            RETURN NEW;
+        END IF;
+        IF EXISTS (SELECT 1 FROM customerbalances WHERE customerid = NEW.customerid) THEN
+            UPDATE customerbalances SET balance = (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = NEW.customerid) WHERE customerid = NEW.customerid;
+        ELSE
+            INSERT INTO customerbalances (customerid, balance) VALUES (NEW.customerid, (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = NEW.customerid));
+        END IF;
+        RETURN NEW;
+    ELSE
+        IF NEW.customerid IS NULL THEN
+            RETURN NEW;
+        END IF;
+        IF EXISTS (SELECT 1 FROM customerbalances WHERE customerid = NEW.customerid) THEN
+            UPDATE customerbalances SET balance = (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = NEW.customerid) WHERE customerid = NEW.customerid;
+        ELSE
+            INSERT INTO customerbalances (customerid, balance) VALUES (NEW.customerid,  (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = NEW.customerid));
+        END IF;
+        RETURN NEW;
+    END IF;
+END;
+$$;
+
+CREATE TRIGGER cash_customerbalances_update_trigger AFTER INSERT OR UPDATE OR DELETE ON cash
+    FOR EACH ROW
+    EXECUTE PROCEDURE customerbalances_update();
+
+CREATE TRIGGER cash_customerbalances_truncate_trigger AFTER TRUNCATE ON cash
+    EXECUTE PROCEDURE customerbalances_update();
+
 /* ---------------------------------------------------
  Data records
 ------------------------------------------------------*/
@@ -3100,7 +3192,8 @@ INSERT INTO countries (name, ccode) VALUES
 ('Romania', 'ro_RO'),
 ('Slovakia', 'sk_SK'),
 ('USA', 'en_US'),
-('Czech', 'cs_CZ');
+('Czech', 'cs_CZ'),
+('Guyana', 'en_GY');
 
 INSERT INTO nastypes (name) VALUES
 ('mikrotik_snmp'),
@@ -3286,6 +3379,9 @@ URL: %url
 ('userpanel', 'speed_unit_aggregation_threshold', '5', '', 0),
 ('userpanel', 'shortcut_icon', '', '', 0),
 ('userpanel', 'timeout', '600', '', 0),
+('userpanel', 'hide_archived_documents', 'false', '', 0),
+('userpanel', 'sms_credential_reminders', 'true', '', 0),
+('userpanel', 'mail_credential_reminders', 'true', '', 0),
 ('directories', 'userpanel_dir', 'userpanel', '', 0);
 
 INSERT INTO invprojects (name, type) VALUES ('inherited', 1);
@@ -3617,6 +3713,6 @@ INSERT INTO netdevicemodels (name, alternative_name, netdeviceproducerid) VALUES
 ('XR7', 'XR7 MINI PCI PCBA', 2),
 ('XR9', 'MINI PCI 600MW 900MHZ', 2);
 
-INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2019092000');
+INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2020020500');
 
 COMMIT;

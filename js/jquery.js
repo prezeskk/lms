@@ -69,9 +69,12 @@ function show_pagecontent() {
 				$('#lms-ui-contents').css('margin-top', viewportTop);
 			}, 50, viewportTop);
 */
-		window.setTimeout(function() {
-				$('#lms-ui-contents')[0].scrollIntoView();
-			}, 50);
+		var contents = $('#lms-ui-contents');
+		if (contents.length) {
+			window.setTimeout(function() {
+					contents[0].scrollIntoView();
+				}, 50);
+		}
 	} else if (history.state) {
 		window.setTimeout(function(scrollTop) {
 				$('#lms-ui-module-view').scrollTop(scrollTop);
@@ -97,6 +100,12 @@ $.datepicker._gotoToday = function(id) {
 	}
 	this._notifyChange(inst);
 	this._adjustDate(target);
+}
+
+function init_autolinker(selector) {
+	$(selector).each(function() {
+		$(this).html(Autolinker.link($(this).html(), { stripPrefix: false }));
+	});
 }
 
 function init_multiselects(selector) {
@@ -238,6 +247,162 @@ function init_datepickers(selector) {
 		}
 		options.altField = '';
 		options.altFormat = '';
+	});
+}
+
+function init_comboboxes(selector) {
+	$(selector).each(function() {
+		$(this).scombobox($.extend({ wrap: false },
+			$(this).attr('data-options') ? JSON.parse($(this).attr('data-options')) : {},
+			$(this).attr('data-alt-field') ? { altField: $(this).attr('data-alt-field') } : {},
+			$(this).attr('data-alt-invalid-field') ? { altInvalidField: $(this).attr('data-alt-invalid-field') } : {}
+		));
+		var scombobox = $(this).parent('.scombobox');
+		$('.scombobox-display', scombobox).addClass(
+			$.grep($('select', scombobox).attr('class').split(' '), function(value) {
+				return value != 'lms-ui-combobox';
+			}));
+		if ($(this).attr('data-value')) {
+			scombobox.scombobox('val', $(this).attr('data-value'));
+			$(this).removeAttr('data-value');
+		} else if ($(this).attr('data-id-value')) {
+			scombobox.scombobox('val', $(this).attr('data-id-value'));
+		}
+	});
+	if ($('.scombobox').length) {
+		// dynamicaly insert hidden input element with name as original select element
+		// the purpose is simple: we want to submit custom value to server
+		$('.scombobox').scombobox('change', function (e) {
+			var scomboboxelem = $(this).closest('.scombobox');
+			var name = scomboboxelem.find('select').attr('name');
+			$(this).attr('name', name);
+		}, 'lms-ui');
+		// hide tooltip after combo box activation because it can interfere with dropdown list
+		$('.scombobox').scombobox('click', function(e) {
+			if ($(this).is('[data-tooltip]')) {
+				$(this).removeAttr('data-tooltip').tooltip('disable');
+			}
+		}, 'lms-ui');
+		$('.scombobox').scombobox('keypress', function(e) {
+			if ($(this).is('[data-tooltip]')) {
+				$(this).removeAttr('data-tooltip').tooltip('disable');
+			}
+		}, 'lms-ui');
+	}
+}
+
+function init_titlebars(selector) {
+	$(selector).each(function() {
+		$(this).prop('onclick', null);
+		$(this).click(function () {
+			var elemid = $(this).attr('data-lmsbox-content');
+			showOrHide(elemid);
+			$('#' + elemid).find('.lms-ui-datatable').each(function () {
+				if (!$.fn.dataTable.isDataTable(this)) {
+					initDataTable(this);
+				}
+			});
+		});
+		$(this).find('td a,td :input, div a,div :input').click(function (e) {
+			e.stopPropagation();
+		});
+	});
+}
+
+function init_attachment_lists(selector) {
+	if (!selector) {
+		selector = 'body';
+	}
+
+	$(selector + ' .toggle-file-list').click(function() {
+		var containerid = parseInt($(this).attr('data-container-id'));
+		var elem = $('#files-' + containerid);
+		elem.toggle();
+		$(this).html('<img src="img/' + (elem.is(':visible')  ? 'desc' : 'asc') + '_order.gif">');
+	});
+
+	$(selector + ' .container-edit').click(function() {
+		var row = $(this).closest('.lms-ui-tab-table-row');
+		row.find('.container-view,.container-edit').hide();
+		row.find('.container-modify,.container-save,.container-cancel').show();
+		var description = row.find('.container-modify > input');
+		description.attr('data-old-value', description.val()).removeClass('alert').focus();
+	});
+
+	$(selector + ' .container-modify').keydown(function(e) {
+		switch (e.key) {
+			case 'Enter':
+				$(this).closest('.lms-ui-tab-table-row').find('.container-save').click();
+				break;
+			case 'Escape':
+				$(this).closest('.lms-ui-tab-table-row').find('.container-cancel').click();
+				break;
+		}
+	});
+
+	$(selector + ' .container-cancel').click(function() {
+		var row = $(this).closest('.lms-ui-tab-table-row');
+		row.find('.container-view,.container-edit').show();
+		row.find('.container-modify,.container-save,.container-cancel').hide();
+		var description = row.find('.container-modify > input');
+		description.val(description.attr('data-old-value'));
+	});
+
+	$(selector + ' .container-save').click(function() {
+		var row = $(this).closest('.lms-ui-tab-table-row');
+		var description = row.find('.container-modify > input');
+		if (description.attr('data-old-value') != description.val()) {
+			var form = $('#filecontainer-form-' + row.attr('data-attachmenttype'));
+			$.ajax({
+				url: form.attr('action') + '&id=' + row.attr('data-id'),
+				type: form.attr('method'),
+				data: {
+					description: description.val()
+				},
+				success: function (data) {
+					if (data.hasOwnProperty('error')) {
+						description.addClass('alert').attr('title', data.error);
+					} else {
+						row.find('.container-view,.container-edit').show();
+						row.find('.container-modify,.container-save,.container-cancel').hide();
+						row.find('.container-view').html(
+							description.val().length ? Autolinker.link(description.val(), { stripPrefix: false }) : '---'
+						);
+					}
+				}
+			});
+		}
+	});
+
+	$(selector + ' .container-del').click(function() {
+		confirmDialog($t("Are you sure you want to delete this file container?"), this).done(function() {
+			location.href = $(this).attr('href');
+		});
+		return false;
+	});
+
+	$(selector + ' .container-add-button').click(function() {
+		var addbutton = $(this);
+		addbutton.closest('.lms-ui-tab-buttons').prop('disabled', true);
+		var formdata = new FormData(this.form);
+		formdata.delete(addbutton.parent().find('[type="file"]').attr('name'));
+		$.ajax($(this.form).attr('action'), {
+			type: "POST",
+			contentType: false,
+			dataType: "json",
+			data: formdata,
+			processData: false,
+			success: function(data) {
+				if (data.hasOwnProperty("url")) {
+					location.href = data.url;
+				}
+				addbutton.closest('.lms-ui-tab-buttons').prop('disabled', false);
+			},
+			error: function() {
+				addbutton.closest('.lms-ui-tab-buttons').prop('disabled', false);
+			}
+		});
+		return false;
 	});
 }
 
@@ -456,7 +621,8 @@ $(function() {
 		{ class: 'lms-ui-tooltip-rtticketinfo', url: '?m=rtticketinfo&id='},
 		{ class: 'lms-ui-tooltip-customerassignmentinfo', url: '?m=customerassignmentinfo&id='},
 		{ class: 'lms-ui-tooltip-nodegroupinfo', url: '?m=nodeinfo&nodegroups=1&id='},
-		{ class: 'lms-ui-tooltip-netdevlist', url: '?m=ewxdevlist&id='}
+		{ class: 'lms-ui-tooltip-netdevlist', url: '?m=ewxdevlist&id='},
+		{ class: 'lms-ui-tooltip-eventinfoshort', url: '?m=eventinfoshort&id='}
 	].forEach(function(popup) {
 		$('.' + popup.class).tooltip({
 			items: '.' + popup.class,
@@ -493,6 +659,11 @@ $(function() {
 	});
 
 	$('select.lms-ui-advanced-select').each(function() {
+		$(this).on('chosen:ready', function() {
+			if (typeof($(this).attr('required')) !== 'undefined') {
+				$(this).next().toggleClass('lms-ui-error', RegExp("^0?$").test($(this).val()));
+			}
+		});
 		$(this).chosen($.extend({
 			no_results_text: $t('No results match'),
 			placeholder_text_single: $t('Select an Option'),
@@ -500,45 +671,14 @@ $(function() {
 			disable_search_threshold: 5,
 			inherit_select_classes: true
 		}, $(this).attr('data-options') ? JSON.parse($(this).attr('data-options')) : {}));
+		$(this).chosen().change(function(e, data) {
+			if (typeof($(this).attr('required')) !== 'undefined') {
+				$(this).next().toggleClass('lms-ui-error', typeof(data) === 'undefined' || RegExp("^0?$").test(data.selected));
+			}
+		});
 	});
 
-	$('.lms-ui-combobox').each(function() {
-		$(this).scombobox($.extend({ wrap: false },
-			$(this).attr('data-options') ? JSON.parse($(this).attr('data-options')) : {},
-			$(this).attr('data-alt-field') ? { altField: $(this).attr('data-alt-field') } : {},
-			$(this).attr('data-alt-invalid-field') ? { altInvalidField: $(this).attr('data-alt-invalid-field') } : {}
-		));
-		var scombobox = $(this).parent('.scombobox');
-		$('.scombobox-display', scombobox).addClass(
-			$.grep($('select', scombobox).attr('class').split(' '), function(value) {
-				return value != 'lms-ui-combobox';
-			}));
-		if ($(this).attr('data-value')) {
-			scombobox.scombobox('val', $(this).attr('data-value'));
-		} else if ($(this).attr('data-id-value')) {
-			scombobox.scombobox('val', $(this).attr('data-id-value'));
-		}
-	});
-	if ($('.scombobox').length) {
-		// dynamicaly insert hidden input element with name as original select element
-		// the purpose is simple: we want to submit custom value to server
-		$('.scombobox').scombobox('change', function (e) {
-			var scomboboxelem = $(this).closest('.scombobox');
-			var name = scomboboxelem.find('select').attr('name');
-			$(this).attr('name', name);
-		}, 'lms-ui');
-		// hide tooltip after combo box activation because it can interfere with dropdown list
-		$('.scombobox').scombobox('click', function(e) {
-			if ($(this).is('[data-tooltip]')) {
-				$(this).removeAttr('data-tooltip').tooltip('disable');
-			}
-		}, 'lms-ui');
-		$('.scombobox').scombobox('keypress', function(e) {
-			if ($(this).is('[data-tooltip]')) {
-				$(this).removeAttr('data-tooltip').tooltip('disable');
-			}
-		}, 'lms-ui');
-	}
+	init_comboboxes('.lms-ui-combobox');
 
 	var documentviews = $('.documentview');
 
@@ -993,21 +1133,9 @@ $(function() {
 		initDataTable(this);
 	});
 
-	$('.lmsbox-titlebar').each(function() {
-		$(this).prop('onclick', null);
-		$(this).click(function() {
-			var elemid = $(this).attr('data-lmsbox-content');
-			showOrHide(elemid);
-			$('#' + elemid).find('.lms-ui-datatable').each(function() {
-				if (!$.fn.dataTable.isDataTable(this)) {
-					initDataTable(this);
-				}
-			});
-		});
-		$(this).find('td a,td :input, div a,div :input').click(function(e) {
-			e.stopPropagation();
-		});
-	});
+	init_titlebars('.lmsbox-titlebar');
+
+	init_autolinker('.lms-ui-autolinker');
 
 	$('.lms-ui-row-all-check').each(function() {
 		$(this).click(function() {
@@ -1169,10 +1297,15 @@ $(function() {
 					}
 				}
 			},
-			language_url: lmsSettings.language == 'en' ? null : 'js/tinymce4/langs/' + lmsSettings.language + '.js',
+			language: lmsSettings.language,
+			language_url: lmsSettings.language == 'en' ? null : 'js/tinymce5/langs/' + lmsSettings.language + '.js',
+			// TinyMCE 4
 			skin_url: 'css/tinymce4',
 			theme: "modern",
 			plugins: "preview,autoresize,contextmenu,fullscreen,searchreplace,table,image,link,anchor,textcolor,autosave,paste",
+			// TinyMCE 5
+			//plugins: "preview,autoresize,fullscreen,searchreplace,table,image,link,anchor,autosave,paste",
+			// #########
 			toolbar1: 'formatselect | bold italic strikethrough forecolor backcolor | link anchor image ' +
 				'| alignleft aligncenter alignright alignjustify  | numlist bullist outdent indent ' +
 				'| removeformat',
@@ -1204,32 +1337,26 @@ $(function() {
 		var editor = tinymce.get(id);
 		if (editor == null) {
 			init_visual_editor(id);
-			return;
+		} else {
+			if (editor.isHidden()) {
+				editor.show();
+			}
 		}
-		if (editor.isHidden())
-			editor.show();
 	}
 
 	function hide_visual_editor(id) {
 		var editor = tinymce.get(id);
-		if (editor == null) {
-			init_visual_editor(id);
-			return;
+		if (editor != null) {
+			editor.remove();
 		}
-		if (!editor.isHidden())
-			editor.hide();
 	}
 
 	function toggle_visual_editor(id) {
 		var editor = tinymce.get(id);
 		if (editor == null) {
 			init_visual_editor(id);
-			return;
-		}
-		if (editor.isHidden()) {
-			editor.show();
 		} else {
-			editor.hide();
+			editor.remove();
 		}
 	}
 

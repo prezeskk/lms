@@ -4,6 +4,10 @@
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TRIGGER IF EXISTS cash_customerbalances_delete_trigger;
+DROP TRIGGER IF EXISTS cash_customerbalances_update_trigger;
+DROP TRIGGER IF EXISTS cash_customerbalances_insert_trigger;
+
 DROP VIEW IF EXISTS vnetworks;
 DROP VIEW IF EXISTS customermailsview;
 DROP VIEW IF EXISTS teryt_ulic;
@@ -385,6 +389,7 @@ CREATE TABLE divisions (
 	rbe			varchar(255)	NOT NULL DEFAULT '',
 	rbename		varchar(255)	NOT NULL DEFAULT '',
 	telecomnumber varchar(255)    NOT NULL DEFAULT '',
+	bank            varchar(100)    DEFAULT NULL,
 	account         varchar(48) 	NOT NULL DEFAULT '',
 	inv_header      text    	NOT NULL DEFAULT '',
 	inv_footer      text    	NOT NULL DEFAULT '',
@@ -536,6 +541,7 @@ CREATE TABLE documents (
 	div_countryid int(11) DEFAULT NULL,
 	div_ten varchar(255) NOT NULL DEFAULT '',
 	div_regon varchar(255) NOT NULL DEFAULT '',
+	div_bank varchar(100) DEFAULT NULL,
 	div_account varchar(48) NOT NULL DEFAULT '',
 	div_inv_header text NOT NULL DEFAULT '',
 	div_inv_footer text NOT NULL DEFAULT '',
@@ -553,7 +559,10 @@ CREATE TABLE documents (
 	archived tinyint(1) NOT NULL DEFAULT 0,
 	auserid int(11) DEFAULT NULL,
 	adate int(11) DEFAULT 0 NOT NULL,
-	PRIMARY KEY (id),
+    currency varchar(3),
+    currencyvalue decimal(17,10) DEFAULT 1.0,
+	senddate int(11) NOT NULL DEFAULT '0',
+    PRIMARY KEY (id),
 	INDEX cdate (cdate),
 	INDEX numberplanid (numberplanid),
 	INDEX customerid (customerid),
@@ -686,6 +695,7 @@ CREATE TABLE voipaccounts (
 	flags			smallint      NOT NULL DEFAULT 0,
 	cost_limit		decimal(12,2) NULL DEFAULT NULL,
 	address_id      int(11)       NULL DEFAULT NULL,
+    description text NOT NULL DEFAULT '',
 	PRIMARY KEY (id),
 	CONSTRAINT voipaccounts_address_id_fkey
 		FOREIGN KEY (address_id) REFERENCES addresses (id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -823,6 +833,7 @@ CREATE TABLE tariffs (
 	name varchar(255) 	NOT NULL DEFAULT '',
 	type tinyint 		NOT NULL DEFAULT '1',
 	value decimal(9,2) 	NOT NULL DEFAULT '0',
+    splitpayment smallint NOT NULL DEFAULT 0,
 	taxid int(11) 	NOT NULL,
 	numberplanid integer DEFAULT NULL,
 	period smallint   DEFAULT NULL,
@@ -873,8 +884,9 @@ CREATE TABLE tariffs (
 	datefrom            int(11) NOT NULL DEFAULT '0',
 	dateto              int(11) NOT NULL DEFAULT '0',
 	authtype tinyint(1) NOT NULL DEFAULT '0',
+    currency varchar(3),
 	PRIMARY KEY  (id),
-	UNIQUE KEY name (name, value, period),
+	UNIQUE KEY tariffs_name_key (name, value, currency, period),
 	INDEX type (type),
 	FOREIGN KEY (numberplanid)        REFERENCES numberplans  (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	FOREIGN KEY (voip_tariff_id)      REFERENCES voip_tariffs (id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -935,6 +947,8 @@ CREATE TABLE voip_emergency_numbers (
 CREATE TABLE liabilities (
 	id int(11)              NOT NULL auto_increment,
 	value decimal(9,2)      NOT NULL DEFAULT '0',
+    splitpayment smallint NOT NULL DEFAULT 0,
+	currency varchar(3),
 	name text               NOT NULL DEFAULT '',
 	taxid int(11)           NOT NULL,
 	prodid varchar(255)     NOT NULL DEFAULT '',
@@ -969,7 +983,7 @@ CREATE TABLE assignments (
 	commited tinyint(1) NOT NULL DEFAULT '1',
 	separatedocument tinyint(1) NOT NULL DEFAULT 0,
 	count numeric(9,3) DEFAULT 1 NOT NULL,
-	PRIMARY KEY (id),
+    PRIMARY KEY (id),
 	INDEX tariffid (tariffid),
 	INDEX customerid (customerid),
 	INDEX numberplanid (numberplanid),
@@ -1102,6 +1116,17 @@ CREATE TABLE cashimport (
 
 # --------------------------------------------------------
 #
+# Structure of table customerbalances
+#
+CREATE TABLE customerbalances (
+    customerid int(11) NOT NULL,
+    balance decimal(9,2) NOT NULL,
+    CONSTRAINT customerbalances_customerid_fkey
+        FOREIGN KEY (customerid) REFERENCES customers (id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+# --------------------------------------------------------
+#
 # Structure of table  cash
 #
 CREATE TABLE cash (
@@ -1118,6 +1143,8 @@ CREATE TABLE cash (
   importid int(11) DEFAULT NULL,
   sourceid int(11) DEFAULT NULL,
   linktechnology int(11) DEFAULT NULL,
+  currency varchar(3),
+  currencyvalue decimal(17,10) DEFAULT 1.0,
   PRIMARY KEY  (id),
   INDEX customerid (customerid),
   INDEX docid (docid),
@@ -1325,6 +1352,7 @@ CREATE TABLE netdevices (
   shortname 	varchar(32) 	NOT NULL DEFAULT '',
   nastype 	int(11) 	NOT NULL DEFAULT '0',
   clients 	int(11) 	NOT NULL DEFAULT '0',
+  login varchar(60) 	DEFAULT '' NOT NULL,
   secret 	varchar(60) 	NOT NULL DEFAULT '',
   community 	varchar(50) 	NOT NULL DEFAULT '',
   channelid 	int(11) 	DEFAULT NULL,
@@ -1785,6 +1813,7 @@ CREATE TABLE rttickets (
   creatorid int(11) DEFAULT NULL,
   createtime int(11) NOT NULL DEFAULT '0',
   resolvetime int(11) NOT NULL DEFAULT '0',
+  modtime int(11) NOT NULL DEFAULT '0',
   source tinyint(4) NOT NULL DEFAULT '0',
   priority tinyint(4) NOT NULL DEFAULT '0',
   deleted tinyint(1) NOT NULL DEFAULT '0',
@@ -2402,6 +2431,7 @@ CREATE TABLE messages (
 	type 	smallint	DEFAULT '0' NOT NULL,
 	userid 	int(11)		DEFAULT NULL,
 	sender 	varchar(255) 	DEFAULT NULL,
+	contenttype 	varchar(255) 	DEFAULT 'text/plain',
         PRIMARY KEY (id),
 	INDEX cdate (cdate, type),
 	INDEX userid (userid),
@@ -2423,6 +2453,7 @@ CREATE TABLE messageitems (
 	error 		text		DEFAULT NULL,
 	lastreaddate 	int(11)		DEFAULT '0' NOT NULL,
 	externalmsgid	int(6)		DEFAULT '0' NOT NULL,
+    body 		text		DEFAULT NULL,
         PRIMARY KEY (id),
 	INDEX messageid (messageid),
 	INDEX customerid (customerid),
@@ -2611,13 +2642,19 @@ CREATE TABLE filecontainers (
 	description text NOT NULL,
 	netdevid int(11) DEFAULT NULL,
 	netnodeid int(11) DEFAULT NULL,
+	messageid int(11) DEFAULT NULL,
+	netdevmodelid int(11) DEFAULT NULL,
 	PRIMARY KEY (id),
 	CONSTRAINT filecontainers_creatorid_fkey
 		FOREIGN KEY (creatorid) REFERENCES users (id) ON DELETE SET NULL ON UPDATE CASCADE,
 	CONSTRAINT filecontainers_netdevid_fkey
 		FOREIGN KEY (netdevid) REFERENCES netdevices (id) ON DELETE CASCADE ON UPDATE CASCADE,
 	CONSTRAINT filecontainers_netnodeid_fkey
-		FOREIGN KEY (netnodeid) REFERENCES netnodes (id) ON DELETE CASCADE ON UPDATE CASCADE
+		FOREIGN KEY (netnodeid) REFERENCES netnodes (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT filecontainers_messageid_fkey
+		FOREIGN KEY (messageid) REFERENCES messages (id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT filecontainers_netdevmodelid_fkey
+		FOREIGN KEY (netdevmodelid) REFERENCES netdevicemodels (id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 # --------------------------------------------------------
@@ -3034,6 +3071,61 @@ DROP FUNCTION IF EXISTS int2txt;
 CREATE FUNCTION int2txt(num bigint) RETURNS char(20) DETERMINISTIC
 RETURN CAST(num AS char(20));
 
+DELIMITER $$
+CREATE TRIGGER cash_customerbalances_insert_trigger AFTER INSERT ON cash
+    FOR EACH ROW
+    BEGIN
+        IF NEW.customerid IS NOT NULL THEN
+            IF EXISTS (SELECT 1 FROM customerbalances WHERE customerid = NEW.customerid) THEN
+                UPDATE customerbalances SET balance = (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = NEW.customerid) WHERE customerid = NEW.customerid;
+            ELSE
+                INSERT INTO customerbalances (customerid, balance) VALUES (NEW.customerid, (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = NEW.customerid));
+            END IF;
+        END IF;
+    END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER cash_customerbalances_update_trigger AFTER UPDATE ON cash
+    FOR EACH ROW
+    BEGIN
+        IF OLD.value <> NEW.value OR OLD.currencyvalue <> NEW.currencyvalue THEN
+            IF OLD.customerid IS NOT NULL AND OLD.customerid <> NEW.customerid THEN
+                IF EXISTS (SELECT 1 FROM customerbalances WHERE customerid = OLD.customerid) THEN
+                    UPDATE customerbalances SET balance = (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = OLD.customerid) WHERE customerid = OLD.customerid;
+                ELSE
+                    INSERT INTO customerbalances (customerid, balance) VALUES (OLD.customerid, (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = OLD.customerid));
+                END IF;
+            END IF;
+            IF NEW.customerid IS NOT NULL THEN
+                IF EXISTS (SELECT 1 FROM customerbalances WHERE customerid = NEW.customerid) THEN
+                    UPDATE customerbalances SET balance = (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = NEW.customerid) WHERE customerid = NEW.customerid;
+                ELSE
+                    INSERT INTO customerbalances (customerid, balance) VALUES (NEW.customerid, (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = NEW.customerid));
+                END IF;
+            END IF;
+        END IF;
+    END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER cash_customerbalances_delete_trigger AFTER DELETE ON cash
+    FOR EACH ROW
+    BEGIN
+        IF OLD.customerid IS NOT NULL THEN
+            IF NOT EXISTS (SELECT 1 FROM cash WHERE customerid = OLD.customerid) THEN
+                DELETE FROM customerbalances WHERE customerid = OLD.customerid;
+            ELSE
+                IF EXISTS (SELECT 1 FROM customerbalances WHERE customerid = OLD.customerid) THEN
+                    UPDATE customerbalances SET balance = (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = OLD.customerid) WHERE customerid = OLD.customerid;
+                ELSE
+                    INSERT INTO customerbalances (customerid, balance) VALUES (OLD.customerid, (SELECT SUM(value * currencyvalue) FROM cash WHERE customerid = OLD.customerid));
+                END IF;
+            END IF;
+        END IF;
+    END $$
+DELIMITER ;
+
 INSERT INTO rtcategories (name, description)
 	VALUES ('default', 'default category');
 INSERT INTO up_rights(module, name, description)
@@ -3051,7 +3143,8 @@ INSERT INTO countries (name, ccode) VALUES
 ('Romania', 'ro_RO'),
 ('Slovakia', 'sk_SK'),
 ('USA', 'en_US'),
-('Czech', 'cs_CZ');
+('Czech', 'cs_CZ'),
+('Guyana', 'en_GY');
 
 INSERT INTO nastypes (name) VALUES
 ('mikrotik_snmp'),
@@ -3237,6 +3330,9 @@ URL: %url
 ('userpanel', 'speed_unit_aggregation_threshold', '5', '', 0),
 ('userpanel', 'shortcut_icon', '', '', 0),
 ('userpanel', 'timeout', '600', '', 0),
+('userpanel', 'hide_archived_documents', 'false', '', 0),
+('userpanel', 'sms_credential_reminders', 'true', '', 0),
+('userpanel', 'mail_credential_reminders', 'true', '', 0),
 ('directories','userpanel_dir','userpanel','',0);
 
 INSERT INTO invprojects (name, type) VALUES ('inherited', 1);
@@ -3568,4 +3664,4 @@ INSERT INTO netdevicemodels (name, alternative_name, netdeviceproducerid) VALUES
 ('XR7', 'XR7 MINI PCI PCBA', 2),
 ('XR9', 'MINI PCI 600MW 900MHZ', 2);
 
-INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2019092000');
+INSERT INTO dbinfo (keytype, keyvalue) VALUES ('dbversion', '2020020500');

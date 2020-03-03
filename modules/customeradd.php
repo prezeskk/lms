@@ -124,10 +124,15 @@ if (isset($_POST['customeradd'])) {
             $customeradd['tenwarning'] = 1;
         }
         $ten_existence_check = ConfigHelper::getConfig('phpui.customer_ten_existence_check', 'none');
-        $ten_exists = $DB->GetOne(
-            "SELECT id FROM customers WHERE id <> ? AND REPLACE(REPLACE(ten, '-', ''), ' ', '') = ?",
-            array($_GET['id'], preg_replace('/- /', '', $customeradd['ten']))
-        ) > 0;
+        $ten_existence_scope = ConfigHelper::getConfig('phpui.customer_ten_existence_scope', 'global');
+        if (preg_match('/^(global|division)$/', $ten_existence_scope)) {
+            $ten_existence_scope = 'global';
+        }
+        $ten_exists = $LMS->checkCustomerTenExistence(
+            $_GET['id'],
+            $customeradd['ten'],
+            $ten_existence_scope == 'global' ? null : $customeradd['divisionid']
+        );
         switch ($ten_existence_check) {
             case 'warning':
                 if (!isset($customeradd['tenexistencewarning']) && $ten_exists) {
@@ -149,10 +154,15 @@ if (isset($_POST['customeradd'])) {
             $customeradd['ssnwarning'] = 1;
         }
         $ssn_existence_check = ConfigHelper::getConfig('phpui.customer_ssn_existence_check', 'none');
-        $ssn_exists = $DB->GetOne(
-            "SELECT id FROM customers WHERE id <> ? AND REPLACE(REPLACE(ssn, '-', ''), ' ', '') = ?",
-            array($_GET['id'], preg_replace('/- /', '', $customeradd['ssn']))
-        ) > 0;
+        $ssn_existence_scope = ConfigHelper::getConfig('phpui.customer_ssn_existence_scope', 'global');
+        if (preg_match('/^(global|division)$/', $ssn_existence_scope)) {
+            $ssb_existence_scope = 'global';
+        }
+        $ssn_exists = $LMS->checkCustomerSsnExistence(
+            $_GET['id'],
+            $customeradd['ssn'],
+            $ssn_existence_scope == 'global' ? null : $customeradd['divisionid']
+        );
         switch ($ssn_existence_check) {
             case 'warning':
                 if (!isset($customeradd['ssnexistencewarning']) && $ssn_exists) {
@@ -226,15 +236,19 @@ if (isset($_POST['customeradd'])) {
         $error['cutoffstop'] = trans('Incorrect date of cutoff suspending!');
     }
 
-        $hook_data = $LMS->executeHook(
-            'customeradd_validation_before_submit',
-            array(
-                'customeradd' => $customeradd,
-                'error' => $error
-            )
-        );
-        $customeradd = $hook_data['customeradd'];
-        $error = $hook_data['error'];
+    if (!preg_match('/^[\-]?[0-9]+$/', $customeradd['paytime'])) {
+        $error['paytime'] = trans('Invalid deadline format!');
+    }
+
+    $hook_data = $LMS->executeHook(
+        'customeradd_validation_before_submit',
+        array(
+            'customeradd' => $customeradd,
+            'error' => $error
+        )
+    );
+    $customeradd = $hook_data['customeradd'];
+    $error = $hook_data['error'];
 
     if (!$error) {
         $customeradd['cutoffstop'] = $cutoffstop;

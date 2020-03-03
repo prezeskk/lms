@@ -99,14 +99,28 @@ class LMSEzpdfReceipt extends LMSDocument
             $this->backend->text_align_left($x+2, $y+2, $font_size-4, trans('From who:'));
         }
         $y = $this->backend->text_wrap($x+40, $y-4, 240, $font_size-2, '<b>' . $this->data['name'] . '</b>', null);
+
         if (!empty($this->data['countryid']) && !empty($this->data['d_countryid'])
             && $this->data['countryid'] != $this->data['d_countryid']) {
             $country = ', ' . $this->data['country'];
         } else {
             $country = '';
         }
-        $y = $this->backend->text_wrap($x+2, $y, 240, $font_size-2, '<b>' . $this->data['zip'] . ' ' . $this->data['city']
-            . ', ' . $this->data['address'] . $country . '</b>', null);
+
+        if (empty($this->data['zip'])) {
+            $address = '';
+        } else {
+            $address = $this->data['zip'];
+        }
+        if (!empty($this->data['city'])) {
+            $address .= ' ' . $this->data['city'];
+        }
+        if (!empty($this->data['address'])) {
+            $address .= ', ' . $this->data['address'] . $country;
+        }
+        if (!empty($address)) {
+            $y = $this->backend->text_wrap($x + 2, $y, 240, $font_size - 2, '<b>' . $address . '</b>', null);
+        }
 
         $y += $font_size/2;
         $this->backend->line($x, $yy, $x, $y);
@@ -191,7 +205,7 @@ class LMSEzpdfReceipt extends LMSDocument
                 $i++;
                 $this->backend->text_align_left($x+2, $y, $font_size-2, '<b>'.$i.'.</b>');
                 $y = $this->backend->text_wrap($x+15, $y, 270, $font_size-2, $item['description'], '');
-                $this->backend->text_align_right($x+345, $y+$font_size, $font_size-2, moneyf($item['value']));
+                $this->backend->text_align_right($x+345, $y+$font_size, $font_size-2, moneyf($item['value'], $this->data['currency']));
             }
         }
 
@@ -200,7 +214,7 @@ class LMSEzpdfReceipt extends LMSDocument
         $y -= $font_size;
 
         $this->backend->text_align_right($x+275, $y-6, $font_size-2, '<b>' . trans('Total:') . '</b>');
-        $this->backend->text_align_right($x+345, $y-6, $font_size-2, '<b>' . moneyf($this->data['total']) . '</b>');
+        $this->backend->text_align_right($x+345, $y-6, $font_size-2, '<b>' . moneyf($this->data['total'], $this->data['currency']) . '</b>');
         $y -= $this->backend->text_align_center($x+385, $y, 8, 'Symbole');
         $y -= $this->backend->text_align_center($x+385, $y, 8, 'PL. KAS. Nr');
 
@@ -212,7 +226,7 @@ class LMSEzpdfReceipt extends LMSDocument
         $y -= 16;
 
         $this->backend->text_align_left($x+2, $y, 8, trans('In words:'));
-        $y = $this->backend->text_wrap($x+40, $y, 300, $font_size-2, moneyf_in_words($this->data['total']), '');
+        $y = $this->backend->text_wrap($x+40, $y, 300, $font_size-2, moneyf_in_words($this->data['total'], $this->data['currency']), '');
         $y -= 8;
 
         $y += $font_size/2;
@@ -230,7 +244,7 @@ class LMSEzpdfReceipt extends LMSDocument
 
         $y = 800;
 
-        foreach ($this->data['which'] as $which) {
+        for ($i = 0; $i < Utils::docEntityCount($this->data['which']); $i++) {
             $y = $this->receipt_header(80, $y);
             $y = $this->receipt_buyer(80, $y);
             $y = $this->receipt_data(80, $y);

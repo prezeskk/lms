@@ -169,7 +169,8 @@
 	<FORM METHOD="POST" NAME="page" id="page-form" ACTION="?m=documentedit&action=confirm">
 	{foreach $documentlist as $doc}
 	{assign var=docid value=$doc.docid}
-	<TR class="highlight{if $doc.closed} blend{/if}{if $doc.archived} lms-ui-document-archived{/if}">
+	<TR class="highlight{if $doc.closed} lms-ui-document-closed{/if}{if $doc.archived} lms-ui-document-archived{/if}" data-archived="{if $doc.archived}1{else}0{/if}" data-closed="{if $doc.closed}1{else}0{/if}"
+		data-senddate="{if $doc.senddate}{$doc.senddate|date_format:"%Y/%m/%d %H:%M"}{else}{$doc.senddate}{/if}">
 		<TD class="nobr" onclick="window.open('?m=documentview&amp;id={$doc.docid}');"{if $doc.description} {tip text=$doc.description}{/if}>
 			{$doc.cdate|date_format:"%Y/%m/%d %H:%M"}{if $doc.sdate} / {$doc.sdate|date_format:"%Y/%m/%d %H:%M"}{/if}
 			{if $doc.number}<BR>
@@ -195,8 +196,11 @@
 		<TD class="nobr"><A href="?m=customerinfo&amp;id={$doc.customerid}">{$doc.name|truncate:40:"...":true}</A></TD>
 		<TD class="text-right nobr">
 			{if $doc.senddocuments}
-				{button type="link" class="send-document" icon="mail" href="?m=documentsend&id={$doc.docid}"
-					tip="Document send"}
+				{textformat assign="tip" wrap=5000}
+					{if $doc.senddate}{trans("Send document again")}<br><strong>{t a=$doc.senddate|date_format:"%Y/%m/%d %H:%M"}(already sent on $a){/t}</strong>{else}{trans("Document send")}{/if}
+				{/textformat}
+				{button type="link" class="send-document" icon="{if $doc.senddate}mailsent{else}mail{/if}" href="?m=documentsend&id={$doc.docid}"
+					tip=$tip}
 			{/if}
 			{assign var=type value=$doc.type}
 			{button type="link" icon="save" href="?m=documentview&id={$doc.docid}&save=1" tip="Save"}
@@ -283,6 +287,11 @@
 <script>
 
 	$('#send-documents').click(function() {
+		if (!$(this).closest('tfoot').prev('.lms-ui-multi-check').find('input.lms-ui-multi-check:checked').length) {
+			alertDialog($t('No document has been selected!'), this);
+			return;
+		}
+
 		confirmDialog($t("Are you sure, you want to send documents to customer?"), this).done(function() {
 			document.page.action="?m=documentsend";
 			document.page.target="_blank";
@@ -292,6 +301,7 @@
 
 	$('#print-documents').click(function() {
 		if (!$(this).closest('tfoot').prev('.lms-ui-multi-check').find('input.lms-ui-multi-check:checked').length) {
+			alertDialog($t('No document has been selected!'), this);
 			return;
 		}
 
@@ -302,6 +312,7 @@
 
 	$('#confirm-documents').click(function() {
 		if (!$(this).closest('tfoot').prev('.lms-ui-multi-check').find('input.lms-ui-multi-check:checked').length) {
+			alertDialog($t('No document has been selected!'), this);
 			return;
 		}
 
@@ -312,6 +323,12 @@
 
 	$('#archive-documents').click(function() {
 		if (!$(this).closest('tfoot').prev('.lms-ui-multi-check').find('input.lms-ui-multi-check:checked').length) {
+			alertDialog($t('No document has been selected!'), this);
+			return;
+		}
+
+		if ($('tr[data-closed="0"] :checked').length) {
+			alertDialog($t('One or more of selected documents are not confirmed!'), this);
 			return;
 		}
 
@@ -324,6 +341,7 @@
 
 	$('#delete-documents').click(function() {
 		if (!$(this).closest('tfoot').prev('.lms-ui-multi-check').find('input.lms-ui-multi-check:checked').length) {
+			alertDialog($t('No document has been selected!'), this);
 			return;
 		}
 
@@ -349,9 +367,16 @@
 	});
 
 	$('.send-document').click(function() {
-		confirmDialog($t("Are you sure, you want to send document to customer?"), this).done(function() {
-			window.open($(this).attr('href'));
-		});
+		var senddate = $(this).closest('tr').attr('data-senddate');
+		if (parseInt(senddate) === 0) {
+			confirmDialog($t("Are you sure, you want to send document to customer?"), this).done(function () {
+				window.open($(this).attr('href'));
+			});
+		} else {
+            confirmDialog($t("Document was sent to customer already on $a. Are you sure, you want to send document again?", senddate), this).done(function () {
+                window.open($(this).attr('href'));
+            });
+        }
 		return false;
 	});
 

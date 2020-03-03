@@ -121,7 +121,7 @@ interface LMSHelpdeskManagerInterface
 
     public function DetermineSenderEmail($queue_email, $ticket_email, $user_email, $forced_order = null);
 
-    public function GetTicketPhoneFrom($ticketid);
+    public function GetTicketRequestorPhone($ticketid);
 
     public function CheckTicketAccess($ticketid);
 
@@ -132,4 +132,10 @@ interface LMSHelpdeskManagerInterface
     public function IsTicketLoop($ticketid, $parentid);
 
     public function GetRTSmtpOptions();
+
+    public function CopyQueuePermissions($src_userid, $dst_userid);
+
+    public function CopyCategoryPermissions($src_userid, $dst_userid);
+
+    public function TicketIsAssigned($ticketid);
 }

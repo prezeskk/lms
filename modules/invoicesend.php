@@ -55,6 +55,7 @@ if (!isset($_GET['sent']) && isset($_SERVER['HTTP_REFERER']) && !preg_match('/m=
     $notify_email = ConfigHelper::getConfig('sendinvoices.notify_email', '', true);
     $reply_email = ConfigHelper::getConfig('sendinvoices.reply_email', '', true);
     $add_message = ConfigHelper::checkConfig('sendinvoices.add_message');
+    $message_attachments = ConfigHelper::checkConfig('sendinvoices.message_attachments');
     $dsn_email = ConfigHelper::getConfig('sendinvoices.dsn_email', '', true);
     $mdn_email = ConfigHelper::getConfig('sendinvoices.mdn_email', '', true);
 
@@ -77,7 +78,7 @@ if (!isset($_GET['sent']) && isset($_SERVER['HTTP_REFERER']) && !preg_match('/m=
 
         $ids = Utils::filterIntegers($marks);
 
-        if (!empty($ids)) {
+        if ($_GET['marks'] == 'cash' && !empty($ids)) {
             $ids = $LMS->GetDocumentsForBalanceRecords($ids, array(DOC_INVOICE, DOC_CNOTE, DOC_INVOICE_PRO, DOC_DNOTE));
         }
     } elseif (isset($_GET['id']) && intval($_GET['id'])) {
@@ -106,22 +107,14 @@ if (!isset($_GET['sent']) && isset($_SERVER['HTTP_REFERER']) && !preg_match('/m=
         );
 
         if (!empty($docs)) {
-            $which = array();
-            if (!empty($_GET['original'])) {
-                $which[] = trans('ORIGINAL');
-            }
-            if (!empty($_GET['copy'])) {
-                $which[] = trans('COPY');
-            }
-            if (!empty($_GET['duplicate'])) {
-                $which[] = trans('DUPLICATE');
+            $which = isset($_GET['which']) ? intval($_GET['which']) : 0;
+            if ($which & DOC_ENTITY_DUPLICATE) {
                 $duplicate_date = isset($_GET['duplicate-date']) ? intval($_GET['duplicate-date']) : 0;
             } else {
                 $duplicate_date = 0;
             }
-
-            if (empty($which)) {
-                $which[] = trans('ORIGINAL');
+            if (!$which) {
+                $which = DOC_ENTITY_ORIGINAL;
             }
 
             $currtime = time();
@@ -144,6 +137,7 @@ if (!isset($_GET['sent']) && isset($_SERVER['HTTP_REFERER']) && !preg_match('/m=
                 'quiet',
                 'test',
                 'add_message',
+                'message_attachments',
                 'which',
                 'duplicate_date',
                 'smtp_options'

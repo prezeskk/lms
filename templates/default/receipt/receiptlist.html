@@ -13,15 +13,12 @@
 <!--
 	function prints()
 	{
-		var add = "";
-		if (document.page.original.checked && document.page.copy.checked)
-			add = "&which=original,copy";
-		else if (document.page.original.checked && !document.page.copy.checked)
-			add = "&which=original";
-		else if (!document.page.original.checked && document.page.copy.checked)
-			add = "&which=copy";
+		var which = 0;
+		$('form[name="page"] [name^="which"]:checked').each(function() {
+			which += parseInt($(this).val());
+		});
 
-		document.page.action = "?m=receipt&print=cached" + add;
+		document.page.action = "?m=receipt&print=cached&which=" + which;
 		document.page.target = "_blank";
 		document.page.submit();
 	}
@@ -122,10 +119,10 @@
 			{$receipt.number}
 		</TD>
 		<TD WIDTH="1%" NOWRAP ALIGN="RIGHT"{if !$receipt.closed} class="lms-ui-error"{/if}>
-			{if $receipt.value > 0}{$receipt.value|money_format}{else}-{/if}
+			{if $receipt.value > 0}{moneyf($receipt.value, $receipt.currency)}{else}-{/if}
 		</TD>
 		<TD WIDTH="1%" NOWRAP ALIGN="RIGHT"{if !$receipt.closed} class="lms-ui-error"{/if}>
-			{if $receipt.value < 0}{($receipt.value*-1)|money_format}{else}-{/if}
+			{if $receipt.value < 0}{moneyf($receipt.value*-1, $receipt.currency)}{else}-{/if}
 		</TD>
 		<TD WIDTH="45%"{if !$receipt.closed} class="lms-ui-error"{/if}>
 			{if $receipt.customerid}<A HREF="?m=customerinfo&id={$receipt.customerid}">{/if}
@@ -170,12 +167,16 @@
 					<TD ALIGN="left" nowrap>
 						<A HREF="javascript:prints();">{trans("Print")} <IMG SRC="img/printr.gif" ALT="" ></A>&nbsp;
 						 <label>
-							<INPUT type="checkbox" id="original" name="original"{if preg_match('/original/i', $default_printpage)} checked{/if}>
-							{trans("original")}
+							<INPUT type="checkbox" name="which[{$smarty.const.DOC_ENTITY_ORIGINAL}]"
+									value="{$smarty.const.DOC_ENTITY_ORIGINAL}"
+									{if preg_match('/original/i', $default_printpage)} checked{/if}>
+							{$_DOCENTITIES[$smarty.const.DOC_ENTITY_ORIGINAL]}
 						</label>
 						<label>
-							<INPUT type="checkbox" id="copy" name="copy"{if preg_match('/copy/i', $default_printpage)} checked{/if}>
-							{trans("copy")}
+							<INPUT type="checkbox" name="which[{$smarty.const.DOC_ENTITY_COPY}]"
+									value="{$smarty.const.DOC_ENTITY_COPY}"
+									{if preg_match('/copy/i', $default_printpage)} checked{/if}>
+							{$_DOCENTITIES[$smarty.const.DOC_ENTITY_COPY]}
 						</label>
 					</TD>
 					<TD class="text-right nobr">
@@ -198,18 +199,19 @@
 		</TD>
 		<TD class="nobr text-right valign-top">
 			{if ConfigHelper::checkConfig('privileges.superuser') || !ConfigHelper::checkConfig('privileges.hide_summaries')}
-			{$listdata.totalincome|money_format}<HR>
-			{$listdata.startbalance|money_format}<BR>
-			{$listdata.endbalance|money_format}
+			{moneyf($listdata.totalincome)}<HR>
+			{moneyf($listdata.startbalance)}<BR>
+			{moneyf($listdata.endbalance)}
 			{/if}
 		</TD>
 		<TD nowrap align="right" style="vertical-align: top;">
 			{if ConfigHelper::checkConfig('privileges.superuser') || !ConfigHelper::checkConfig('privileges.hide_summaries')}
-			{$listdata.totalexpense|money_format}<HR>
+			{moneyf($listdata.totalexpense)}<HR>
 			{/if}
 		</TD>
 		<TD colspan="3" align="right">
-			{if ConfigHelper::checkConfig('privileges.superuser') || !ConfigHelper::checkConfig('privileges.hide_summaries')}<H1>{trans("Cash state:")} <B>{$listdata.cashstate|money_format}</B></H1>{/if}
+			{if ConfigHelper::checkConfig('privileges.superuser') || !ConfigHelper::checkConfig('privileges.hide_summaries')}
+			<H1>{trans("Cash state:")} <B>{moneyf($listdata.cashstate)}</B></H1>{/if}
 			<A href="?m=cashreglogview&regid={$listdata.regid}">{trans("Cash history")} <img src="img/value.gif" alt=""></A>&nbsp;
 			<A href="?m=receiptadd&type=in&action=init&regid={$listdata.regid}"><img src="img/kp.png" alt=""> {trans("New Cash-in Receipt")}</A>&nbsp;
 			<A href="?m=receiptadd&type=out&action=init&regid={$listdata.regid}"><img src="img/kw.png" alt=""> {trans("New Cash-out Receipt")}</A>

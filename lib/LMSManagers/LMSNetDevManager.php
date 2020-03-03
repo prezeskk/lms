@@ -289,6 +289,9 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
         if (array_key_exists('clients', $data)) {
             $args['clients'] = empty($data['clients']) ? 0 : $data['clients'];
         }
+        if (array_key_exists('login', $data)) {
+            $args['login'] = empty($data['login']) ? '' : $data['login'];
+        }
         if (array_key_exists('secret', $data)) {
             $args['secret'] = empty($data['secret']) ? '' : $data['secret'];
         }
@@ -414,6 +417,7 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
             'shortname'        => empty($data['shortname']) ? '' : $data['shortname'],
             'nastype'          => empty($data['nastype']) ? 0 : $data['nastype'],
             'clients'          => empty($data['clients']) ? 0 : $data['clients'],
+            'login'            => empty($data['login']) ? '' : $data['login'],
             'secret'           => empty($data['secret']) ? '' : $data['secret'],
             'community'        => empty($data['community']) ? '' : $data['community'],
             'channelid'        => !empty($data['channelid']) ? $data['channelid'] : null,
@@ -448,9 +452,9 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
         if ($this->db->Execute('INSERT INTO netdevices (name,
 				description, producer, model, serialnumber,
 				ports, purchasetime, guaranteeperiod, shortname,
-				nastype, clients, secret, community, channelid,
+				nastype, clients, login, secret, community, channelid,
 				longitude, latitude, invprojectid, netnodeid, status, netdevicemodelid, address_id, ownerid)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', array_values($args))) {
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', array_values($args))) {
             $id = $this->db->GetLastInsertID('netdevices');
 
             if (empty($data['ownerid'])) {
@@ -716,11 +720,19 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
         if (!$short && $netdevlist) {
             $customer_manager = new LMSCustomerManager($this->db, $this->auth, $this->cache, $this->syslog);
 
-            $filecontainers = $this->db->GetAllByKey('SELECT fc.netdevid, '
-                . $this->db->GroupConcat("CASE WHEN fc.description = '' THEN '---' ELSE fc.description END") . ' AS descriptions
+            $filecontainers = $this->db->GetAllByKey('SELECT fc.netdevid
 			FROM filecontainers fc
 			WHERE fc.netdevid IS NOT NULL
 			GROUP BY fc.netdevid', 'netdevid');
+
+            if (!empty($filecontainers)) {
+                if (!isset($file_manager)) {
+                    $file_manager = new LMSFileManager($this->db, $this->auth, $this->cache, $this->syslog);
+                }
+                foreach ($filecontainers as &$filecontainer) {
+                    $filecontainer = $file_manager->GetFileContainers('netdevid', $filecontainer['netdevid']);
+                }
+            }
 
             foreach ($netdevlist as &$netdev) {
                 $netdev['customlinks'] = array();
@@ -732,10 +744,7 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
                         . $netdev['borough_ident'] . $netdev['borough_type'];
                 $netdev['simc'] = empty($netdev['city_ident']) ? null : $netdev['city_ident'];
                 $netdev['ulic'] = empty($netdev['street_ident']) ? null : $netdev['street_ident'];
-                $netdev['filecontainers'] = isset($filecontainers[$netdev['id']])
-                    ? explode(',', $filecontainers[$netdev['id']]['descriptions'])
-                    : array();
-
+                $netdev['filecontainers'] = isset($filecontainers[$netdev['id']]) ? $filecontainers[$netdev['id']] : array();
                 $netdev['lastonlinedate'] = lastonline_date($netdev['lastonline']);
             }
             unset($netdev);
@@ -985,6 +994,46 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
         }
 
         return $result;
+    }
+
+    public function GetModelList($pid = null)
+    {
+        if (!$pid) {
+            return null;
+        }
+
+        $list = $this->db->GetAll(
+            'SELECT m.id, m.name, m.alternative_name,
+			(SELECT COUNT(i.id) FROM netdevices i WHERE i.netdevicemodelid = m.id) AS netdevcount
+			FROM netdevicemodels m
+			WHERE m.netdeviceproducerid = ?
+			ORDER BY m.name ASC',
+            array($pid)
+        );
+
+        $filecontainers = $this->db->GetAllByKey('SELECT fc.netdevmodelid
+			FROM filecontainers fc
+			WHERE fc.netdevmodelid IS NOT NULL
+			GROUP BY fc.netdevmodelid', 'netdevmodelid');
+
+        if (!empty($filecontainers)) {
+            if (!isset($file_manager)) {
+                $file_manager = new LMSFileManager($this->db, $this->auth, $this->cache, $this->syslog);
+            }
+            foreach ($filecontainers as &$filecontainer) {
+                $filecontainer = $file_manager->GetFileContainers('netdevmodelid', $filecontainer['netdevmodelid']);
+            }
+        }
+
+        if (!empty($list)) {
+            foreach ($list as &$model) {
+                $model['customlinks'] = array();
+                $model['filecontainers'] = isset($filecontainers[$model['id']]) ? $filecontainers[$model['id']] : array();
+            }
+            unset($model);
+        }
+
+        return $list;
     }
 
     public function GetRadioSectors($netdevid, $technology = 0)

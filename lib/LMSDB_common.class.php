@@ -24,7 +24,7 @@
  *  $Id$
  */
 
-define('DBVERSION', '2019092000'); // here should be always the newest version of database!
+define('DBVERSION', '2020020500'); // here should be always the newest version of database!
                  // it placed here to avoid read disk every time when we call this file.
 
 /**
@@ -75,6 +75,8 @@ abstract class LMSDB_common implements LMSDBInterface
 
     /** @var boolean Debug flag * */
     protected $debug = false;
+
+    protected $_warnings = true;
 
     /**
      * Connects to database.
@@ -516,6 +518,16 @@ abstract class LMSDB_common implements LMSDBInterface
         return $this->_driver_resourceexists($name, $type);
     }
 
+    public function DisableWarnings()
+    {
+        $this->_warnings = false;
+    }
+
+    public function EnableWarnings()
+    {
+        $this->_warnings = true;
+    }
+
     /**
      * Prepares query before execution.
      *
@@ -530,6 +542,20 @@ abstract class LMSDB_common implements LMSDBInterface
         // replace metadata
         $query = str_ireplace('?NOW?', $this->_driver_now(), $query);
         $query = str_ireplace('?LIKE?', $this->_driver_like(), $query);
+
+        if ($this->_warnings) {
+            $param_count = substr_count($query, '?');
+            $array_count = $inputarray ? count($inputarray) : 0;
+            if ($param_count != $array_count) {
+                $error = array(
+                    'query' => $query,
+                    'error' => "SQL query parser error: parameter count differs from passed argument count (${param_count} != ${array_count}): "
+                        . ($array_count ? var_export($inputarray, true) : ''),
+                );
+                $this->errors[] = $error;
+                writesyslog($error['error'] . ' (' . str_replace("\t", ' ', $error['query']) . ')', LOG_ERR);
+            }
+        }
 
         if ($inputarray) {
             foreach ($inputarray as $k => $v) {
@@ -688,6 +714,8 @@ abstract class LMSDB_common implements LMSDBInterface
 
     public function UpgradeDb($dbver = DBVERSION, $pluginclass = null, $libdir = null, $docdir = null)
     {
+        $this->DisableWarnings();
+
         $lastupgrade = null;
         if ($dbversion = $this->GetOne(
             'SELECT keyvalue FROM dbinfo WHERE keytype = ?',
@@ -773,6 +801,9 @@ abstract class LMSDB_common implements LMSDBInterface
                 $this->errors = array_merge($err_tmp, $this->errors);
             }
         }
+
+        $this->EnableWarnings();
+
         return isset($lastupgrade) ? $lastupgrade : $dbver;
     }
 }

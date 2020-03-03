@@ -201,12 +201,25 @@
 		</TD>
 	</TR>
 	{/if}
+	{if $netdev.login}
+		<TR>
+			<TD WIDTH="1%">
+				<IMG SRC="img/radius.gif" ALT="">
+			</TD>
+			<TD WIDTH="1%" class="bold nobr">
+				{trans("Login:")}
+			</TD>
+			<TD WIDTH="98%">
+				{$netdev.login}
+			</TD>
+		</TR>
+	{/if}
 	{if $netdev.secret}
 	<TR>
 		<TD WIDTH="1%">
 			<IMG SRC="img/radius.gif" ALT="">
 		</TD>
-		<TD WIDTH="1%" class="nowrap bold">
+		<TD WIDTH="1%" class="bold nobr">
 			{trans("Secret:")}
 		</TD>
 		<TD WIDTH="98%">
@@ -291,7 +304,7 @@
                 <TD WIDTH="99%" COLSPAN="2">
                         <TABLE WIDTH="100%" CELLPADDING="5">
                                 <TR>
-                                        <TD class="fall superlight">
+                                        <TD class="fall superlight lms-ui-autolinker">
 						{$netdev.description|escape|replace:"\n":"<BR>"}
                                         </TD>
                                 </TR>
@@ -336,7 +349,7 @@
 	        <TD WIDTH="100%" COLSPAN="2" ALIGN="RIGHT">
 {/if}
 			{block name="netdevinfobox-buttons"}
-			<a href="?m=netdevadd&id={$netdev.id}">{trans("Clone")} <img src="img/clone.gif" alt="{trans("Clone")}"</a>
+			<a href="?m=netdevadd&id={$netdev.id}&clone=1">{trans("Clone")} <img src="img/clone.gif" alt="{trans("Clone")}"</a>
 			<A href="javascript:void(0);" onclick="javascript:openSelectWindow('?m=choosenetdevreplace&id={$netdev.id}', 'Replace netdev', 600, 290, 1, 1);">{trans("Replace")} <img src="img/alias.gif" ALT="{trans("Replace")}"></A>
 			<A href="?m=netdevedit&id={$netdev.id}" ACCESSKEY="E">{trans("Edit")} <IMG src="img/edit.gif" ALT="{trans("Edit")}"></A>
 			<A id="delete-netdev" href="?m=netdevdel&id={$netdev.id}&is_sure=1" data-name="{$netdev.name}">{trans("Delete")} <img src="img/delete.gif" ALT=""></A>

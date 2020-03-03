@@ -232,9 +232,9 @@ if ($backup || $archive) {
     $smtp_options = array(
         'host' => ConfigHelper::getConfig('sendinvoices.smtp_host'),
         'port' => ConfigHelper::getConfig('sendinvoices.smtp_port'),
-        'user' => ConfigHelper::getConfig('sendinvoices.smtp_user'),
-        'pass' => ConfigHelper::getConfig('sendinvoices.smtp_pass'),
-        'auth' => ConfigHelper::getConfig('sendinvoices.smtp_auth'),
+        'user' => ConfigHelper::getConfig('sendinvoices.smtp_username', ConfigHelper::getConfig('sendinvoices.smtp_user')),
+        'pass' => ConfigHelper::getConfig('sendinvoices.smtp_password', ConfigHelper::getConfig('sendinvoices.smtp_pass')),
+        'auth' => ConfigHelper::getConfig('sendinvoices.smtp_auth_type', ConfigHelper::getConfig('sendinvoices.smtp_auth')),
         'ssl_verify_peer' => ConfigHelper::checkValue(ConfigHelper::getConfig('sendinvoices.smtp_ssl_verify_peer', true)),
         'ssl_verify_peer_name' => ConfigHelper::checkValue(ConfigHelper::getConfig('sendinvoices.smtp_ssl_verify_peer_name', true)),
         'ssl_allow_self_signed' => ConfigHelper::checkConfig('sendinvoices.smtp_ssl_allow_self_signed'),
@@ -249,6 +249,7 @@ if ($backup || $archive) {
     $notify_email = ConfigHelper::getConfig('sendinvoices.notify_email', '', true);
     $reply_email = ConfigHelper::getConfig('sendinvoices.reply_email', '', true);
     $add_message = ConfigHelper::checkConfig('sendinvoices.add_message');
+    $message_attachments = ConfigHelper::checkConfig('sendinvoices.message_attachments');
     $dsn_email = ConfigHelper::getConfig('sendinvoices.dsn_email', '', true);
     $mdn_email = ConfigHelper::getConfig('sendinvoices.mdn_email', '', true);
     $count_limit = ConfigHelper::getConfig('sendinvoices.limit', '0');
@@ -342,6 +343,7 @@ $AUTH = null;
 $LMS = new LMS($DB, $AUTH, $SYSLOG);
 $LMS->ui_lang = $_ui_language;
 $LMS->lang = $_language;
+LMS::$currency = $_currency;
 
 $plugin_manager = new LMSPluginManager();
 $LMS->setPluginManager($plugin_manager);
@@ -388,6 +390,8 @@ if ($backup || $archive) {
     }
 }
 
+$ignore_send_date = ConfigHelper::checkConfig('sendinvoices.ignore_send_date');
+
 $query = "SELECT d.id, d.number, d.cdate, d.name, d.customerid, d.type AS doctype, d.archived, n.template" . ($backup || $archive ? '' : ', m.email') . "
 		FROM documents d
 		LEFT JOIN customers c ON c.id = d.customerid"
@@ -397,6 +401,7 @@ $query = "SELECT d.id, d.number, d.cdate, d.name, d.customerid, d.type AS doctyp
 		WHERE c.deleted = 0 AND d.cancelled = 0 AND d.type IN (?, ?, ?, ?)" . ($backup || $archive ? '' : " AND c.invoicenotice = 1")
             . ($archive ? " AND d.archived = 0" : '') . "
 			AND d.cdate >= $daystart AND d.cdate <= $dayend"
+            . ($ignore_send_date ? '' : " AND d.senddate = 0")
             . (!empty($groupnames) ? $customergroups : "")
         . " ORDER BY d.number" . (!empty($count_limit) ? " LIMIT $count_limit OFFSET $count_offset" : '');
 $docs = $DB->GetAll($query, $args);
@@ -428,6 +433,24 @@ if (!empty($docs)) {
             }
         }
     } else {
+        $which = 0;
+        $tmp = explode(',', ConfigHelper::getConfig('invoices.default_printpage'));
+        foreach ($tmp as $t) {
+            if (trim($t) == 'original') {
+                $which |= DOC_ENTITY_ORIGINAL;
+            } elseif (trim($t) == 'copy') {
+                $which |= DOC_ENTITY_COPY;
+            } elseif (trim($t) == 'duplicate') {
+                $which |= DOC_ENTITY_DUPLICATE;
+            }
+        }
+
+        if (!$which) {
+            $which = DOC_ENTITY_ORIGINAL;
+        }
+
+        $duplicate_date = 0;
+
         $LMS->SendInvoices($docs, 'backend', compact(
             'SMARTY',
             'invoice_filename',
@@ -447,8 +470,11 @@ if (!empty($docs)) {
             'quiet',
             'test',
             'add_message',
+            'message_attachments',
             'interval',
             'no_attachments',
+            'which',
+            'duplicate_date',
             'smtp_options'
         ));
     }

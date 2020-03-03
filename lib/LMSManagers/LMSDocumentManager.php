@@ -39,7 +39,7 @@ class LMSDocumentManager extends LMSManager implements LMSDocumentManagerInterfa
 
         if ($list = $this->db->GetAll('SELECT c.docid, d.number, d.type, c.title, c.fromdate, c.todate,
 				c.description, n.template, d.closed,
-				d.archived, d.adate, u3.name AS ausername,
+				d.archived, d.adate, u3.name AS ausername, d.senddate,
 				d.cdate, u.name AS username, d.sdate, u2.name AS cusername,
 				d.type AS doctype, d.template AS doctemplate, reference
 			FROM documentcontents c
@@ -228,7 +228,7 @@ class LMSDocumentManager extends LMSManager implements LMSDocumentManagerInterfa
         $list = $this->db->GetAll(
             'SELECT documentcontents.docid, d.number, d.type, title, d.cdate,
 				u.name AS username, u.lastname, fromdate, todate, description, 
-				numberplans.template, d.closed,
+				numberplans.template, d.closed, d.senddate,
 				d.archived, d.adate, d.auserid, u3.name AS ausername,
 				d.name, d.customerid, d.sdate, d.cuserid, u2.name AS cusername,
 				u2.lastname AS clastname, d.reference, i.senddocuments
@@ -539,7 +539,7 @@ class LMSDocumentManager extends LMSManager implements LMSDocumentManagerInterfa
 				WHERE cdate >= ? AND cdate < ? AND type = ? AND ' . ($planid ? 'numberplanid = ' . intval($planid) : 'numberplanid IS NULL')
                 . (!isset($numtemplate) || strpos($numtemplate, '%C') === false || empty($customerid)
                     ? '' : ' AND customerid = ' . intval($customerid)),
-            array($start, $end, $doctype, $planid)
+            array($start, $end, $doctype)
         );
 
         return $number ? ++$number : 1;
@@ -909,7 +909,7 @@ class LMSDocumentManager extends LMSManager implements LMSDocumentManagerInterfa
     public function DocumentAttachmentExists($md5sum)
     {
         return $this->db->GetOne(
-            'SELECT docid FROM documentattachments WHERE md5sum = ?',
+            'SELECT COUNT(docid) FROM documentattachments WHERE md5sum = ?',
             array($md5sum)
         );
     }
@@ -1152,7 +1152,7 @@ class LMSDocumentManager extends LMSManager implements LMSDocumentManagerInterfa
                     }
 
                     if ($status == MSG_SENT) {
-                        $this->db->Execute('UPDATE documents SET published = 1 WHERE id = ?', array($doc['id']));
+                        $this->db->Execute('UPDATE documents SET published = 1, senddate = ?NOW? WHERE id = ?', array($doc['id']));
                         $published = true;
                     }
 
@@ -1163,5 +1163,68 @@ class LMSDocumentManager extends LMSManager implements LMSDocumentManagerInterfa
                 }
             }
         }
+    }
+
+    public function DeleteDocument($docid)
+    {
+        $document = $this->db->GetRow(
+            'SELECT d.id, d.type, d.customerid FROM documents d
+			JOIN docrights r ON (r.doctype = d.type)
+			WHERE d.id = ? AND r.userid = ? AND (r.rights & ?) > 0',
+            array($docid, Auth::GetCurrentUser(), DOCRIGHT_DELETE)
+        );
+        if (!$document) {
+            return false;
+        }
+
+        $attachments = $this->db->GetAll('SELECT id, md5sum FROM documentattachments
+			WHERE docid = ?', array($docid));
+        foreach ($attachments as $attachment) {
+            $md5sum = $attachment['md5sum'];
+            if ($this->db->GetOne('SELECT COUNT(*) FROM documentattachments WHERE md5sum = ?', array((string)$md5sum)) == 1) {
+                $filename_pdf = DOC_DIR . DIRECTORY_SEPARATOR . substr($md5sum, 0, 2) . DIRECTORY_SEPARATOR . $md5sum . '.pdf';
+                if (file_exists($filename_pdf)) {
+                    @unlink($filename_pdf);
+                }
+
+                if (!isset($file_manager)) {
+                    $file_manager = new LMSFileManager($this->db, $this->auth, $this->cache, $this->syslog);
+                }
+                if (!$file_manager->FileExists($md5sum)) {
+                    @unlink(DOC_DIR . DIRECTORY_SEPARATOR . substr($md5sum, 0, 2) . DIRECTORY_SEPARATOR . $md5sum);
+                }
+            }
+        }
+
+        $this->db->Execute('DELETE FROM documents WHERE id = ?', array($docid));
+        if ($this->syslog) {
+            $args = array(
+                SYSLOG::RES_DOC => $docid,
+                SYSLOG::RES_CUST => $document['customerid'],
+                'type' => $document['type'],
+            );
+            $this->syslog->AddMessage(SYSLOG::RES_DOC, SYSLOG::OPER_DELETE, $args);
+
+            foreach ($attachments as $attachment) {
+                $args = array(
+                    SYSLOG::RES_DOCATTACH => $attachment['id'],
+                    SYSLOG::RES_DOC => $docid,
+                    'md5sum' => $attachment['md5sum'],
+                );
+                $this->syslog->AddMessage(SYSLOG::RES_DOCATTACH, SYSLOG::OPER_DELETE, $args);
+            }
+        }
+
+        return true;
+    }
+
+    public function CopyDocumentPermissions($src_userid, $dst_userid)
+    {
+        $this->db->Execute('DELETE FROM docrights WHERE userid = ?', array($dst_userid));
+        return $this->db->Execute(
+            'INSERT INTO docrights (userid, doctype, rights)
+            (SELECT ?, doctype, rights FROM docrights WHERE userid = ?)',
+            array($dst_userid, $src_userid)
+        );
     }
 }

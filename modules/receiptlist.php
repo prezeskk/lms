@@ -151,7 +151,12 @@ unset($receiptlist['order']);
 unset($receiptlist['direction']);
 
 $listdata['total'] = $total;
-$listdata['cashstate'] = $DB->GetOne('SELECT SUM(value) FROM receiptcontents WHERE regid=?', array($regid));
+$listdata['cashstate'] = $DB->GetOne(
+    'SELECT SUM(value * d.currencyvalue) FROM receiptcontents c
+    JOIN documents d ON d.id = c.docid
+    WHERE regid = ?',
+    array($regid)
+);
 if ($from > 0) {
     $listdata['startbalance'] = $DB->GetOne(
         'SELECT SUM(value) FROM receiptcontents
@@ -171,15 +176,15 @@ if (empty($page)) {
 $start = ($page - 1) * $pagelimit;
 
 $logentry = $DB->GetRow('SELECT * FROM cashreglog WHERE regid = ?
-			ORDER BY time DESC LIMIT 1', array($regid, $regid));
+			ORDER BY time DESC LIMIT 1', array($regid));
 
 $layout['pagetitle'] = trans('Cash Registry: $a', $DB->GetOne('SELECT name FROM cashregs WHERE id=?', array($regid)));
 
 $SESSION->save('backto', 'm=receiptlist&regid='.$regid);
 
-if ($receipt = $SESSION->get('receiptprint')) {
+if ($receipt = $SESSION->get('receiptprint', true)) {
     $SMARTY->assign('receipt', $receipt);
-    $SESSION->remove('receiptprint');
+    $SESSION->remove('receiptprint', true);
 }
 
 $SMARTY->assign('error', $error);

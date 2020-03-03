@@ -187,18 +187,25 @@ try {
     die("Fatal error: cannot connect to database!" . PHP_EOL);
 }
 
+// Include required files (including sequence is important)
+
+require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'common.php');
+require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'language.php');
+require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'definitions.php');
+
 // now it's time for script settings
 $smtp_options = array(
     'host' => ConfigHelper::getConfig($config_section . '.smtp_host'),
     'port' => ConfigHelper::getConfig($config_section . '.smtp_port'),
-    'user' => ConfigHelper::getConfig($config_section . '.smtp_user'),
-    'pass' => ConfigHelper::getConfig($config_section . '.smtp_pass'),
-    'auth' => ConfigHelper::getConfig($config_section . '.smtp_auth'),
+    'user' => ConfigHelper::getConfig($config_section . '.smtp_username', ConfigHelper::getConfig($config_section . '.smtp_user')),
+    'pass' => ConfigHelper::getConfig($config_section . '.smtp_password', ConfigHelper::getConfig($config_section . '.smtp_pass')),
+    'auth' => ConfigHelper::getConfig($config_section . '.smtp_auth_type', ConfigHelper::getConfig($config_section . '.smtp_auth')),
     'ssl_verify_peer' => ConfigHelper::checkValue(ConfigHelper::getConfig($config_section . '.smtp_ssl_verify_peer', true)),
     'ssl_verify_peer_name' => ConfigHelper::checkValue(ConfigHelper::getConfig($config_section . '.smtp_ssl_verify_peer_name', true)),
     'ssl_allow_self_signed' => ConfigHelper::checkConfig($config_section . '.smtp_ssl_allow_self_signed'),
 );
 
+$suspension_percentage = floatval(ConfigHelper::getConfig('finances.suspension_percentage', 0));
 $debug_email = ConfigHelper::getConfig($config_section . '.debug_email', '', true);
 $mail_from = ConfigHelper::getConfig($config_section . '.mailfrom', '', true);
 $mail_fname = ConfigHelper::getConfig($config_section . '.mailfname', '', true);
@@ -206,7 +213,18 @@ $notify_email = ConfigHelper::getConfig($config_section . '.notify_email', '', t
 $reply_email = ConfigHelper::getConfig($config_section . '.reply_email', '', true);
 $dsn_email = ConfigHelper::getConfig($config_section . '.dsn_email', '', true);
 $mdn_email = ConfigHelper::getConfig($config_section . '.mdn_email', '', true);
-$mail_format = ConfigHelper::getConfig($config_section . '.mail_format', 'text');
+$format = ConfigHelper::getConfig($config_section . '.format', 'text');
+$mail_format = ConfigHelper::getConfig($config_section . '.mail_format', $format);
+$content_type = $format == 'html' ? 'text/html' : 'text/plain';
+$mail_content_type = $mail_format == 'html' ? 'text/html' : 'text/plain';
+
+$content_types = array(
+    MSG_MAIL => $mail_content_type,
+    MSG_SMS => 'text/plain',
+    MSG_USERPANEL => $content_type,
+    MSG_USERPANEL_URGENT => $content_type,
+    MSG_WWW => $content_type,
+);
 
 $debug_phone = ConfigHelper::getConfig($config_section . '.debug_phone', '', true);
 $script_service = ConfigHelper::getConfig($config_section . '.service', '', true);
@@ -277,10 +295,21 @@ $SYSLOG = SYSLOG::getInstance();
 $AUTH = null;
 $LMS = new LMS($DB, $AUTH, $SYSLOG);
 $LMS->ui_lang = $_ui_language;
-$LMS->lang = $_language;
+LMS::$currency = $_currency;
 
 $plugin_manager = new LMSPluginManager();
 $LMS->setPluginManager($plugin_manager);
+$plugin_manager->executeHook('lms_initialized', $LMS);
+
+// Load plugin files and register hook callbacks
+$plugins = $plugin_manager->getAllPluginInfo(LMSPluginManager::OLD_STYLE);
+if (!empty($plugins)) {
+    foreach ($plugins as $plugin_name => $plugin) {
+        if ($plugin['enabled']) {
+            require(LIB_DIR . DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . $plugin_name . '.php');
+        }
+    }
+}
 
 if (!empty($mail_fname)) {
     $mail_from = qp_encode($mail_fname) . ' <' . $mail_from . '>';
@@ -320,40 +349,47 @@ function parse_customer_data($data, $row)
     $data = preg_replace("/\%pin/", $row['pin'], $data);
     $data = preg_replace("/\%cid/", $row['id'], $data);
     if (preg_match("/\%abonament/", $data)) {
-        $saldo = $DB->GetOne(
-            "SELECT SUM(value)
-            FROM assignments a, tariffs
-            WHERE tariffid = tariffs.id AND customerid = ?
-                AND a.datefrom <= $currtime AND (a.dateto > $currtime OR a.dateto = 0)
-                AND ((a.datefrom < a.dateto) OR (a.datefrom = 0 AND a.datefrom = 0))",
-            array($row['id'])
+        $assignments = $DB->GetAll(
+            'SELECT ROUND(((((100 - a.pdiscount) * (CASE WHEN a.liabilityid IS NULL THEN t.value ELSE l.value END)) / 100) - a.vdiscount) *
+			    (CASE a.suspended WHEN 0
+				    THEN 1.0
+				    ELSE ? / 100
+			    END), 2) AS value, t.currency
+            FROM assignments a
+            LEFT JOIN tariffs t ON t.id = a.tariffid
+            LEFT JOIN liabilities l ON l.id = a.liabilityid
+            WHERE customerid = ? AND (t.id IS NOT NULL OR l.id IS NOT NULL)
+                AND a.datefrom <= ? AND (a.dateto > ? OR a.dateto = 0)
+                AND NOT EXISTS (
+                    SELECT COUNT(id) FROM assignments
+                    WHERE customerid = c.id AND tariffid IS NULL AND liabilityid IS NULL
+                        AND datefrom <= ? AND (dateto > ? OR dateto = 0                
+                )
+            GROUP BY tariffs.currency',
+            array(
+                $row['id'],
+                $GLOBALS['suspension_percentage'],
+                $GLOBALS['currtime'],
+                $GLOBALS['currtime'],
+                $GLOBALS['currtime'],
+                $GLOBALS['currtime'],
+            )
         );
-        $data = preg_replace("/\%abonament/", $saldo, $data);
+        $saldo = array();
+        if (!empty($assignments)) {
+            foreach ($assignments as $assignment) {
+                $saldo[] = moneyf($assignment['value'], $assignment['currency']);
+            }
+        }
+        $data = preg_replace("/\%abonament/", empty($saldo) ? '0' : implode(', ', $saldo), $data);
     }
 
-    if (preg_match('/%last_(?<number>[0-9]+)_in_a_table/', $data, $m)) {
-        $lastN = $LMS->GetCustomerShortBalanceList($row['id'], $m['number']);
-        if (empty($lastN)) {
-            $lN = '';
-        } else {
-            // ok, now we are going to rise up system's load
-            $lN = "-----------+-----------+-----------+----------------------------------------------------\n";
-            foreach ($lastN as $row_s) {
-                $op_time = strftime("%Y/%m/%d", $row_s['time']);
-                $op_amount = sprintf("%9.2f", $row_s['value']);
-                $op_after = sprintf("%9.2f", $row_s['after']);
-                $for_what = sprintf("%-52s", $row_s['comment']);
-                $lN = $lN . "$op_time | $op_amount | $op_after | $for_what\n";
-            }
-            $lN = $lN . "-----------+-----------+-----------+----------------------------------------------------\n";
-        }
-        $data = preg_replace('/%last_[0-9]+_in_a_table/', $lN, $data);
-    }
+    $data = $this->getLastNInTable($data, $row['id'], '<eol>');
 
     // invoices, debit notes
     $data = preg_replace("/\%invoice/", $row['doc_number'], $data);
     $data = preg_replace("/\%number/", $row['doc_number'], $data);
-    $data = preg_replace("/\%value/", $row['value'], $data);
+    $data = preg_replace("/\%value/", moneyf($row['value'], $row['currency']), $data);
     $data = preg_replace("/\%cdate-y/", strftime("%Y", $row['cdate']), $data);
     $data = preg_replace("/\%cdate-m/", strftime("%m", $row['cdate']), $data);
     $data = preg_replace("/\%cdate-d/", strftime("%d", $row['cdate']), $data);
@@ -374,19 +410,26 @@ function parse_node_data($data, $row)
 
 function create_message($type, $subject, $template)
 {
+    global $content_types;
+
     $DB = LMSDB::getInstance();
 
     $DB->Execute(
-        "INSERT INTO messages (type, cdate, subject, body)
-        VALUES (?, ?NOW?, ?, ?)",
-        array($type, $subject, $template)
+        "INSERT INTO messages (type, cdate, subject, body, contenttype)
+        VALUES (?, ?NOW?, ?, ?, ?)",
+        array(
+            $type,
+            str_replace('<eol>', $content_types[$type] == 'text/html' ? '<br>' : "\n", $subject),
+            str_replace('<eol>', $content_types[$type] == 'text/html' ? '<br>' : "\n", $template),
+            $content_types[$type]
+        )
     );
     return $DB->GetLastInsertID('messages');
 }
 
 function send_mail($msgid, $cid, $rmail, $rname, $subject, $body)
 {
-    global $LMS, $mail_from, $notify_email, $reply_email, $dsn_email, $mdn_email, $mail_format;
+    global $LMS, $mail_from, $notify_email, $reply_email, $dsn_email, $mdn_email, $content_types;
     global $smtp_options;
 
     $DB = LMSDB::getInstance();
@@ -399,6 +442,9 @@ function send_mail($msgid, $cid, $rmail, $rname, $subject, $body)
     );
     $msgitemid = $DB->GetLastInsertID('messageitems');
 
+    $subject = str_replace('<eol>', $content_types[MSG_MAIL] == 'text/html' ? '<br>' : "\n", $subject);
+    $body = str_replace('<eol>', $content_types[MSG_MAIL] == 'text/html' ? '<br>' : "\n", $body);
+
     $headers = array(
         'From' => empty($dsn_email) ? $mail_from : $dsn_email,
         'To' => qp_encode($rname) . " <$rmail>",
@@ -406,7 +452,7 @@ function send_mail($msgid, $cid, $rmail, $rname, $subject, $body)
         'Reply-To' => empty($reply_email) ? $mail_from : $reply_email,
     );
 
-    if ($mail_format == 'html') {
+    if ($content_types[MSG_MAIL] == 'text/html') {
         $headers['X-LMS-Format'] = 'html';
     }
 
@@ -454,7 +500,7 @@ function send_sms($msgid, $cid, $phone, $data)
     );
     $msgitemid = $DB->GetLastInsertID('messageitems');
 
-    $result = $LMS->SendSMS(str_replace(' ', '', $phone), $data, $msgitemid, $sms_options);
+    $result = $LMS->SendSMS(str_replace(' ', '', $phone), str_replace('<eol>', "\n", $data), $msgitemid, $sms_options);
     $query = "UPDATE messageitems
         SET status = ?, lastdate = ?NOW?, error = ?
         WHERE messageid = ? AND customerid = ? AND id = ?";
@@ -464,6 +510,18 @@ function send_sms($msgid, $cid, $phone, $data)
     } elseif ($result == 2) { // MSG_SENT
         $DB->Execute($query, array($result, null, $msgid, $cid, $msgitemid));
     }
+}
+
+function send_to_userpanel($msgid, $cid, $destination)
+{
+    $DB = LMSDB::getInstance();
+
+    $DB->Execute(
+        "INSERT INTO messageitems
+        (messageid, customerid, destination, status)
+        VALUES (?, ?, ?, ?)",
+        array($msgid, $cid, $destination, MSG_SENT)
+    );
 }
 
 function send_mail_to_user($rmail, $rname, $subject, $body)
@@ -595,7 +653,7 @@ if (empty($types) || in_array('documents', $types)) {
             b.balance, m.email, x.phone
         FROM customers c
         LEFT JOIN (
-            SELECT customerid, SUM(value) AS balance FROM cash
+            SELECT customerid, SUM(value * currencyvalue) AS balance FROM cash
             GROUP BY customerid
         ) b ON b.customerid = c.id
         JOIN documents d ON d.customerid = c.id
@@ -659,6 +717,20 @@ if (empty($types) || in_array('documents', $types)) {
                         );
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    printf(
+                        "[userpanel/documents] %s (%04d)" . PHP_EOL,
+                        $recipient_name,
+                        $row['id']
+                    );
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    printf(
+                        "[userpanel-urgent/documents] %s (%04d)" . PHP_EOL,
+                        $recipient_name,
+                        $row['id']
+                    );
+                }
             }
 
             if (!$debug) {
@@ -681,6 +753,14 @@ if (empty($types) || in_array('documents', $types)) {
                         send_sms($msgid, $row['id'], $recipient_phone, $message);
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel'));
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL_URGENT, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel urgent'));
+                }
             }
         }
     }
@@ -692,7 +772,7 @@ if (empty($types) || in_array('contracts', $types)) {
     $days = $notifications['contracts']['days'];
     $customers = $DB->GetAll(
         "SELECT c.id, c.pin, c.lastname, c.name,
-            SUM(value) AS balance, d.dateto AS cdate,
+            SUM(value * currencyvalue) AS balance, d.dateto AS cdate,
             m.email, x.phone
         FROM customers c
         JOIN cash ON (c.id = cash.customerid) "
@@ -702,7 +782,7 @@ if (empty($types) || in_array('contracts', $types)) {
                 FROM assignments a
                 WHERE a.dateto > 0
                 GROUP BY a.customerid
-                HAVING(a.dateto) >= $daystart + $days * 86400 AND d.dateto < $daystart + ($days + 1) * 86400
+                HAVING MAX(a.dateto) >= $daystart + $days * 86400 AND MAX(a.dateto) < $daystart + ($days + 1) * 86400
             ) d ON d.customerid = c.id" :
             "JOIN (
                 SELECT DISTINCT customerid, 0 AS dateto FROM documents
@@ -720,9 +800,9 @@ if (empty($types) || in_array('contracts', $types)) {
             WHERE (type & ?) = ?
             GROUP BY customerid
         ) x ON (x.customerid = c.id)
-        GROUP BY c.id, c.pin, c.lastname, c.name, m.email, x.phone
         WHERE d.dateto >= $daystart + ? * 86400 AND d.dateto < $daystart + (? + 1) * 86400"
-            . ($notifications['contracts']['deleted_customers'] ? '' : ' AND c.deleted = 0'),
+            . ($notifications['contracts']['deleted_customers'] ? '' : ' AND c.deleted = 0') . "
+        GROUP BY c.id, c.pin, c.lastname, c.name, d.dateto, m.email, x.phone",
         array(
             CONTACT_EMAIL | CONTACT_NOTIFICATIONS | CONTACT_DISABLED,
             CONTACT_EMAIL | CONTACT_NOTIFICATIONS,
@@ -767,6 +847,20 @@ if (empty($types) || in_array('contracts', $types)) {
                         );
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    printf(
+                        "[userpanel/contracts] %s (%04d)" . PHP_EOL,
+                        $recipient_name,
+                        $row['id']
+                    );
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    printf(
+                        "[userpanel-urgent/contracts] %s (%04d)" . PHP_EOL,
+                        $recipient_name,
+                        $row['id']
+                    );
+                }
             }
 
             if (!$debug) {
@@ -789,6 +883,14 @@ if (empty($types) || in_array('contracts', $types)) {
                         send_sms($msgid, $row['id'], $recipient_phone, $message);
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel'));
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL_URGENT, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel urgent'));
+                }
             }
         }
     }
@@ -805,15 +907,15 @@ if (empty($types) || in_array('debtors', $types)) {
         FROM customers c
         LEFT JOIN divisions ON divisions.id = c.divisionid
         LEFT JOIN (
-            SELECT customerid, SUM(value) AS balance FROM cash GROUP BY customerid
+            SELECT customerid, SUM(value * currencyvalue) AS balance FROM cash GROUP BY customerid
         ) b ON b.customerid = c.id
         LEFT JOIN (
-            SELECT cash.customerid, SUM(value) AS balance FROM cash
+            SELECT cash.customerid, SUM(value * cash.currencyvalue) AS balance FROM cash
             LEFT JOIN customers ON customers.id = cash.customerid
             LEFT JOIN divisions ON divisions.id = customers.divisionid
             LEFT JOIN documents d ON d.id = cash.docid
             LEFT JOIN (
-                SELECT SUM(value) AS totalvalue, docid FROM cash
+                SELECT SUM(value * cash.currencyvalue) AS totalvalue, docid FROM cash
                 JOIN documents ON documents.id = cash.docid
                 WHERE documents.type = ?
                 GROUP BY docid
@@ -824,7 +926,7 @@ if (empty($types) || in_array('debtors', $types)) {
                 OR (cash.docid IS NOT NULL AND ((d.type = ? AND cash.time < $currtime)
                     OR (d.type = ? AND cash.time < $currtime AND tv.totalvalue >= 0)
                     OR (((d.type = ? AND tv.totalvalue < 0)
-                        OR d.type IN (?, ?)) AND d.cdate + (d.paytime + ?) * 86400 < $currtime)))
+                        OR d.type IN (?, ?, ?)) AND d.cdate + (d.paytime + ?) * 86400 < $currtime)))
             GROUP BY cash.customerid
         ) b2 ON b2.customerid = c.id
         LEFT JOIN (SELECT " . $DB->GroupConcat('contact') . " AS email, customerid
@@ -846,6 +948,7 @@ if (empty($types) || in_array('debtors', $types)) {
             DOC_CNOTE,
             DOC_CNOTE,
             DOC_INVOICE,
+            DOC_INVOICE_PRO,
             DOC_DNOTE,
             $days,
             CONTACT_EMAIL | CONTACT_NOTIFICATIONS | CONTACT_DISABLED,
@@ -891,6 +994,27 @@ if (empty($types) || in_array('debtors', $types)) {
                         );
                     }
                 }
+                if (in_array('backend', $channels)) {
+                    printf(
+                        "[backend/debtors] %s (%04d)" . PHP_EOL,
+                        $recipient_name,
+                        $row['id']
+                    );
+                }
+                if (in_array('userpanel', $channels)) {
+                    printf(
+                        "[userpanel/debtors] %s (%04d)" . PHP_EOL,
+                        $recipient_name,
+                        $row['id']
+                    );
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    printf(
+                        "[userpanel-urgent/debtors] %s (%04d)" . PHP_EOL,
+                        $recipient_name,
+                        $row['id']
+                    );
+                }
             }
 
             if (!$debug) {
@@ -913,6 +1037,14 @@ if (empty($types) || in_array('debtors', $types)) {
                         send_sms($msgid, $row['id'], $recipient_phone, $message);
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel'));
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL_URGENT, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel urgent'));
+                }
             }
         }
     }
@@ -925,20 +1057,20 @@ if (empty($types) || in_array('reminder', $types)) {
     $documents = $DB->GetAll(
         "SELECT d.id AS docid, c.id, c.pin, d.name,
         d.number, n.template, d.cdate, d.paytime, m.email, x.phone, divisions.account,
-        b2.balance AS balance, b.balance AS totalbalance, v.value
+        b2.balance AS balance, b.balance AS totalbalance, v.value, v.currency
         FROM documents d
         JOIN customers c ON (c.id = d.customerid)
         LEFT JOIN divisions ON divisions.id = c.divisionid
         LEFT JOIN (
-            SELECT customerid, SUM(value) AS balance FROM cash GROUP BY customerid
+            SELECT customerid, SUM(value * currencyvalue) AS balance FROM cash GROUP BY customerid
         ) b ON b.customerid = c.id
         LEFT JOIN (
-            SELECT cash.customerid, SUM(value) AS balance FROM cash
+            SELECT cash.customerid, SUM(value * cash.currencyvalue) AS balance FROM cash
             LEFT JOIN customers ON customers.id = cash.customerid
             LEFT JOIN divisions ON divisions.id = customers.divisionid
             LEFT JOIN documents d ON d.id = cash.docid
             LEFT JOIN (
-                SELECT SUM(value) AS totalvalue, docid FROM cash
+                SELECT SUM(value * cash.currencyvalue) AS totalvalue, docid FROM cash
                 JOIN documents ON documents.id = cash.docid
                 WHERE documents.type = ?
                 GROUP BY docid
@@ -949,7 +1081,7 @@ if (empty($types) || in_array('reminder', $types)) {
                 OR (cash.docid IS NOT NULL AND ((d.type = ? AND cash.time < $currtime)
                     OR (d.type = ? AND cash.time < $currtime AND tv.totalvalue >= 0)
                     OR (((d.type = ? AND tv.totalvalue < 0)
-                        OR d.type IN (?, ?)) AND (" . ($days > 0 ? 'cash.docid = d.id OR ' : '') . "d.cdate + d.paytime * 86400 < $currtime))))
+                        OR d.type IN (?, ?, ?)) AND (" . ($days > 0 ? 'cash.docid = d.id OR ' : '') . "d.cdate + (d.paytime - ?) * 86400 < $currtime))))
             GROUP BY cash.customerid
         ) b2 ON b2.customerid = c.id
         LEFT JOIN (SELECT " . $DB->GroupConcat('contact') . " AS email, customerid
@@ -963,14 +1095,14 @@ if (empty($types) || in_array('reminder', $types)) {
             GROUP BY customerid
         ) x ON (x.customerid = c.id)
         JOIN (
-            SELECT SUM(value) * -1 AS value, docid
+            SELECT SUM(value) * -1 AS value, currency, docid
             FROM cash
-            GROUP BY docid
+            GROUP BY docid, currency
         ) v ON (v.docid = d.id)
         LEFT JOIN numberplans n ON (d.numberplanid = n.id)
-        WHERE d.type = ? AND d.closed = 0 AND b2.balance < ?
-            AND ((d.cdate / 86400) + d.paytime - ?) * 86400 >= $daystart
-            AND ((d.cdate / 86400) + d.paytime - ?) * 86400 < $dayend"
+        WHERE d.type IN (?, ?, ?) AND d.closed = 0 AND b2.balance < ?
+            AND ((d.cdate / 86400) + d.paytime - ? + 1) * 86400 >= $daystart
+            AND ((d.cdate / 86400) + d.paytime - ? + 1) * 86400 < $dayend"
             . ($notifications['reminder']['deleted_customers'] ? '' : ' AND c.deleted = 0'),
         array(
             DOC_CNOTE,
@@ -978,12 +1110,16 @@ if (empty($types) || in_array('reminder', $types)) {
             DOC_CNOTE,
             DOC_CNOTE,
             DOC_INVOICE,
+            DOC_INVOICE_PRO,
             DOC_DNOTE,
+            $days,
             CONTACT_EMAIL | CONTACT_INVOICES | CONTACT_NOTIFICATIONS | CONTACT_DISABLED,
             CONTACT_EMAIL | CONTACT_INVOICES | CONTACT_NOTIFICATIONS,
             CONTACT_MOBILE | CONTACT_NOTIFICATIONS | CONTACT_DISABLED,
             CONTACT_MOBILE | CONTACT_NOTIFICATIONS,
             DOC_INVOICE,
+            DOC_INVOICE_PRO,
+            DOC_DNOTE,
             $limit,
             $days,
             $days
@@ -1031,6 +1167,30 @@ if (empty($types) || in_array('reminder', $types)) {
                         );
                     }
                 }
+                if (in_array('backend', $channels)) {
+                    printf(
+                        "[backend/reminder] %s (%04d)" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        $row['doc_number']
+                    );
+                }
+                if (in_array('userpanel', $channels)) {
+                    printf(
+                        "[userpanel/reminder] %s (%04d) %s" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        $row['doc_number']
+                    );
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    printf(
+                        "[userpanel-urgent/reminder] %s (%04d) %s" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        $row['doc_number']
+                    );
+                }
             }
 
             if (!$debug) {
@@ -1053,6 +1213,14 @@ if (empty($types) || in_array('reminder', $types)) {
                         send_sms($msgid, $row['id'], $recipient_phone, $message);
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel'));
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL_URGENT, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel urgent'));
+                }
             }
         }
     }
@@ -1062,7 +1230,7 @@ if (empty($types) || in_array('reminder', $types)) {
 if (empty($types) || in_array('income', $types)) {
     $days = $notifications['income']['days'];
     $incomes = $DB->GetAll(
-        "SELECT c.id, c.pin, cash.value, cash.time AS cdate,
+        "SELECT c.id, c.pin, cash.value, cash.currency, cash.time AS cdate,
         m.email, x.phone, divisions.account,
         " . $DB->Concat('c.lastname', "' '", 'c.name') . " AS name,
         b2.balance AS balance, b.balance AS totalbalance
@@ -1070,15 +1238,15 @@ if (empty($types) || in_array('income', $types)) {
         JOIN customers c ON c.id = cash.customerid
         LEFT JOIN divisions ON divisions.id = c.divisionid
         LEFT JOIN (
-            SELECT customerid, SUM(value) AS balance FROM cash GROUP BY customerid
+            SELECT customerid, SUM(value * currencyvalue) AS balance FROM cash GROUP BY customerid
         ) b ON b.customerid = c.id
         LEFT JOIN (
-            SELECT cash.customerid, SUM(value) AS balance FROM cash
+            SELECT cash.customerid, SUM(value * cash.currencyvalue) AS balance FROM cash
             LEFT JOIN customers ON customers.id = cash.customerid
             LEFT JOIN divisions ON divisions.id = customers.divisionid
             LEFT JOIN documents d ON d.id = cash.docid
             LEFT JOIN (
-                SELECT SUM(value) AS totalvalue, docid FROM cash
+                SELECT SUM(value * cash.currencyvalue) AS totalvalue, docid FROM cash
                 JOIN documents ON documents.id = cash.docid
                 WHERE documents.type = ?
                 GROUP BY docid
@@ -1089,7 +1257,7 @@ if (empty($types) || in_array('income', $types)) {
                 OR (cash.docid IS NOT NULL AND ((d.type = ? AND cash.time < $currtime)
                     OR (d.type = ? AND cash.time < $currtime AND tv.totalvalue >= 0)
                     OR (((d.type = ? AND tv.totalvalue < 0)
-                        OR d.type IN (?, ?)) AND d.cdate + d.paytime * 86400 < $currtime)))
+                        OR d.type IN (?, ?, ?)) AND d.cdate + d.paytime * 86400 < $currtime)))
             GROUP BY cash.customerid
         ) b2 ON b2.customerid = c.id
         LEFT JOIN (SELECT " . $DB->GroupConcat('contact') . " AS email, customerid
@@ -1110,6 +1278,7 @@ if (empty($types) || in_array('income', $types)) {
             DOC_CNOTE,
             DOC_CNOTE,
             DOC_INVOICE,
+            DOC_INVOICE_PRO,
             DOC_DNOTE,
             CONTACT_EMAIL | CONTACT_INVOICES | CONTACT_NOTIFICATIONS | CONTACT_DISABLED,
             CONTACT_EMAIL | CONTACT_INVOICES | CONTACT_NOTIFICATIONS,
@@ -1156,6 +1325,22 @@ if (empty($types) || in_array('income', $types)) {
                         );
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    printf(
+                        "[userpanel/income] %s (%04d) - %s" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        moneyf($row['value'])
+                    );
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    printf(
+                        "[userpanel-urgent/income] %s (%04d) - %s" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        moneyf($row['value'])
+                    );
+                }
             }
 
             if (!$debug) {
@@ -1178,6 +1363,14 @@ if (empty($types) || in_array('income', $types)) {
                         send_sms($msgid, $row['id'], $recipient_phone, $message);
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel'));
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL_URGENT, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel urgent'));
+                }
             }
         }
     }
@@ -1188,7 +1381,7 @@ if (empty($types) || in_array('invoices', $types)) {
     $documents = $DB->GetAll(
         "SELECT d.id AS docid, c.id, c.pin, d.name,
         d.number, n.template, d.cdate, d.paytime, m.email, x.phone, divisions.account,
-        COALESCE(ca.balance, 0) AS balance, v.value
+        COALESCE(ca.balance, 0) AS balance, v.value, v.currency
         FROM documents d
         JOIN customers c ON (c.id = d.customerid)
         LEFT JOIN divisions ON divisions.id = c.divisionid
@@ -1202,16 +1395,16 @@ if (empty($types) || in_array('invoices', $types)) {
             WHERE (type & ?) = ?
             GROUP BY customerid
         ) x ON (x.customerid = c.id)
-        JOIN (SELECT SUM(value) * -1 AS value, docid
+        JOIN (SELECT SUM(value) * -1 AS value, currency, docid
             FROM cash
-            GROUP BY docid
+            GROUP BY docid, currency
         ) v ON (v.docid = d.id)
         LEFT JOIN numberplans n ON (d.numberplanid = n.id)
-        LEFT JOIN (SELECT SUM(value) AS balance, customerid
+        LEFT JOIN (SELECT SUM(value * currencyvalue) AS balance, customerid
             FROM cash
             GROUP BY customerid
         ) ca ON (ca.customerid = d.customerid)
-        WHERE (c.invoicenotice IS NULL OR c.invoicenotice = 0) AND d.type IN (?, ?)
+        WHERE (c.invoicenotice IS NULL OR c.invoicenotice = 0) AND d.type IN (?, ?, ?)
             AND d.cdate >= ? AND d.cdate <= ?"
             . ($notifications['invoices']['deleted_customers'] ? '' : ' AND c.deleted = 0'),
         array(
@@ -1220,6 +1413,7 @@ if (empty($types) || in_array('invoices', $types)) {
             CONTACT_MOBILE | CONTACT_NOTIFICATIONS | CONTACT_DISABLED,
             CONTACT_MOBILE | CONTACT_NOTIFICATIONS,
             DOC_INVOICE,
+            DOC_INVOICE_PRO,
             DOC_CNOTE,
             $daystart,
             $dayend
@@ -1268,6 +1462,22 @@ if (empty($types) || in_array('invoices', $types)) {
                         );
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    printf(
+                        "[userpanel/invoices] %s (%04d): %s" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        $row['doc_number']
+                    );
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    printf(
+                        "[userpanel-urgent/invoices] %s (%04d): %s" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        $row['doc_number']
+                    );
+                }
             }
 
             if (!$debug) {
@@ -1290,6 +1500,14 @@ if (empty($types) || in_array('invoices', $types)) {
                         send_sms($msgid, $row['id'], $recipient_phone, $message);
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel'));
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL_URGENT, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel urgent'));
+                }
             }
         }
     }
@@ -1300,7 +1518,7 @@ if (empty($types) || in_array('notes', $types)) {
     $documents = $DB->GetAll(
         "SELECT d.id AS docid, c.id, c.pin, d.name,
         d.number, n.template, d.cdate, m.email, x.phone, divisions.account,
-        COALESCE(ca.balance, 0) AS balance, v.value
+        COALESCE(ca.balance, 0) AS balance, v.value, v.currency
         FROM documents d
         JOIN customers c ON (c.id = d.customerid)
         LEFT JOIN divisions ON divisions.id = c.divisionid
@@ -1314,12 +1532,12 @@ if (empty($types) || in_array('notes', $types)) {
             WHERE (type & ?) = ?
             GROUP BY customerid
         ) x ON (x.customerid = c.id)
-        JOIN (SELECT SUM(value) * -1 AS value, docid
+        JOIN (SELECT SUM(value) * -1 AS value, currency, docid
             FROM cash
-            GROUP BY docid
+            GROUP BY docid, currency
         ) v ON (v.docid = d.id)
         LEFT JOIN numberplans n ON (d.numberplanid = n.id)
-        LEFT JOIN (SELECT SUM(value) AS balance, customerid
+        LEFT JOIN (SELECT SUM(value * currencyvalue) AS balance, customerid
             FROM cash
             GROUP BY customerid
         ) ca ON (ca.customerid = d.customerid)
@@ -1378,6 +1596,22 @@ if (empty($types) || in_array('notes', $types)) {
                         );
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    printf(
+                        "[userpanel/notes] %s (%04d): %s" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        $row['doc_number']
+                    );
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    printf(
+                        "[userpanel-urgent/notes] %s (%04d): %s" . PHP_EOL,
+                        $row['name'],
+                        $row['id'],
+                        $row['doc_number']
+                    );
+                }
             }
 
             if (!$debug) {
@@ -1399,6 +1633,14 @@ if (empty($types) || in_array('notes', $types)) {
                     foreach ($recipient_phones as $recipient_phone) {
                         send_sms($msgid, $row['id'], $recipient_phone, $message);
                     }
+                }
+                if (in_array('userpanel', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel'));
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL_URGENT, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel urgent'));
                 }
             }
         }
@@ -1422,7 +1664,7 @@ if (empty($types) || in_array('warnings', $types)) {
             WHERE (type & ?) = ?
             GROUP BY customerid
         ) x ON (x.customerid = c.id)
-        LEFT JOIN (SELECT SUM(value) AS balance, customerid
+        LEFT JOIN (SELECT SUM(value * currencyvalue) AS balance, customerid
             FROM cash
             GROUP BY customerid
         ) ca ON (ca.customerid = c.id)
@@ -1469,6 +1711,20 @@ if (empty($types) || in_array('warnings', $types)) {
                         );
                     }
                 }
+                if (in_array('userpanel', $channels)) {
+                    printf(
+                        "[userpanel/warnings] %s (%04d)" . PHP_EOL,
+                        $row['name'],
+                        $row['id']
+                    );
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    printf(
+                        "[userpanel-urgent/warnings] %s (%04d)" . PHP_EOL,
+                        $row['name'],
+                        $row['id']
+                    );
+                }
             }
 
             if (!$debug) {
@@ -1490,6 +1746,14 @@ if (empty($types) || in_array('warnings', $types)) {
                     foreach ($recipient_phones as $recipient_phone) {
                         send_sms($msgid, $row['id'], $recipient_phone, $message);
                     }
+                }
+                if (in_array('userpanel', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel'));
+                }
+                if (in_array('userpanel-urgent', $channels)) {
+                    $msgid = create_message(MSG_USERPANEL_URGENT, $subject, $message);
+                    send_to_userpanel($msgid, $row['id'], trans('userpanel urgent'));
                 }
             }
         }
@@ -1699,6 +1963,20 @@ if (in_array('www', $channels) && (empty($types) || in_array('messages', $types)
                     parse_node_data($notifications['messages']['rule'], $node)
                 ));
             }
+        }
+        if (!$debug) {
+            $DB->Execute(
+                "UPDATE messageitems
+                SET status = ?
+                WHERE messageid IN (
+                    SELECT id FROM messages WHERE type = ? AND status = ?
+                )",
+                array(
+                    MSG_SENT,
+                    MSG_WWW,
+                    MSG_NEW,
+                )
+            );
         }
     }
 
