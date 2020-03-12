@@ -4603,3 +4603,11 @@ $_LANG['Ticket has already been assigned to other user in mean-time. Are you sur
 
 $_LANG['Enter document memo (optional)'] = 'Wprowadź notatkę widoczną na dokumentach (opcjonalnie)';
 $_LANG['Memo:'] = 'Notatka:';
+
+$_LANG['close event'] = 'zamknij zdarzenie';
+
+$_LANG['Tax category:'] = 'Kategoria podatkowa:';
+$_LANG['Select tax category'] = 'Wybierz kategorię podatkową';
+$_LANG['Tax category selection is required!'] = 'Wymagany wybór kategorii podatkowej!';
+
+$_LANG['TERRIT address is required!'] = 'Wymagany adres zgodny z TERYT!';

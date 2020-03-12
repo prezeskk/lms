@@ -73,6 +73,7 @@ if (isset($_GET['id']) && ($action == 'edit' || $action == 'init')) {
             's_valuebrutto' => str_replace(',', '.', $item['total']),
             'tax' => isset($taxeslist[$item['taxid']]) ? $taxeslist[$item['taxid']]['label'] : '',
             'taxid' => $item['taxid'],
+            'taxcategory' => $item['taxcategory'],
         );
     }
 
@@ -156,15 +157,49 @@ switch ($action) {
 
         unset($itemdata['invoice-contents']);
 
-        $itemdata['discount'] = str_replace(',', '.', $itemdata['discount']);
+        $error_index = $action == 'savepos' ? 'invoice-contents[' . $posuid . '][%variable]' : '%variable';
+
+        if (empty($itemdata['name'])) {
+            $error[str_replace('%variable', 'name', $error_index)] = trans('Field cannot be empty!');
+        }
+
+        if (!strlen($itemdata['count'])) {
+            $error[str_replace('%variable', 'count', $error_index)] = trans('Field cannot be empty!');
+        } elseif (!preg_match('/^[0-9]+([\.,][0-9]+)*$/', $itemdata['count'])) {
+            $error[str_replace('%variable', 'count', $error_index)] = trans('Invalid format!');
+        }
+
+        if (empty($itemdata['valuenetto']) && empty($itemdata['valuebrutto'])) {
+            $error[str_replace('%variable', 'valuenetto', $error_index)] = trans('Field cannot be empty!');
+            $error[str_replace('%variable', 'valuebrutto', $error_index)] = trans('Field cannot be empty!');
+        } else {
+            if (strlen($itemdata['valuenetto']) && !preg_match('/^[0-9]+([\.,][0-9]+)*$/', $itemdata['valuenetto'])) {
+                $error[str_replace('%variable', 'valuenetto', $error_index)] = trans('Invalid format!');
+            }
+            if (strlen($itemdata['valuebrutto']) && !preg_match('/^[0-9]+([\.,][0-9]+)*$/', $itemdata['valuebrutto'])) {
+                $error[str_replace('%variable', 'valuebrutto', $error_index)] = trans('Invalid format!');
+            }
+        }
+
+        $itemdata['discount'] = (!empty($itemdata['discount']) ? str_replace(',', '.', $itemdata['discount']) : 0);
         $itemdata['pdiscount'] = 0;
         $itemdata['vdiscount'] = 0;
         if (preg_match('/^[0-9]+(\.[0-9]+)*$/', $itemdata['discount'])) {
             $itemdata['pdiscount'] = ($itemdata['discount_type'] == DISCOUNT_PERCENTAGE ? floatval($itemdata['discount']) : 0);
             $itemdata['vdiscount'] = ($itemdata['discount_type'] == DISCOUNT_AMOUNT ? floatval($itemdata['discount']) : 0);
+        } else {
+            $error[str_replace('%variable', 'discount', $error_index)] =
+                trans('Wrong discount value!');
         }
         if ($itemdata['pdiscount'] < 0 || $itemdata['pdiscount'] > 99.9 || $itemdata['vdiscount'] < 0) {
-            $error['discount'] = trans('Wrong discount value!');
+            $error[str_replace('%variable', 'discount', $error_index)] =
+                trans('Wrong discount value!');
+        }
+
+        if (ConfigHelper::checkConfig('phpui.tax_category_required')
+            && empty($itemdata['taxcategory'])) {
+            $error[str_replace('%variable', 'taxcategory', $error_index)] =
+                trans('Tax category selection is required!');
         }
 
         $hook_data = array(
@@ -178,6 +213,10 @@ switch ($action) {
         }
 
         if (!empty($error)) {
+            $SMARTY->assign('itemdata', $hook_data['itemdata']);
+            if (isset($posuid)) {
+                $error['posuid'] = $posuid;
+            }
             break;
         }
 
@@ -619,6 +658,7 @@ switch ($action) {
                     'itemid' => $itemid,
                     'value' => str_replace(',', '.', $item['valuebrutto']),
                     SYSLOG::RES_TAX => $item['taxid'],
+                    'taxcategory' => $item['taxcategory'],
                     'prodid' => $item['prodid'],
                     'content' => $item['jm'],
                     'count' => str_replace(',', '.', $item['count']),
@@ -628,8 +668,8 @@ switch ($action) {
                     SYSLOG::RES_TARIFF => empty($item['tariffid']) ? null : $item['tariffid'],
                 );
                 $DB->Execute('INSERT INTO invoicecontents (docid, itemid, value,
-					taxid, prodid, content, count, pdiscount, vdiscount, description, tariffid)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', array_values($args));
+					taxid, taxcategory, prodid, content, count, pdiscount, vdiscount, description, tariffid)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', array_values($args));
                 if ($SYSLOG) {
                     $args[SYSLOG::RES_CUST] = $customer['id'];
                     $SYSLOG->AddMessage(SYSLOG::RES_INVOICECONT, SYSLOG::OPER_ADD, $args);
@@ -694,7 +734,7 @@ $SESSION->save('invoicecontents', $contents, true);
 $SESSION->save('invoicecustomer', $customerid, true);
 $SESSION->save('invoiceediterror', $error, true);
 
-if ($action != '') {
+if ($action && !$error) {
     // redirect needed because we don't want to destroy contents of invoice in order of page refresh
     $SESSION->redirect('?m=invoiceedit');
 }

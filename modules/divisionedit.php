@@ -103,12 +103,22 @@ if (!empty($_POST['division'])) {
         $error['account'] = trans('Wrong account number!');
     }
 
+    if ($division['email'] != '' && !check_email($division['email'])) {
+        $error['email'] = trans('E-mail isn\'t correct!');
+    }
+
     if ($division['inv_paytime'] == '') {
         $division['inv_paytime'] = null;
     }
 
     if (!preg_match('/^[0-9]*$/', $division['tax_office_code'])) {
         $error['tax_office_code'] = trans('Invalid format of Tax Office Code!');
+    }
+
+    if (!ConfigHelper::checkPrivilege('full_access') && ConfigHelper::checkConfig('phpui.teryt_required')
+        && !empty($division['location_city_name']) && ($division['location_country_id'] == 2 || empty($division['location_country_id']))
+        && (!isset($division['teryt']) || empty($division['location_city']))) {
+        $error['division[teryt]'] = trans('TERRIT address is required!');
     }
 
     if (!$error) {
@@ -129,7 +139,7 @@ if (!empty($_POST['division'])) {
 
 $layout['pagetitle'] = trans('Edit Division: $a', $olddiv['shortname']);
 
-if ($_language == 'pl') {
+if ($_language == 'pl_PL') {
     require_once(LIB_DIR . DIRECTORY_SEPARATOR . 'tax_office_codes.php');
 }
 

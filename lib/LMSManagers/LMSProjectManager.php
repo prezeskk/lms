@@ -32,12 +32,13 @@ class LMSProjectManager extends LMSManager implements LMSProjectManagerInterface
 {
     public function CleanupProjects()
     {
-        if (ConfigHelper::checkValue(ConfigHelper::getConfig('phpui.auto_remove_investment_project', true))) {
+        if (ConfigHelper::checkConfig('phpui.auto_remove_investment_project')) {
             $this->db->Execute(
                 "DELETE FROM invprojects WHERE type <> ? AND id NOT IN
 				(SELECT DISTINCT invprojectid FROM netdevices WHERE invprojectid IS NOT NULL
 					UNION SELECT DISTINCT invprojectid FROM vnodes WHERE invprojectid IS NOT NULL
-					UNION SELECT DISTINCT invprojectid FROM netnodes WHERE invprojectid IS NOT NULL)",
+					UNION SELECT DISTINCT invprojectid FROM netnodes WHERE invprojectid IS NOT NULL
+					UNION SELECT DISTINCT invprojectid FROM rttickets WHERE invprojectid IS NOT NULL)",
                 array(INV_PROJECT_SYSTEM)
             );
         }
