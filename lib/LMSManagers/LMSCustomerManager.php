@@ -728,11 +728,17 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                 .'AND (a.dateto = 0 OR a.dateto > ?NOW?) AND ((a.at + 86400) > ?NOW? or a.period != 0)';
                 break;
             case -3:
-                $assignment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.invoice = 1 AND a.suspended = 0 AND a.commited = 1 '
-                .'AND (a.dateto = 0 OR a.dateto > ?NOW?) AND ((a.at + 86400) > ?NOW? or a.period != 0)';
+                $assignment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.invoice = ' . DOC_INVOICE
+                    . ' AND a.suspended = 0 AND a.commited = 1
+                    AND (a.dateto = 0 OR a.dateto > ?NOW?) AND ((a.at + 86400) > ?NOW? or a.period != 0)';
                 break;
             case -4:
                 $assignment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.suspended != 0';
+                break;
+            case -5:
+                $assignment = 'SELECT DISTINCT(a.customerid) FROM assignments a WHERE a.invoice = ' . DOC_INVOICE_PRO
+                    . ' AND a.suspended = 0 AND a.commited = 1
+                    AND (a.dateto = 0 OR a.dateto > ?NOW?) AND ((a.at + 86400) > ?NOW? or a.period != 0)';
                 break;
             default:
                 $assignment = null;
@@ -955,26 +961,39 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                 WHERE time < ' . $time . ' GROUP BY customerid) b ON b.customerid = c.id'
                 : 'LEFT JOIN customerbalances b ON b.customerid = c.id')
             . '
-            LEFT JOIN (SELECT a.customerid,
-                SUM((CASE a.suspended
-                WHEN 0 THEN (((100 - a.pdiscount) * (CASE WHEN t.value IS null THEN l.value ELSE t.value END) / 100) - a.vdiscount)
-                ELSE ((((100 - a.pdiscount) * (CASE WHEN t.value IS null THEN l.value ELSE t.value END) / 100) - a.vdiscount) * ' . $suspension_percentage . ' / 100) END)
-                * (CASE t.period
-                WHEN ' . MONTHLY . ' THEN 1
-                WHEN ' . YEARLY . ' THEN 1/12.0
-                WHEN ' . HALFYEARLY . ' THEN 1/6.0
-                WHEN ' . QUARTERLY . ' THEN 1/3.0
-                ELSE (CASE a.period
-                    WHEN ' . MONTHLY . ' THEN 1
-                    WHEN ' . YEARLY . ' THEN 1/12.0
-                    WHEN ' . HALFYEARLY . ' THEN 1/6.0
-                    WHEN ' . QUARTERLY . ' THEN 1/3.0
-                    ELSE 0 END)
-                END)
-                ) AS value
+            LEFT JOIN (
+                SELECT a.customerid,
+                    SUM(
+                        (
+                            CASE a.suspended
+                                WHEN 0 THEN (((100 - a.pdiscount) * (CASE WHEN t.value IS null THEN l.value ELSE t.value END) / 100) - a.vdiscount)
+                                ELSE ((((100 - a.pdiscount) * (CASE WHEN t.value IS null THEN l.value ELSE t.value END) / 100) - a.vdiscount) * ' . $suspension_percentage . ' / 100)
+                            END
+                        ) * (
+                            CASE
+                                WHEN a.period <> ' . DISPOSABLE . ' AND t.period > 0 AND t.period <> a.period THEN (
+                                    CASE t.period
+                                        WHEN ' . YEARLY . ' THEN 1/12.0
+                                        WHEN ' . HALFYEARLY . ' THEN 1/6.0
+                                        WHEN ' . QUARTERLY . ' THEN 1/3.0
+                                        ELSE 1
+                                    END
+                                ) ELSE (
+                                    CASE a.period
+                                        WHEN ' . YEARLY . ' THEN 1/12.0
+                                        WHEN ' . HALFYEARLY . ' THEN 1/6.0
+                                        WHEN ' . QUARTERLY . ' THEN 1/3.0
+                                        WHEN ' . WEEKLY . ' THEN 4.0
+                                        WHEN ' . DAILY . ' THEN 30.0
+                                        ELSE 1
+                                    END
+                                )
+                            END
+                        )
+                    ) AS value
                     FROM assignments a
                     LEFT JOIN tariffs t ON (t.id = a.tariffid)
-                    LEFT JOIN liabilities l ON (l.id = a.liabilityid AND a.period != ' . DISPOSABLE . ')
+                    LEFT JOIN liabilities l ON (l.id = a.liabilityid AND a.period <> ' . DISPOSABLE . ')
                     WHERE a.commited = 1 AND a.datefrom <= ?NOW? AND (a.dateto > ?NOW? OR a.dateto = 0)
                     GROUP BY a.customerid
                 ) t ON (t.customerid = c.id)
@@ -1156,13 +1175,15 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                                         n.linktype, n.linktechnology, n.linkspeed,
                                         ipaddr_pub, n.authtype, inet_ntoa(ipaddr_pub) AS ip_pub,
                                         passwd, access, warning, info, n.ownerid, lastonline, n.location, n.address_id,
+                                        (CASE WHEN addr.city_id IS NOT NULL THEN 1 ELSE 0 END) AS teryt,
                                         (SELECT COUNT(*)
                                         FROM nodegroupassignments
                                         WHERE nodeid = n.id) AS gcount,
                                         n.netid, net.name AS netname
                                      FROM
                                         vnodes n
-                                        JOIN networks net ON net.id = n.netid
+                                     LEFT JOIN addresses addr ON addr.id = n.address_id
+                                     JOIN networks net ON net.id = n.netid
                                         " . ($type == 'netdev' ? '' : 'LEFT ') . "JOIN netdevices nd ON n.netdev = nd.id
                                      WHERE
                                         " . ($type == 'netdev' ? 'nd.ownerid = ? AND n.ownerid IS NULL' : 'n.ownerid = ?') . "
@@ -1662,6 +1683,52 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
         }
     }
 
+    public function determineDefaultCustomerAddress(array &$caddr)
+    {
+        if (empty($caddr)) {
+            return null;
+        }
+
+        foreach ($caddr as $k => &$v) {
+            if (empty($v['location'])) {
+                unset($caddr[$k]);
+                continue;
+            } elseif ($v['teryt']) {
+                $v['location'] = trans('$a (TERRIT)', $v['location']);
+            }
+
+            switch ($v['location_address_type']) {
+                case BILLING_ADDRESS:
+                    $billing_address = $k;
+                    break;
+                case LOCATION_ADDRESS:
+                    if (isset($location_address)) {
+                        $location_address = 0;
+                        break;
+                    }
+                    $location_address = $k;
+                    break;
+                case DEFAULT_LOCATION_ADDRESS:
+                    $default_location_address = $k;
+                    break;
+            }
+
+            $v['location'] = (empty($v['location_name']) ? '' : $v['location_name'] . ', ') . $v['location'];
+        }
+        unset($v);
+
+        if (isset($default_location_address)) {
+            $caddr[$default_location_address]['default_address'] = true;
+            return $default_location_address;
+        } elseif (isset($location_address) && !empty($location_address)) {
+            $caddr[$location_address]['default_address'] = true;
+            return $location_address;
+        } else {
+            $caddr[$billing_address]['default_address'] = true;
+            return $billing_address;
+        }
+    }
+
     /**
      * Returns all customer addresses.
      *
@@ -1689,7 +1756,8 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
                                           LEFT JOIN vaddresses addr       ON addr.id = ca.address_id
                                        WHERE
                                           cv.id = ?' .
-                                          (($hide_deleted) ? ' AND cv.deleted != 1' : ''),
+                                          (($hide_deleted) ? ' AND cv.deleted != 1' : '')
+                                            . ' ORDER BY LOWER(addr.city), LOWER(addr.street)',
             'address_id',
             array( $id )
         );
@@ -1735,21 +1803,26 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
     public function getAddressForCustomerStuff($customer_id)
     {
         $addresses = $this->db->GetAllByKey('SELECT
-                                                ca.type, addr.location
+                                                ca.type, addr.location,
+                                                (CASE WHEN addr.city_id IS NOT NULL THEN 1 ELSE 0 END) AS teryt
                                              FROM customer_addresses ca
                                                 LEFT JOIN vaddresses addr ON ca.address_id = addr.id
                                              WHERE
                                                 ca.customer_id = ?', 'type', array($customer_id));
 
+        $address = null;
+
         if (isset($addresses[DEFAULT_LOCATION_ADDRESS])) {
-            return $addresses[DEFAULT_LOCATION_ADDRESS]['location'];
+            $address = $addresses[DEFAULT_LOCATION_ADDRESS];
+        } elseif (isset($addresses[BILLING_ADDRESS])) {
+            $address = $addresses[BILLING_ADDRESS];
         }
 
-        if (isset($addresses[BILLING_ADDRESS])) {
-            return $addresses[BILLING_ADDRESS]['location'];
+        if (isset($address)) {
+            $address = (empty($address['teryt']) ? $address['location'] : trans('$a (TERRIT)', $address['location']));
         }
 
-        return null;
+        return $address;
     }
 
     public function getFullAddressForCustomerStuff($customer_id)
@@ -1770,6 +1843,11 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
         }
 
         return null;
+    }
+
+    public function isTerritAddress($address_id)
+    {
+        return $this->db->GetOne('SELECT id FROM addresses WHERE city_id IS NOT NULL AND street_id IS NOT NULL') > 0;
     }
 
     public function GetCustomerContacts($id, $mask = null)
@@ -1839,6 +1917,7 @@ class LMSCustomerManager extends LMSManager implements LMSCustomerManagerInterfa
             'queue' => 'sms-customers.queue',
             'fast' => 'sms-customers.fast',
             'from' => 'sms-customers.from',
+            'phone_number_validation_pattern' => 'sms-customers.phone_number_validation_pattern',
         );
 
         foreach ($variable_mapping as $option_name => $variable_name) {

@@ -240,6 +240,11 @@ if (isset($_POST['nodedata'])) {
         $nodedata['halfduplex'] = 0;
     }
 
+    if (!ConfigHelper::checkPrivilege('full_access') && ConfigHelper::checkConfig('phpui.teryt_required')
+        && !empty($nodedata['address_id']) && !$LMS->isTerritAddress($nodedata['address_id'])) {
+        $error['address_id'] = trans('TERRIT address is required!');
+    }
+
     if ($nodedata['invprojectid'] == '-1') { // nowy projekt
         if (!strlen(trim($nodedata['projectname']))) {
             $error['projectname'] = trans('Project name is required');
@@ -327,6 +332,7 @@ if (isset($_POST['nodedata'])) {
 
     // check if customer address is selected or if default location address exists
     // if both are not fullfilled we generate user interface warning
+/*
     if (isset($_GET['ownerid'])) {
         $addresses = $LMS->getCustomerAddresses($_GET['ownerid'], true);
         if (count($addresses) > 1) {
@@ -342,6 +348,7 @@ if (isset($_POST['nodedata'])) {
             }
         }
     }
+*/
 }
 
 if (empty($nodedata['macs'])) {
@@ -379,6 +386,12 @@ $hook_data = $LMS->executeHook(
 $nodedata = $hook_data['nodeadd'];
 
 $SMARTY->assign('xajax', $LMS->RunXajax());
+
+if (!empty($nodedata['ownerid'])) {
+    $addresses = $LMS->getCustomerAddresses($nodedata['ownerid']);
+    $LMS->determineDefaultCustomerAddress($addresses);
+    $SMARTY->assign('addresses', $addresses);
+}
 
 $SMARTY->assign('networks', $LMS->GetNetworks(true));
 $SMARTY->assign('netdevices', $LMS->GetNetDevNames());

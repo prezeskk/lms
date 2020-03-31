@@ -109,7 +109,7 @@
 							{foreach $customerinfo.addresses as $v}
 								{if $v.location_address_type == $smarty.const.POSTAL_ADDRESS}
 								<tr>
-									<td style="width: 1%;"><img src="img/post.gif" alt="" title="{trans('postal address')}"></td>
+									<td style="width: 1%;"><i class="lms-ui-icon-mail fa-fw" title="{trans('postal address')}"></i></td>
 									<td style="width: 99%;">
 										<span title="{trans('postal address')}">{if $v.location_name}{$v.location_name}, {/if}{if $v.teryt}{t a=$v.location}$a (TERRIT){/t}{else}{$v.location}{/if}
 											<a href="https://www.google.com/maps/place/{$v.location}" title="{trans("Google Maps")}"><i class="lms-ui-icon-location"></i></a>
@@ -124,15 +124,15 @@
 								{if $v.location_address_type != $smarty.const.BILLING_ADDRESS && $v.location_address_type != $smarty.const.POSTAL_ADDRESS}
 								<tr>
 									{if $v.location_address_type == $smarty.const.DEFAULT_LOCATION_ADDRESS}
-										{$icon  = 'img/pin_blue.png'}
+										{$icon  = 'lms-ui-icon-default-customer-location fa-fw'}
 										{$title = trans('default location address')}
 									{else}
-										{$icon  = 'img/location.png'}
+										{$icon  = 'lms-ui-icon-customer-location fa-fw'}
 										{$title = trans('location/recipient address')}
 									{/if}
 
 									<td style="width: 1%;">
-										<img src="{$icon}" alt="" title="{$title}">
+										<i class="{$icon}" alt="" title="{$title}"></i>
 									</td>
 									<td style="width: 99%;">
 										<span title="{$title}">{if $v.location_name}{$v.location_name}, {/if}{if $v.teryt}{t a=$v.location}$a (TERRIT){/t}{else}{$v.location}{/if}
@@ -498,17 +498,22 @@
 				{/if}
 				{button id="restore-button" icon="restore" label="Restore" onclick="location.href = '?m=customeredit&id={$customerinfo.id}&action=recover';"}
 			{else}
-				{button id="rtsearch-button" class="{if $customerstats['tickets']['notresolved']}bold{/if}" icon="timetable" label="{trans("Tickets")}{if $customerstats['tickets']} ({$customerstats['tickets']['all']}{if $customerstats['tickets']['notresolved']} / {$customerstats['tickets']['notresolved']}{/if}){/if}" onclick="location.href = '?m=rtsearch&id={$customerinfo.id}';"}
-				{button id="accounts-button" icon="lms-ui-icon-customer" label="{trans("Accounts")} ({$customerstats['accounts']})" onclick="location.href = '?m=accountlist&u={$customerinfo.id}';"}
-				{button id="domains-button" icon="network" label="{trans("Domains")} ({$customerstats['domains']})" onclick="location.href = '?m=domainlist&c={$customerinfo.id}';"}
-				{button id="stats-button" icon="lms-ui-icon-stats" label="Stats" onclick="window.open('?m=trafficprint&type=customertraffic&customer={$customerinfo.id}', '_blanc');"}
-				{button id="edit-button" icon="edit" label="Edit" onclick="location.href = '?m=customeredit&id={$customerinfo.id}';"}
+				{button type="link-button" id="rtsearch-button" class="{if $customerstats['tickets']['notresolved']}bold{/if}" icon="timetable"
+					label="{trans("Tickets")}{if $customerstats['tickets']} ({$customerstats['tickets']['all']}{if $customerstats['tickets']['notresolved']} / {$customerstats['tickets']['notresolved']}{/if}){/if}"
+					href="?m=rtsearch&id={$customerinfo.id}"}
+				{button type="link-button" id="accounts-button" icon="lms-ui-icon-customer" label="{trans("Accounts")} ({$customerstats['accounts']})"
+					href="?m=accountlist&u={$customerinfo.id}"}
+				{button type="link-button" id="domains-button" icon="network"
+					label="{trans("Domains")} ({$customerstats['domains']})" href="?m=domainlist&c={$customerinfo.id}"}
+				{button type="link-button" id="stats-button" icon="lms-ui-icon-stats" label="Stats"
+					href="?m=trafficprint&type=customertraffic&customer={$customerinfo.id}"}
+				{button type="link-button" id="edit-button" icon="edit" label="Edit" href="?m=customeredit&id={$customerinfo.id}"}
 				{if ConfigHelper::checkPrivilege('customer_removal')}
 					{button id="delete-button" icon="delete" label="Delete" onclick="location.href = '?m=customerdel&id={$customerinfo.id}';"}
 				{/if}
 			{/if}
 			{if $info_link}
-				{button id="info-button" icon="info" label="Info" onclick="location.href = '?m=customerinfo&id={$customerinfo.id}';"}
+				{button type="link-button" id="info-button" icon="info" label="Info" href="?m=customerinfo&id={$customerinfo.id}"}
 			{/if}
 			{/block}
 		</TD>

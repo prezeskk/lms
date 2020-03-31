@@ -141,6 +141,10 @@ if (isset($netnodedata)) {
         echo json_encode($error);
         die;
     }
+
+    if (!empty($netnodedata['ownerid'])) {
+        $netnodedata['address_id'] = $netnodedata['customer_address_id'];
+    }
 } else {
     $netnodedata = $LMS->GetNetNode($id);
 
@@ -157,6 +161,12 @@ if ($subtitle) {
 
 if (!ConfigHelper::checkConfig('phpui.big_networks')) {
     $SMARTY->assign('customers', $LMS->GetCustomerNames());
+}
+
+if (!empty($netnodedata['ownerid'])) {
+    $addresses = $LMS->getCustomerAddresses($netnodedata['ownerid']);
+    $LMS->determineDefaultCustomerAddress($addresses);
+    $SMARTY->assign('addresses', $addresses);
 }
 
 $SMARTY->assign('error', $error);

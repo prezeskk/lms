@@ -25,7 +25,7 @@
  */
 
 // modules with access for everyone
-$global_access_regexp = '^(welcome|copyrights|logout|chpasswd|twofactorauth(info|edit)|quicksearch|calendar|persistentsetting|zipcode|indicators|dns)$';
+$global_access_regexp = '^(welcome|copyrights|logout|chpasswd|twofactorauth(info|edit)|quicksearch|calendar|persistentsetting|zipcode|indicators|dns|configinfo)$';
 
 $access_table = array(
     'full_access' => array(
@@ -83,7 +83,7 @@ $access_table = array(
     ),
     'node_management' => array(
         'label' => trans('nodes management'),
-        'allow_regexp' => '^(node(add|info|infoshort|list|listshort|scan|search|del|edit|print|warn|sessionlist)|choose(mac|ip|location|gpscoords|netdevice)|ping)$',
+        'allow_regexp' => '^(node(add|info|infoshort|list|listshort|scan|search|del|edit|print|warn|sessionlist)|choose(mac|ip|location|gpscoords|netdevice)|ping)|customeraddresses$',
     ),
     'traffic_stats' => array(
         'label' => trans('traffic stats'),
@@ -121,6 +121,10 @@ $access_table = array(
     'timetable_management' => array(
         'label' => trans('timetable management'),
         'allow_regexp' => '^(event(list|edit|add|del|info|print|search|note|schedule)|choosecustomer)$',
+    ),
+    'project_management' => array(
+        'label' => trans('investment project management'),
+        'allow_regexp' => '^invproject(add|del|edit|list)$',
     ),
     'daemon_management' => array(
         'label' => trans('daemon management and configuration'),

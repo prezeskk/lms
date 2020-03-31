@@ -12,7 +12,7 @@
 	</TD>
 	<TD class="text-center" style="background:transparent; color:{$_RT_STATES[$ticket.state].color};">
 		<span class="lms-ui-tooltip-rtticketinfo" data-resourceid="{$ticket.id}">
-			{$_RT_STATES[$ticket.state].label}<br>{if $ticket.priority != 0}<span {if $ticket.state != $smarty.const.RT_RESOLVED}style="color:black"{/if}>{$_RT_PRIORITIES[$ticket.priority]}</span>{/if}
+			{$_RT_STATES[$ticket.state].label}<br>{if $ticket.priority != 0}<span {if $ticket.state != $smarty.const.RT_RESOLVED}style="color:black"{/if}>{$_RT_PRIORITIES[$ticket.priority]}</span>{/if}{if !empty($ticket.verifiername && $ticket.state == 7)}({$ticket.verifiername}){/if}
 		</span>
 	</TD>
 	<TD class="nobr">
@@ -31,8 +31,8 @@
 	</TD>
 	<TD class="nobr valign-middle">
 		<span class="bold">{$ticket.subject|escape|truncate:"100":"..."|default:"&nbsp;"}</span>
-		{foreach $ticket.categories as $ticketcategory}
-		<span {if $ticketcategory.style != ''} style="{$ticketcategory.style}"{else} style="{$_CATEGORY_DEFAULT_STYLE}"{/if}>{$ticketcategory.name}</span>
+		{foreach $ticket.categories as $tc}
+		<span style="{if $tc.style != ''}{$tc.style}{else}{$_CATEGORY_DEFAULT_STYLE}{/if}"><a href="/?m=rtqueueview&persistent-filter=-1&catid={$tc.categoryid}&s=-1&priority=all&unread=-1&o=lastmodified,desc">{$tc.name}</a></span>
 		{/foreach}
 		{if $ticket.customerid}
 			<br>
@@ -67,13 +67,13 @@
 	</TD>
 	<TD class="nobr text-center">
 		{if $ticket.deadline}
-			{if $ticket.deadline_diff < 0}
+			{if $ticket.deadline_diff < 0 && $ticket.state != $smarty.const.RT_RESOLVED}
 				<span class="lms-ui-important-box" {tip text="{$ticket.deadline_days} {trans("days")} {$ticket.deadline_hours} {trans("<!rt>hours")}"}>{trans("<!rt>Expired")}</span>
 			{else}
 				{$ticket.deadline_days} {trans("days")} {$ticket.deadline_hours} {trans("<!rt>hours")}
 			{/if}
-
-		{else}-
+		{else}
+			-
 		{/if}
 	</TD>
 	<TD class="nobr">
@@ -109,6 +109,7 @@
 		<A href="?m=rtticketprint&id={$ticket.id}" target="_BLANK">
 			<img src="img/print.gif" alt="" title="{trans("Print")}">
 		</A>
+		{button type="link" icon="clone" href="?m=rtticketadd&ticketid={$ticket.id}" tip="Clone"}
 		{if $ticket.deleted == 1 && $ticket.deltime != 0 && (ConfigHelper::checkPrivilege('helpdesk_advanced_operations'))}
 			<A class="restore-ticket" href="?m=rtrestore&id={$ticket.id}&taction=restore">
 				<img src="img/reload.gif" alt="" title="{trans("Restore<!RT>")}">

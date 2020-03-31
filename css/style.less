@@ -432,8 +432,7 @@ INPUT[type="number"],
 INPUT[type="tel"],
 INPUT[type="password"],
 INPUT[type="submit"],
-INPUT[type="button"],
-INPUT[type="file"] {
+INPUT[type="button"] {
 	border: solid 1px black;
 	background-color: @lucid;
 }
@@ -1037,6 +1036,25 @@ li.lms-ui-suggestion-item {
 	text-align: center;
 }
 
+.lms-ui-icon-map-pin {
+	.fa-icon;
+	.fas;
+	.lms-ui-icon;
+	&:before {
+		content: @fa-var-map-pin;
+	}
+}
+
+.lms-ui-icon-customer-location {
+	.lms-ui-icon-map-pin;
+	color: red;
+}
+
+.lms-ui-icon-default-customer-location {
+	.lms-ui-icon-map-pin;
+	color: blue;
+}
+
 .lms-ui-icon-sticky-note,
 .lms-ui-icon-memo {
 	.fa-icon;
@@ -1433,6 +1451,7 @@ li.lms-ui-suggestion-item {
 	}
 }
 
+.lms-ui-icon-help,
 .lms-ui-icon-info,
 .lms-ui-icon-details {
 	.fa-icon;
@@ -1922,6 +1941,15 @@ li.lms-ui-suggestion-item {
         }
 }
 
+.lms-ui-icon-childticket {
+        .fa-icon;
+        .fas;
+        .lms-ui-icon;
+        &:before {
+                content: @fa-var-arrow-circle-down;
+        }
+}
+
 .lms-ui-icon-parentticket {
 	.fa-icon;
 	.fas;
@@ -2217,6 +2245,12 @@ a {
 }
 
 button,a,div {
+	&.lms-ui-button-status-resolved {
+		& > i {
+			.lms-ui-icon-status-resolved;
+		}
+	}
+
 	&.lms-ui-button-netnode {
 		& > i {
 			.lms-ui-icon-netnode;
@@ -2470,7 +2504,7 @@ div.lms-ui-button-fileupload-container {
 	padding-bottom: 3px;
 }
 
-a[class*="lms-ui-button-"] {
+a[class*="lms-ui-button-"]:not([class="lms-ui-link-button"]) {
 	> i:before {
 		color: black;
 	}
@@ -2526,9 +2560,9 @@ table.lmsbox {
 				background-position: left 0.5em;
 				background-size: 3px 1px;
 				background-repeat: repeat-x;
-				padding: 1em 0.5em 0.25em 0.5em;
-				.lms-ui-button {
-					margin-bottom: 0.25em;
+				padding: 1em 0.5em 0.5em 0.5em;
+				& > *:not(:first-child) {
+					margin-left: 0.3em;
 				}
 			}
 		}
@@ -2585,17 +2619,24 @@ table.lmsbox {
 	}
 }
 
-table.lmsbox > thead {
-	text-align: left;
-}
-
 table.lmsbox {
+	> thead {
+		text-align: left;
+	}
 	&,
 	&-inner {
 		& > tfoot {
 			background-color: @light;
 		}
 		&.lms-ui-background-cycle > tbody > tr {
+			&.lms-ui-distinguished-row {
+				font-weight: bold;
+				background-color: @dark !important;
+				border-top-width: 1pt;
+				border-top-style: solid;
+				border-bottom-width: 1pt !important;
+				border-bottom-style: solid !important;
+			}
 			&.highlight:hover {
 				background-color: @highlight !important;
 			}
@@ -2690,6 +2731,29 @@ table.lmsbox.lms-ui-background-cycle > tbody > tr {
 		}
 		&:nth-child(odd) {
 			background-image: repeating-linear-gradient(145deg, transparent, transparent 10px, @red-lucid 10px, @red-lucid 20px);
+		}
+	}
+}
+
+table.lmsbox {
+	.lmsbox-panels {
+		width: 100%;
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-start;
+		align-items: flex-start;
+		flex-wrap: wrap;
+
+		> .lmsbox-panel {
+			flex-grow: 1;
+			&:last-child {
+				margin-right: 2em;
+			}
+			@media screen and (min-width: 470px) {
+				&:last-child {
+					margin-right: 7em;
+				}
+			}
 		}
 	}
 }
@@ -3135,6 +3199,9 @@ table.dataTable {
 		color: white;
 		background-color: #4a90d9 !important;
 	}
+	[class*="lms-ui-icon"] {
+		padding-right: 0.5em;
+	}
 }
 
 .ui-tooltip.lms-ui-tooltip-nodelist {
@@ -3406,6 +3473,35 @@ table.dataTable {
 	}
 }
 
+.chosen-container-multi {
+	.chosen-choices {
+		color: black;
+		background-color: @lucid;
+		background-image: none;
+		line-height: normal;
+		border-radius: unset;
+		div {
+			b {
+				background-position-x: 6px;
+				background-position-y: -2px;
+			}
+		}
+		li.search-choice {
+			background-color: @light;
+			background-image: none;
+			font-weight: bold;
+			border: 1px solid @darkbrown;
+		}
+	}
+	&.lms-ui-error .chosen-choices {
+		color: @error-text;
+		background-color: @error-background;
+	}
+	.chosen-drop .result-selected {
+		color: @blend;
+	}
+}
+
 div.lms-ui-filter-container {
 	display: flex;
 	justify-content: space-between;
@@ -3636,14 +3732,17 @@ div.lms-ui-wysiwyg-editor {
 		}
 	}
 	.lms-ui-box-buttons {
-		align-self: flex-end;
-		display: inline-flex;
+		align-self: stretch;
 		flex-direction: row;
 		justify-content: flex-end;
 		align-items: center;
-		padding-right: 0.75em;
-		& > * {
-			margin: 0.25em;
+		background-image: linear-gradient(to right, black 33%, rgba(255,255,255,0) 0%);
+		background-position: left 0.5em;
+		background-size: 3px 1px;
+		background-repeat: repeat-x;
+		padding: 1em 0.5em 0.5em 0.5em;
+		& > *:not(:first-child) {
+			margin-left: 0.3em;
 		}
 	}
 }
@@ -3903,3 +4002,5 @@ table.lms-ui-mac-address-selection {
 #lms-ui-modal-dialog li.message {
 	font-weight: bold;
 }
+
+@import "less/style-list";

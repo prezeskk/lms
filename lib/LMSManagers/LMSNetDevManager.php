@@ -353,9 +353,9 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
             $this->db->Execute(
                 'UPDATE netdevices SET address_id = ? WHERE id = ?',
                 array(
-                                    ($data['customer_address_id'] >= 0 ? $data['customer_address_id'] : null),
-                                    $data['id']
-                                    )
+                    ($data['customer_address_id'] >= 0 ? $data['customer_address_id'] : null),
+                    $data['id']
+                )
             );
         } else {
             if (!$data['address_id'] || $data['address_id'] && $this->db->GetOne('SELECT 1 FROM customer_addresses WHERE address_id = ?', array($data['address_id']))) {
@@ -427,7 +427,7 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
             'netnodeid'        => $data['netnodeid'],
             'status'           => empty($data['status']) ? 0 : $data['status'],
             'netdevicemodelid' => null,
-            'address_id'       => ($data['address_id'] >= 0 ? $data['address_id'] : null),
+            'address_id'       => !empty($data['ownerid']) && $data['customer_address_id'] > 0 ? $data['customer_address_id'] : null,
             'ownerid'          => !empty($data['ownerid'])  ? $data['ownerid']    : null
         );
 
@@ -462,11 +462,9 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
 
                 $address_id = $LMS->InsertAddress($data);
 
-                if ($address_id >= 0) {
+                if (!empty($address_id)) {
                     $this->db->Execute('UPDATE netdevices SET address_id = ? WHERE id = ?', array($address_id, $id));
                 }
-            } else if ($data['address_id'] && $data['address_id'] >= 0) {
-                $this->db->Execute('UPDATE netdevices SET address_id = ? WHERE id = ?', array($data['address_id'], $id));
             }
 
             // EtherWerX support (devices have some limits)
@@ -623,6 +621,9 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
                             break;
                         case 101:
                             $where[] = '(no.lastonline IS NOT NULL AND (?NOW? - no.lastonline) <= ' . intval(ConfigHelper::getConfig('phpui.lastonline_limit')) . ')';
+                            break;
+                        case 102:
+                            $where[] = 'd.id NOT IN (SELECT DISTINCT src FROM netlinks) AND d.id NOT IN (SELECT DISTINCT dst FROM netlinks)';
                             break;
                         default:
                             $where[] = 'd.status = ' . intval($value);
@@ -825,6 +826,10 @@ class LMSNetDevManager extends LMSManager implements LMSNetDevManagerInterface
 				LEFT JOIN location_districts ld    ON (ld.id = lb.districtid)
 				LEFT JOIN location_states ls       ON (ls.id = ld.stateid)
 			WHERE d.id = ?', array($id));
+
+        if (!empty($result['location_city'])) {
+            $result['teryt'] = 1;
+        }
 
         // if location is empty and owner is set then heirdom address from owner
         if (!$result['location'] && $result['ownerid']) {

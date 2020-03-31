@@ -82,7 +82,7 @@
 		</TD>
 		<TD>
 			<SELECT size="1" name="search[owner]" {tip text="Select user/owner of the ticket"}>
-				<OPTION value="0">{trans("- all owners -")}</OPTION>
+				<OPTION value="all">{trans("- all owners -")}</OPTION>
 				{foreach $userlist as $item}
 				<OPTION value="{$item.id}" {if $item.id == $search.owner}SELECTED{/if}>{$item.rname}</OPTION>
 				{/foreach}
@@ -177,13 +177,7 @@
 			{trans("Categories:")}
 		</TD>
 		<TD class="nobr">
-			{foreach $categories as $category}
-			<label>
-				<INPUT type="checkbox" name="search[categories][{$category.id}]" value="1"{if $category.checked > 0} checked{/if}>
-				{$category.name}
-			</label>
-			{if !$category@last}<br>{/if}
-			{/foreach}
+			{include file="rt/rtcategoryselection.html" name_prefix="search[categories]" categories=$categories}
 		</TD>
 	</TR>
 	{if ConfigHelper::checkPrivilege('helpdesk_advanced_operations')}

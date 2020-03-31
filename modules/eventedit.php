@@ -55,7 +55,7 @@ if (isset($_GET['action'])) {
 if (isset($_GET['id'])) {
     $event = $LMS->GetEvent($_GET['id']);
     if (!empty($event['ticketid'])) {
-        $event['ticket'] = $LMS->GetTicketContents($event['ticketid'], true);
+        $event['ticket'] = $LMS->getTickets($event['ticketid']);
     }
 
     if (empty($event['enddate'])) {
@@ -187,7 +187,7 @@ if (isset($_POST['event'])) {
         $event['begintime'] = $begintime;
         $event['enddate'] = $enddate;
         $event['endtime'] = $endtime;
-        $event['helpdesk'] = isset($event['helpdesk']) ? $event['ticketid'] : null;
+        $event['helpdesk'] = $event['ticketid'] ?: null;
         $LMS->EventUpdate($event);
 
         $hook_data = $LMS->executeHook(
@@ -200,6 +200,10 @@ if (isset($_POST['event'])) {
 
         $SESSION->redirect('?m=eventlist'
             . ($SESSION->is_set('backid') ? '#' . $SESSION->get('backid') : ''));
+    } else {
+        if (!empty($event['ticketid'])) {
+            $event['ticket'] = $LMS->getTickets($event['ticketid']);
+        }
     }
 } else {
     $event['overlapwarned'] = 0;
@@ -211,11 +215,16 @@ $SESSION->save('backto', $_SERVER['QUERY_STRING']);
 
 $usergroups = $DB->GetAll('SELECT id, name FROM usergroups');
 
-if (isset($event['customerid']) || intval($event['customerid'])) {
-    $SMARTY->assign('nodes', $LMS->GetNodeLocations(
-        $event['customerid'],
-        isset($event['address_id']) && intval($event['address_id']) > 0 ? $event['address_id'] : null
-    ));
+if (isset($event['customerid']) && intval($event['customerid'])) {
+    $addresses = $LMS->getCustomerAddresses($event['customerid']);
+    $address_id = $LMS->determineDefaultCustomerAddress($addresses);
+    if (isset($event['address_id']) && intval($event['address_id']) > 0) {
+        $nodes = $LMS->GetNodeLocations($event['customerid'], $event['address_id']);
+    } else {
+        $nodes = $LMS->GetNodeLocations($event['customerid'], $address_id);
+    }
+    $SMARTY->assign('addresses', $addresses);
+    $SMARTY->assign('nodes', $nodes);
 }
 
 if (!isset($event['usergroup'])) {

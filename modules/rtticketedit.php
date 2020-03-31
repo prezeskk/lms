@@ -121,10 +121,6 @@ if ($id && !isset($_POST['ticket'])) {
                 $SESSION->redirect('?m=rtqueueview'
                     . ($SESSION->is_set('backid') ? '#' . $SESSION->get('backid') : ''));
                 break;
-            case 'unlink':
-                $LMS->TicketChange($id, array('parentid' => null));
-                $SESSION->redirect('?m=rtticketedit&id=' . $id);
-                break;
             case 'resolve':
                 $LMS->TicketChange($id, array('state' => RT_RESOLVED));
 
@@ -255,8 +251,6 @@ if (empty($categories)) {
     $categories = array();
 }
 
-$ticket['relatedtickets'] = $LMS->GetRelatedTicketIds($id);
-
 if (isset($_POST['ticket'])) {
     $ticketedit = $_POST['ticket'];
     $ticketedit['ticketid'] = $ticket['ticketid'];
@@ -344,6 +338,10 @@ if (isset($_POST['ticket'])) {
     $ticketedit = $hook_data['ticketedit'];
     $error = $hook_data['error'];
 
+    if (!empty($ticketedit['categories'])) {
+        $ticketedit['categories'] = array_flip($ticketedit['categories']);
+    }
+
     if (!$error) {
         // setting status and the ticket owner
         $props = array(
@@ -374,6 +372,7 @@ if (isset($_POST['ticket'])) {
             'requestor_phone' => !empty($ticketedit['requestor_userid']) || $ticketedit['requestor_userid'] == ''
                 || empty($ticketedit['requestor_phone']) ? null : $ticketedit['requestor_phone'],
             'parentid' => empty($ticketedit['parentid']) ? null : $ticketedit['parentid'],
+            'relatedtickets' => $ticketedit['relatedtickets'],
         );
         $LMS->TicketChange($ticketedit['ticketid'], $props);
 
@@ -510,18 +509,23 @@ if (isset($_POST['ticket'])) {
     $ticket['requestor_phone'] = $ticketedit['requestor_phone'];
     $ticket['parentid'] = $ticketedit['parentid'];
     $ticket['categorywarn'] = $ticketedit['categorywarn'];
+
+    if (!empty($ticketedit['relatedtickets'])) {
+        $ticket['relatedtickets'] = $LMS->getTickets($ticketedit['relatedtickets']);
+    }
+    if (!empty($ticketedit['parentid'])) {
+        $ticket['parent'] = $LMS->getTickets($ticketedit['parentid']);
+    }
 } else {
     $ticketedit['categories'] = $ticket['categories'];
 
     $ticketedit['categorywarn'] = 0;
 }
 
-$ncategories = array();
-foreach ($categories as $category) {
+foreach ($categories as &$category) {
     $category['checked'] = isset($ticketedit['categories'][$category['id']]);
-    $ncategories[] = $category;
 }
-$categories = $ncategories;
+unset($category);
 
 $layout['pagetitle'] = trans('Ticket Edit: $a', sprintf("%06d", $ticket['ticketid']));
 
@@ -567,6 +571,12 @@ $hook_data = $LMS->executeHook(
     )
 );
 $ticket = $hook_data['ticket'];
+
+if (!empty($ticket['customerid'])) {
+    $addresses = $LMS->getCustomerAddresses($ticket['customerid']);
+    $LMS->determineDefaultCustomerAddress($addresses);
+    $SMARTY->assign('addresses', $addresses);
+}
 
 $SMARTY->assign('ticket', $ticket);
 $SMARTY->assign('customerid', $ticket['customerid']);

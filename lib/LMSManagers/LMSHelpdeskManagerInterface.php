@@ -125,7 +125,11 @@ interface LMSHelpdeskManagerInterface
 
     public function CheckTicketAccess($ticketid);
 
-    public function GetRelatedTicketIds($ticketid);
+    public function GetRelatedTickets($ticketid);
+
+    public function GetChildTickets($ticketid);
+
+    public function getTickets($ticketids);
 
     public function GetTicketParentID($ticketid);
 

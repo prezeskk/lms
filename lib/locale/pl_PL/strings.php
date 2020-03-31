@@ -24,6 +24,10 @@
  *  $Id$
  */
 
+$_LANG['link technologies'] = 'technologie łącza';
+$_LANG['service types'] = 'typy usług';
+$_LANG['<!uke-income>Service type'] = 'Typ usługi';
+
 $_LANG['Generate XML report'] = 'Generuj raport XML';
 $_LANG['Phone contacts:'] = 'Telefony kontaktowe:';
 $_LANG['(undefined)'] = '(nieokreślone)';
@@ -41,12 +45,14 @@ $_LANG['There is no assigned parent ticket.'] = 'Nie ma przypisanego zgłoszenia
 $_LANG['Are you sure, you want to unlink ticket \'$a\'?'] = 'Czy jesteś pewien, że chcesz odwiązać zgłoszenie \'$a\'?';
 $_LANG['Cannot link ticket because of related ticket loop!'] = 'Nie można powiązać zgłoszenia z powodu pętli powiązań!';
 $_LANG['Ticket parent ID has been set to $a.'] = 'ID zgłoszenia nadrzędnego zostało ustawione na $a.';
+$_LANG['Ticket parent ID has been removed.'] = 'ID zgłoszenia nadrzędnego zostało usunięte.';
 $_LANG['Ticket does not exist'] = 'Zgłoszenie nie istnieje';
 $_LANG['Unlink'] = 'Odwiąż';
 $_LANG['Parent ticket:'] = 'Zgłoszenie nadrzędne:';
 $_LANG['Enter ID of parent ticket'] = 'Wprowadź ID zgłoszenia narzędnego';
 $_LANG['There is no related tickets'] = 'Brak powiązanych zgłoszeń';
 $_LANG['Related tickets:'] = 'Powiązane zgłoszenia:';
+$_LANG['Child tickets:'] = 'Podrzędne zgłoszenia:';
 $_LANG['Verified'] = 'Weryfikowany';
 $_LANG['Ticket has been transferred to verifier'] = 'Zgłoszenie zostało przekazane do weryfikatora';
 $_LANG['Ticket has been transferred to verifier.'] = 'Zgłoszenie zostało przekazane do weryfikatora.';
@@ -118,7 +124,7 @@ $_LANG['Comment:'] = 'Komentarz:';
 $_LANG['Enter invoice comment'] = 'Wprowadz komenarz do faktury';
 $_LANG['<!rt>Expired'] = 'Przeterminowany';
 $_LANG['<!rt>Owned expired tickets'] = 'Moje przeterminowane zgłoszenia (właściciel)';
-$_LANG['<!rt>Verifier expired tickets'] = 'Moje przeterminowane zgłoszenia (weryfikator)';
+$_LANG['<!rt>Tickets waiting for my verification'] = 'Zgłoszenia oczekujące na moją weryfikację';
 $_LANG['<!rt>Without deadline'] = 'Bez terminu ostatecznego';
 $_LANG['<!rt>With deadline'] = 'Z terminem ostatecznym';
 $_LANG['Ticket deadline could not be set in past!'] = 'Termin ostateczny nie może być datą minioną!';
@@ -133,6 +139,7 @@ $_LANG['Ticket service has been set to $a.'] = 'Usługa, którego dotyczy zgłos
 $_LANG['Verifier:'] = 'Weryfikator:';
 $_LANG['<!rt>Verifier:'] = 'Weryfikator:';
 $_LANG['Unassigned'] = 'Nieprzypisany';
+$_LANG['Assigned'] = 'Przypisany';
 $_LANG['Requestor:'] = 'Zgłaszający';
 $_LANG['documents'] = 'dokumenty';
 $_LANG['Administrative contact:'] = 'Kontakt administracyjny:';
@@ -837,6 +844,7 @@ $_LANG['File name for saving document printout. WARNING: Setting attachment_name
 $_LANG['Filter'] = 'Filtr';
 $_LANG['No filter'] = 'Filtr wyłączony';
 $_LANG['no owner'] = 'bez właściciela';
+$_LANG['no owner or logged user'] = 'bez właściciela lub zalogowany użytkownik';
 $_LANG['with owner'] = 'z właścicielem';
 $_LANG['Filter:'] = 'Filtr:';
 $_LANG['Finances'] = 'Finanse';
@@ -924,7 +932,7 @@ $_LANG['ID:'] = 'ID:';
 $_LANG['IM:'] = 'GG:';
 $_LANG['Import'] = 'Import';
 $_LANG['Import cash operations'] = 'Import operacji kasowych';
-$_LANG['Import file:'] = 'Plik importu:';
+$_LANG['Import files:'] = 'Pliki importu:';
 $_LANG['If you have any questions or doubts, contact with our Customer Service Representative. Prepare your Customer ID, please.'] = 'W przypadku pytań lub niejasności prosimy o kontakt z biurem obsługi klienta. Prosimy zapamiętać swój identyfikator klienta.';
 $_LANG['Income:'] = 'Przychód:';
 $_LANG['Incorrect charging end time!'] = 'Błędnie podany czas końca naliczania!';
@@ -1672,6 +1680,7 @@ $_LANG['Ticket No. $a'] = 'Zgłoszenie nr $a';
 $_LANG['Ticket Review'] = 'Podgląd zgłoszenia';
 $_LANG['Ticket Review: $a'] = 'Podgląd zgłoszenia: $a';
 $_LANG['Tickets'] = 'Zgłoszenia';
+$_LANG['Tickets remaining'] = 'Pozostało zgłoszeń';
 $_LANG['Ticket Search'] = 'Wyszukiwanie zgłoszeń';
 $_LANG['Tickets searching'] = 'Wyszukiwanie zgłoszeń';
 $_LANG['Time'] = 'Czas';
@@ -3104,7 +3113,6 @@ $_LANG['Days:'] = 'Dni:';
 $_LANG['UKE SIIS report'] = 'Raport UKE SIIS';
 $_LANG['Allows you to prepare SIIS v4 report for UKE'] = 'Wygenerowanie raportu SIIS w wersji 4 do UKE';
 $_LANG['UKE income report'] = 'Raport przychodów UKE';
-$_LANG['<!uke-income>other'] = 'inna';
 $_LANG['<!uke-income>Link technology'] = 'Technologia łącza';
 $_LANG['<!uke-income>Bussiness customers'] = 'Klienci biznesowi';
 $_LANG['<!uke-income>Bussiness income'] = 'Przychód biznesowy';
@@ -3766,6 +3774,7 @@ $_LANG['closed<!plural:event>'] = 'zamknięte';
 $_LANG['Assignments:'] = 'Zobowiązania:';
 $_LANG['suspended'] = 'zawieszone';
 $_LANG['active, with invoice'] = 'aktywne, z fakturą';
+$_LANG['active, with pro forma'] = 'aktywne, z pro forma';
 $_LANG['without end date'] = 'bez daty zakończenia';
 $_LANG['with end date'] = 'z datą zakończenia';
 $_LANG['with end date:'] = 'z datą zakończenia:';
@@ -3905,7 +3914,10 @@ $_LANG['AJAX: Error during persistent setting save on server:'] = 'AJAX: Błąd 
 $_LANG['Enter street'] = 'Podaj ulicę';
 $_LANG['- any -'] = '- dowolne -';
 
-$_LANG['Import from file:'] = 'Import z pliku:';
+$_LANG['Import from files:'] = 'Import z plików:';
+$_LANG['Non plain text file detected!'] = 'Wykryto plik nietekstowy!';
+$_LANG['No files selected!'] = 'Nie wybrano żadnego pliku!';
+$_LANG['File $a:'] = 'Plik $a:';
 
 $_LANG['Document has been published already! Are you sure you want to edit it despite this?'] = 'Dokument został już upubliczniony! Jesteś pewien, że mimo tego chcesz go edytować?';
 $_LANG['Document has been published already! Are you sure you want to remove it despite this?'] = 'Dokument został już upubliczniony! Jesteś pewien, że mimo tego chcesz go usunąć?';
@@ -4072,6 +4084,7 @@ $_LANG['External ID'] = 'Id zewnętrzne';
 
 $_LANG['published document modification'] = 'modyfikowanie upublicznionych dokumentów';
 $_LANG['$a_clone'] = '$a_klon';
+$_LANG['$a-clone'] = '$a-klon';
 
 $_LANG['Instant payment'] = 'Szybka wpłata';
 $_LANG['instant payment'] = 'szybka wpłata';
@@ -4219,6 +4232,7 @@ $_LANG['Cannot update file container description!'] = 'Nie można zaktualizować
 
 $_LANG['No results match'] = 'Brak dopasowań';
 $_LANG['Select an Option'] = 'Wybierz opcję';
+$_LANG['Select Some Options'] = 'Wybierz kilka opcji';
 
 $_LANG['resolve ticket'] = 'rozwiąż zgłoszenie';
 
@@ -4611,3 +4625,25 @@ $_LANG['Select tax category'] = 'Wybierz kategorię podatkową';
 $_LANG['Tax category selection is required!'] = 'Wymagany wybór kategorii podatkowej!';
 
 $_LANG['TERRIT address is required!'] = 'Wymagany adres zgodny z TERYT!';
+
+$_LANG['investment project management'] = 'zarządzanie projektami inwestycyjnymi';
+
+$_LANG['Clone section to new one with specified name'] = 'Kopiuj sekcję pod nową nazwą, którą określiłeś';
+$_LANG['Enter new section name'] = 'Wprowadz nazwę nowej sekcji';
+$_LANG['Section with specified name already exist!'] = 'Sekcja o podanej nazwie już istnieje!';
+
+$_LANG['No option has been selected!'] = 'Żadne opcje nie zostały zaznaczone!';
+$_LANG['Are you sure, you want to delete all selected options from database?'] = 'Jesteś pewien, że chcesz usunąć wszystkie wybrane opcje z bazy danych?';
+
+$_LANG['no connections'] = 'bez połączeń';
+
+$_LANG['Phone number validation failed!'] = 'Weryfikacja poprawności numeru telefonu nie powiodła się!';
+
+$_LANG['Choose ticket type'] = 'Wybierz rodzaj zgłoszenia';
+$_LANG['Choose service type'] = 'Wybierz typ usługi';
+
+$_LANG['Enter ticket identifier or ticket subject part'] = 'Wprowadź identyfikator zgłoszenia lub fragment tematu zgłoszenia';
+
+$_LANG['without radio sector'] = 'bez sektora radiowego';
+
+$_LANG['Documentation:'] = 'Dokumentacja:';

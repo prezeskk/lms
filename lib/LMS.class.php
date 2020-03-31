@@ -3,7 +3,7 @@
 /*
  * LMS version 1.11-git
  *
- *  (C) Copyright 2001-2019 LMS Developers
+ *  (C) Copyright 2001-2020 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -649,6 +649,12 @@ class LMS
         return $manager->checkCustomerAddress($a_id, $c_id);
     }
 
+    public function determineDefaultCustomerAddress(array &$caddr)
+    {
+        $manager = $this->getCustomerManager();
+        return $manager->determineDefaultCustomerAddress($caddr);
+    }
+
     public function getCustomerAddresses($id, $hide_deleted = false)
     {
         $manager = $this->getCustomerManager();
@@ -665,6 +671,12 @@ class LMS
     {
         $manager = $this->getCustomerManager();
         return $manager->getFullAddressForCustomerStuff($customer_id);
+    }
+
+    public function isTerritAddress($address_id)
+    {
+        $manager = $this->getCustomerManager();
+        return $manager->isTerritAddress($address_id);
     }
 
     public function GetCustomerContacts($id, $mask = null)
@@ -2007,10 +2019,23 @@ class LMS
         $manager = $this->getHelpdeskManager();
         return $manager->CheckTicketAccess($ticketid);
     }
-    public function GetRelatedTicketIds($ticketid)
+
+    public function GetRelatedTickets($ticketid)
     {
         $manager = $this->getHelpdeskManager();
-        return $manager->GetRelatedTicketIds($ticketid);
+        return $manager->GetRelatedTickets($ticketid);
+    }
+
+    public function GetChildTickets($ticketid)
+    {
+        $manager = $this->getHelpdeskManager();
+        return $manager->GetChildTickets($ticketid);
+    }
+
+    public function getTickets($ticketids)
+    {
+        $manager = $this->getHelpdeskManager();
+        return $manager->getTickets($ticketids);
     }
 
     public function GetTicketParentID($ticketid)
@@ -2052,10 +2077,10 @@ class LMS
      *  LMS-UI configuration
      */
 
-    public function GetConfigOptionId($var, $section)
+    public function ConfigOptionExists($params)
     {
         $manager = $this->getConfigManager();
-        return $manager->GetConfigOptionId($var, $section);
+        return $manager->ConfigOptionExists($params);
     }
 
     public function GetConfigDefaultType($option)
@@ -2068,6 +2093,30 @@ class LMS
     {
         $manager = $this->getConfigManager();
         return $manager->CheckOption($option, $value, $type);
+    }
+
+    public function GetConfigVariable($config_id)
+    {
+        $manager = $this->getConfigManager();
+        return $manager->GetConfigVariable($config_id);
+    }
+
+    public function CloneConfigSection($section, $new_section, $userid = null)
+    {
+        $manager = $this->getConfigManager();
+        return $manager->CloneConfigSection($section, $new_section, $userid);
+    }
+
+    public function DeleteConfigOption($id, $global = true)
+    {
+        $manager = $this->getConfigManager();
+        return $manager->DeleteConfigOption($id, $global);
+    }
+
+    public function toggleConfigOption($id)
+    {
+        $manager = $this->getConfigManager();
+        return $manager->toggleConfigOption($id);
     }
 
     /*
@@ -2500,6 +2549,13 @@ class LMS
         $number = preg_replace('/[^0-9]/', '', $number);
         $number = preg_replace('/^0+/', '', $number);
 
+        $phone_number_validation_pattern = isset($sms_options['phone_number_validation_pattern'])
+            ? $sms_options['phone_number_validation_pattern']
+            : ConfigHelper::getConfig('sms.phone_number_validation_pattern', '', true);
+        if (!empty($phone_number_validation_pattern) && !preg_match('/' . $phone_number_validation_pattern . '/', $number)) {
+            return trans('Phone number validation failed!');
+        }
+
         // add prefix to the number if needed
         if ($prefix && substr($number, 0, strlen($prefix)) != $prefix) {
             $number = $prefix . $number;
@@ -2584,13 +2640,24 @@ class LMS
 
             switch ($service) {
                 case 'smscenter':
-                    if ($msg_len < 160) {
-                        $type_sms = 'sms';
-                    } else if ($msg_len <= 459) {
-                        $type_sms = 'concat';
+                    if (ConfigHelper::checkValue($transliterate_message)) {
+                        if ($msg_len < 160) {
+                            $type_sms = 'sms';
+                        } else if ($msg_len <= 459) {
+                            $type_sms = 'concat';
+                        } else {
+                            $errors[] = trans('SMS Message too long!');
+                            continue 2;
+                        }
                     } else {
-                        $errors[] = trans('SMS Message too long!');
-                        continue 2;
+                        if ($msg_len <= 70) {
+                            $type_sms = 'unicode';
+                        } else if ($msg_len <= 201) {
+                            $type_sms = 'unicode_concat';
+                        } else {
+                            $errors[] = trans('SMS Message too long!');
+                            continue 2;
+                        }
                     }
 
                     $type = isset($sms_options['smscenter_type']) ? $sms_options['smscenter_type']
@@ -3238,6 +3305,12 @@ class LMS
     {
         $manager = $this->getFinanceManager();
         return $manager->CopyPromotionTariffPermissions($src_userid, $dst_userid);
+    }
+
+    public function transformProformaInvoice($docid)
+    {
+        $manager = $this->getFinanceManager();
+        return $manager->transformProformaInvoice($docid);
     }
 
     /**

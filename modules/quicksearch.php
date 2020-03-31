@@ -73,7 +73,7 @@ if (!empty($_POST['qs'])) {
         }
     }
     $search = urldecode(trim($search));
-} elseif (!empty($_GET['what'])) {
+} else {
     $search = urldecode(trim($_GET['what']));
     $mode = $_GET['mode'];
 }
@@ -87,6 +87,10 @@ if (isset($qs_properties[$mode])) {
 
 switch ($mode) {
     case 'customer':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
             $candidates = $DB->GetAll("SELECT c.id, cc.contact AS email, full_address AS address,
 				post_name, post_full_address AS post_address, deleted,
@@ -223,6 +227,10 @@ switch ($mode) {
         break;
 
     case 'customerext':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
             $candidates = $DB->GetAll("SELECT c.id, cc.contact AS email, full_address AS address,
 				post_name, post_full_address AS post_address, deleted, c.status,
@@ -272,6 +280,10 @@ switch ($mode) {
         break;
 
     case 'phone':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
             $where = array();
             if (empty($properties) || isset($properties['contact'])) {
@@ -356,6 +368,10 @@ switch ($mode) {
 
 
     case 'node':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
         // Build different query for each database engine,
             // MySQL is slow here when vnodes view is used
@@ -484,6 +500,10 @@ switch ($mode) {
         break;
 
     case 'netnode':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
             $candidates = $DB->GetAll("SELECT id, name FROM netnodes
                                 WHERE ".(preg_match('/^[0-9]+$/', $search) ? 'id = '.intval($search).' OR ' : '')."
@@ -536,6 +556,10 @@ switch ($mode) {
         break;
 
     case 'netdevice':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
             $candidates = $DB->GetAll("SELECT id, name, serialnumber FROM netdevices
 				WHERE "
@@ -600,6 +624,10 @@ switch ($mode) {
         break;
 
     case 'ticket':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
             $categories = $LMS->GetUserCategories(Auth::GetCurrentUser());
             foreach ($categories as $category) {
@@ -675,7 +703,10 @@ switch ($mode) {
                         $description = trans('First/last name') . ': ' . $row['lastname'];
                     }
 
-                    $result[$row['id']] = compact('name', 'name_class', 'description', 'description_class', 'action');
+                    $result[$row['id']] = array_merge(
+                        compact('name', 'name_class', 'description', 'description_class', 'action'),
+                        array('id' => $row['id'])
+                    );
                 }
             }
             $hook_data = array(
@@ -707,6 +738,10 @@ switch ($mode) {
         }
         break;
     case 'wireless':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
             $candidates = $DB->GetAll("SELECT id, name, type, netdev FROM netradiosectors
                                 WHERE " . (preg_match('/^[0-9]+$/', $search) ? 'id = ' . intval($search) . ' OR ' : '') . "
@@ -758,6 +793,10 @@ switch ($mode) {
         }
         break;
     case 'network':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) { // support for AutoSuggest
             $candidates = $DB->GetAll("SELECT id, name, address FROM networks
                                 WHERE " . (preg_match('/^[0-9]+$/', $search) ? 'id = ' . intval($search) . ' OR ' : '') . "
@@ -816,6 +855,10 @@ switch ($mode) {
 
         break;
     case 'account':
+        if (empty($search)) {
+            die;
+        }
+
         $ac = explode('@', $search);
 
         if (isset($_GET['ajax'])) { // support for AutoSuggest
@@ -882,6 +925,10 @@ switch ($mode) {
         break;
 
     case 'document':
+        if (empty($search)) {
+            die;
+        }
+
         if (isset($_GET['ajax'])) {
             $candidates = $DB->GetAll("SELECT d.id, d.type, d.fullnumber,
 					d.customerid AS cid, d.name AS customername
@@ -965,7 +1012,57 @@ switch ($mode) {
             $target = '?m=customerinfo&id=' . $cid;
         }
         break;
+
+    case 'config':
+        if (isset($_GET['ajax'])) {
+            header('Content-type: application/json');
+
+            $markdown_documentation = ConfigHelper::LoadMarkdownDocumentation();
+            if (empty($markdown_documentation)) {
+                die;
+            }
+
+            $quicksearch_limit = intval(ConfigHelper::getConfig('phpui.quicksearch_limit', 15));
+            $i = 1;
+            $result = array();
+            foreach ($markdown_documentation as $section => $variables) {
+                if ($i > $quicksearch_limit) {
+                    break;
+                }
+                if (isset($_GET['section']) && !empty($_GET['section']) && $section != $_GET['section']) {
+                    continue;
+                }
+                foreach ($variables as $variable => $documentation) {
+                    if ($i > $quicksearch_limit) {
+                        break;
+                    }
+                    if (!empty($search) && strpos($variable, $search) === false) {
+                        continue;
+                    }
+                    $name = $variable;
+                    $name_class = '';
+                    $description = trans('Section:') . ' ' . $section;
+                    $description_class = '';
+                    $action = '';
+                    $tip = ConfigHelper::MarkdownToHtml($documentation);
+                    $result[$variable . '.' . $section] = compact('name', 'name_class', 'description', 'description_class', 'action', 'section', 'tip');
+                    $i++;
+                }
+            }
+
+            if (!empty($result)) {
+                ksort($result);
+                echo json_encode(array_values($result));
+            }
+
+            $SESSION->close();
+            $DB->Destroy();
+            die;
+        }
+
+        break;
 }
+
 
 $quicksearch = $LMS->executeHook(
     'quicksearch_after_submit',

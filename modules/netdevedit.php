@@ -753,6 +753,10 @@ if (isset($netdev)) {
         echo json_encode($error);
         die;
     }
+
+    if (!empty($netdev['ownerid'])) {
+        $netdev['address_id'] = $netdev['customer_address_id'];
+    }
 } else {
     $netdev = $LMS->GetNetDev($id);
 
@@ -866,6 +870,12 @@ switch ($edit) {
     case 'data':
         if (ConfigHelper::checkConfig('phpui.ewx_support')) {
             $SMARTY->assign('channels', $DB->GetAll('SELECT id, name FROM ewx_channels ORDER BY name'));
+        }
+
+        if (!empty($netdev['ownerid'])) {
+            $addresses = $LMS->getCustomerAddresses($netdev['ownerid']);
+            $LMS->determineDefaultCustomerAddress($addresses);
+            $SMARTY->assign('addresses', $addresses);
         }
 
         $SMARTY->assign('netdevedit_sortable_order', $SESSION->get_persistent_setting('netdevedit-sortable-order'));

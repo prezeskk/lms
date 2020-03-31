@@ -132,7 +132,7 @@ if (isset($_POST['event'])) {
 
     switch ($event['helpdesk']) {
         case 'new':
-            if (!count($ticket['categories'])) {
+            if (!is_array($ticket['categories']) || !count($ticket['categories'])) {
                 $error['categories'] = trans('You have to select category!');
             }
             if (empty($event['description'])) {
@@ -349,6 +349,17 @@ if (isset($_POST['event'])) {
         unset($event['title']);
         unset($event['description']);
         unset($event['categories']);
+    } else {
+        if (!empty($event['ticketid'])) {
+            $event['ticket'] = $LMS->getTickets($event['ticketid']);
+        }
+        if (!empty($ticket['relatedtickets'])) {
+            $ticket['relatedtickets'] = $LMS->getTickets($ticket['relatedtickets']);
+        }
+        if (!empty($ticket['parentid'])) {
+            $ticket['parent'] = $LMS->getTickets($ticket['parentid']);
+        }
+        $SMARTY->assign('ticket', $ticket);
     }
 } else {
     if (isset($_GET['id']) && intval($_GET['id'])) {
@@ -460,9 +471,14 @@ $SMARTY->assign('queue', $queue);
 
 if (isset($eventticketid)) {
     $event['ticketid'] = $eventticketid;
-    $event['ticket'] = $LMS->GetTicketContents($eventticketid);
+    $event['ticket'] = $LMS->getTickets($eventticketid);
     $event['customerid'] = $event['ticket']['customerid'];
     $event['customername'] = $event['ticket']['customername'];
+    if (ConfigHelper::checkConfig('phpui.copy_ticket_summary_to_assigned_event', 'false')) {
+        $event['title'] = $event['ticket']['name'];
+        $message = $LMS->GetFirstMessage($event['ticketid']);
+        $event['description'] = $message['body'];
+    }
 }
 
 if (isset($_GET['customerid'])) {
@@ -470,10 +486,15 @@ if (isset($_GET['customerid'])) {
 }
 if (isset($event['customerid']) && !empty($event['customerid'])) {
     $event['customername'] = $LMS->GetCustomerName($event['customerid']);
-    $SMARTY->assign('nodes', $LMS->GetNodeLocations(
-        $event['customerid'],
-        isset($event['address_id']) && intval($event['address_id']) > 0 ? $event['address_id'] : null
-    ));
+    $addresses = $LMS->getCustomerAddresses($event['customerid']);
+    $address_id = $LMS->determineDefaultCustomerAddress($addresses);
+    if (isset($event['address_id']) && intval($event['address_id']) > 0) {
+        $nodes = $LMS->GetNodeLocations($event['customerid'], $event['address_id']);
+    } else {
+        $nodes = $LMS->GetNodeLocations($event['customerid'], $address_id);
+    }
+    $SMARTY->assign('addresses', $addresses);
+    $SMARTY->assign('nodes', $nodes);
 }
 
 if (isset($_GET['day']) && isset($_GET['month']) && isset($_GET['year'])) {

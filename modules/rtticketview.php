@@ -35,12 +35,13 @@ if (!$LMS->CheckTicketAccess($id)) {
 }
 
 $ticket = $LMS->GetTicketContents($id);
-$ticket['relatedtickets'] = $LMS->GetRelatedTicketIds($id);
+
+$ticket['childtickets'] = $LMS->GetChildTickets($id);
 
 if (!empty($ticket['relatedtickets'])) {
-    foreach ($ticket['relatedtickets'] as $rid) {
-        if ($LMS->CheckTicketAccess($rid)) {
-            $relatedticketscontent[] = $LMS->GetTicketContents($rid);
+    foreach ($ticket['relatedtickets'] as $rticket) {
+        if ($LMS->CheckTicketAccess($rticket['id'])) {
+            $relatedticketscontent[] = $LMS->GetTicketContents($rticket['id']);
         }
     }
 }

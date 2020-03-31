@@ -80,11 +80,15 @@ interface LMSCustomerManagerInterface
 
     public function checkCustomerAddress($a_id, $c_id);
 
+    public function determineDefaultCustomerAddress(array &$caddr);
+
     public function getCustomerAddresses($id, $hide_deleted);
 
     public function getAddressForCustomerStuff($customer_id);
 
     public function getFullAddressForCustomerStuff($customer_id);
+
+    public function isTerritAddress($address_id);
 
     public function GetCustomerContacts($id, $mask = null);
 

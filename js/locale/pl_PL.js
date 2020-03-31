@@ -23,6 +23,10 @@
  *  $Id$
  */
 
+$_LANG['link technologies'] = 'technologie łącza';
+$_LANG['service types'] = 'typy usług';
+$_LANG['<!uke-income>Service type'] = 'Typ usługi';
+
 $_LANG['Generate XML report'] = 'Generuj raport XML';
 $_LANG['Phone contacts:'] = 'Telefony kontaktowe:';
 $_LANG['(undefined)'] = '(nieokreślone)';
@@ -3106,7 +3110,6 @@ $_LANG['Days:'] = 'Dni:';
 $_LANG['UKE SIIS report'] = 'Raport UKE SIIS';
 $_LANG['Allows you to prepare SIIS v4 report for UKE'] = 'Wygenerowanie raportu SIIS w wersji 4 do UKE';
 $_LANG['UKE income report'] = 'Raport przychodów UKE';
-$_LANG['<!uke-income>other'] = 'inna';
 $_LANG['<!uke-income>Link technology'] = 'Technologia łącza';
 $_LANG['<!uke-income>Bussiness customers'] = 'Klienci biznesowi';
 $_LANG['<!uke-income>Bussiness income'] = 'Przychód biznesowy';
@@ -4074,6 +4077,7 @@ $_LANG['External ID'] = 'Id zewnętrzne';
 
 $_LANG['published document modification'] = 'modyfikowanie upublicznionych dokumentów';
 $_LANG['$a_clone'] = '$a_klon';
+$_LANG['$a-clone'] = '$a-klon';
 
 $_LANG['Instant payment'] = 'Szybka wpłata';
 $_LANG['instant payment'] = 'szybka wpłata';
@@ -4221,6 +4225,7 @@ $_LANG['Cannot update file container description!'] = 'Nie można zaktualizować
 
 $_LANG['No results match'] = 'Brak dopasowań';
 $_LANG['Select an Option'] = 'Wybierz opcję';
+$_LANG['Select Some Options'] = 'Wybierz kilka opcji';
 
 $_LANG['resolve ticket'] = 'rozwiąż zgłoszenie';
 
@@ -4602,3 +4607,30 @@ $_LANG['cash registries'] = 'rejestry kasowe';
 $_LANG['promotion tariffs'] = 'taryfy promocji';
 
 $_LANG['Ticket has already been assigned to other user in mean-time. Are you sure you want to re-assign ticket to you?'] = 'Zgłoszenie zostało już przypisane w międzyczasie do innego użytkownika. Jesteś pewien, że chcesz je przypisać na nowo do siebie?';
+
+$_LANG['Enter document memo (optional)'] = 'Wprowadź notatkę widoczną na dokumentach (opcjonalnie)';
+$_LANG['Memo:'] = 'Notatka:';
+
+$_LANG['close event'] = 'zamknij zdarzenie';
+
+$_LANG['Tax category:'] = 'Kategoria podatkowa:';
+$_LANG['Select tax category'] = 'Wybierz kategorię podatkową';
+$_LANG['Tax category selection is required!'] = 'Wymagany wybór kategorii podatkowej!';
+
+$_LANG['TERRIT address is required!'] = 'Wymagany adres zgodny z TERYT!';
+
+$_LANG['investment project management'] = 'zarządzanie projektami inwestycyjnymi';
+
+$_LANG['Clone section to new one with specified name'] = 'Kopiuj sekcję pod nową nazwą, którą określiłeś';
+$_LANG['Enter new section name'] = 'Wprowadz nazwę nowej sekcji';
+$_LANG['Section with specified name already exist!'] = 'Sekcja o podanej nazwie już istnieje!';
+
+$_LANG['No option has been selected!'] = 'Żadne opcje nie zostały zaznaczone!';
+$_LANG['Are you sure, you want to delete all selected options from database?'] = 'Jesteś pewien, że chcesz usunąć wszystkie wybrane opcje z bazy danych?';
+
+$_LANG['no connections'] = 'bez połączeń';
+
+$_LANG['Phone number validation failed!'] = 'Weryfikacja poprawności numeru telefonu nie powiodła się!';
+
+$_LANG['Choose ticket type'] = 'Wybierz rodzaj zgłoszenia';
+$_LANG['Choose service type'] = 'Wybierz typ usługi';

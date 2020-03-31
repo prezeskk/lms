@@ -3,7 +3,7 @@
 /*
  *  LMS version 1.11-git
  *
- *  Copyright (C) 2001-2018 LMS Developers
+ *  Copyright (C) 2001-2020 LMS Developers
  *
  *  Please, see the doc/AUTHORS for more information about authors!
  *
@@ -1813,7 +1813,12 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
         $invoicelist = $this->db->GetAll('SELECT d.id AS id, d.number, d.cdate, d.type,
 			d.customerid, d.name, d.address, d.zip, d.city, countries.name AS country, numberplans.template, d.closed,
 			d.cancelled, d.published, d.archived, d.senddate,
-			-SUM(cash.value) AS value,
+			(CASE WHEN d.type = ' . DOC_INVOICE_PRO . '
+			    THEN
+			        SUM(a.value * a.count)
+			    ELSE
+			        -SUM(cash.value)
+			END) AS value,
 			d.currency, d.currencyvalue,
 			COUNT(a.docid) AS count,
 			i.sendinvoices,
@@ -2090,8 +2095,12 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
 				d.div_inv_header AS division_header, d.div_inv_footer AS division_footer,
 				d.div_inv_author AS division_author, d.div_inv_cplace AS division_cplace,
 				d.recipient_address_id, d.post_address_id,
-				a.city as rec_city, a.zip as rec_zip, a.postoffice AS rec_postoffice,
+				a.state AS rec_state, a.state_id AS rec_state_id,
+				a.city as rec_city, a.city_id AS rec_city_id,
+				a.street AS rec_street, a.street_id AS rec_street_id,
+				a.zip as rec_zip, a.postoffice AS rec_postoffice,
 				a.name as rec_name, a.address AS rec_address,
+				a.house AS rec_house, a.flat AS rec_flat, a.country_id AS rec_country_id,
 				c.pin AS customerpin, c.divisionid AS current_divisionid,
 				c.street, c.building, c.apartment,
 				(CASE WHEN d.post_address_id IS NULL THEN c.post_street ELSE a2.street END) AS post_street,
@@ -2121,6 +2130,40 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
 				LEFT JOIN vaddresses a2 ON d.post_address_id = a2.id
 				LEFT JOIN countries cp ON (d.post_address_id IS NOT NULL AND cp.id = a2.country_id) OR (d.post_address_id IS NULL AND cp.id = c.post_countryid)
 				WHERE d.id = ? AND (d.type = ? OR d.type = ? OR d.type = ?)', array($invoiceid, DOC_INVOICE, DOC_CNOTE, DOC_INVOICE_PRO))) {
+            if (!empty($result['recipient_address_id'])) {
+                $result['recipient_address'] = array(
+                    'address_id' => $result['recipient_address_id'],
+                    'location_name' => $result['rec_name'],
+                    'location_state_name' => $result['rec_state'],
+                    'location_state' => $result['rec_state_id'],
+                    'location_city_name' => $result['rec_city'],
+                    'location_city' => $result['rec_city_id'],
+                    'location_street_name' => $result['rec_street'],
+                    'location_street' => $result['rec_street_id'],
+                    'location_house' => $result['rec_house'],
+                    'location_zip' => $result['rec_zip'],
+                    'location_postoffice' => $result['rec_postoffice'],
+                    'location_country_id' => $result['rec_country_id'],
+                    'location_flat' => $result['rec_flat'],
+                    'location_address_type' => RECIPIENT_ADDRESS,
+                );
+                // generate address as single string
+                $recipient_location = location_str(array(
+                    'city_name'      => $result['recipient_address']['location_city_name'],
+                    'postoffice'     => $result['recipient_address']['location_postoffice'],
+                    'street_name'    => $result['recipient_address']['location_street_name'],
+                    'location_house' => $result['recipient_address']['location_house'],
+                    'location_flat'  => $result['recipient_address']['location_flat']
+                ));
+
+                if (strlen($recipient_location)) {
+                    $result['recipient_address']['location'] = (empty($result['recipient_address']['location_name']) ? '' : $result['recipient_address']['location_name'] . ', ')
+                        . (empty($result['recipient_address']['location_zip']) ? '' : $result['recipient_address']['location_zip'] . ' ') . $recipient_location;
+                } else {
+                    $result['recipient_address']['location'] = trans('undefined');
+                }
+            }
+
             $result['bankaccounts'] = $this->db->GetCol(
                 'SELECT contact FROM customercontacts
 				WHERE customerid = ? AND (type & ?) = ?',
@@ -2814,7 +2857,7 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
 				LEFT JOIN tariffassignments ta ON ta.tariffid = t.id
 				LEFT JOIN taxes ON t.taxid = taxes.id
 				WHERE t.disabled = 0' . (empty($forced_id) ? '' : ' OR t.id = ' . intval($forced_id)) . '
-				GROUP BY t.id, t.name, t.value, t.splitpayment, uprate, taxid, t.authtype, datefrom, dateto, prodid, downrate, upceil, downceil, climit, plimit,
+				GROUP BY t.id, t.name, t.value, t.splitpayment, t.taxcategory, t.currency, uprate, taxid, t.authtype, datefrom, dateto, prodid, downrate, upceil, downceil, climit, plimit,
 					taxes.value, taxes.label, t.period, t.type
 				ORDER BY t.name, t.value DESC', 'id');
     }
@@ -3184,6 +3227,18 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
 
     public function PreserveProforma($docid)
     {
+        $this->db->Execute('UPDATE documents SET closed = 1 WHERE id = ?', array($docid));
+
+        if ($this->syslog) {
+            $customerid = $this->db->GetOne('SELECT customerid FROM documents WHERE id = ?', array($docid));
+            $args = array(
+                SYSLOG::RES_DOC => $docid,
+                SYSLOG::RES_CUST => $customerid,
+                'closed' => 1,
+            );
+            $this->syslog->AddMessage(SYSLOG::RES_DOC, SYSLOG::OPER_UPDATE, $args);
+        }
+
         $rows = $this->db->GetAll('SELECT cash.id, cash.customerid, cash.importid,
 						i.sourceid, i.sourcefileid
 					FROM cash
@@ -3195,19 +3250,19 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
                 $this->db->Execute('DELETE FROM cash WHERE id = ?', array($row['id']));
                 if ($this->syslog) {
                     $args = array(
-                    SYSLOG::RES_CASH => $row['id'],
-                    SYSLOG::RES_CUST => $row['customerid'],
+                        SYSLOG::RES_CASH => $row['id'],
+                        SYSLOG::RES_CUST => $row['customerid'],
                     );
                     $this->syslog->AddMessage(SYSLOG::RES_CASH, SYSLOG::OPER_DELETE, $args);
                 }
                 if (!empty($row['importid'])) {
                     if ($this->syslog) {
                         $args = array(
-                        SYSLOG::RES_CASHIMPORT => $row['importid'],
-                        SYSLOG::RES_CUST => $row['customerid'],
-                        SYSLOG::RES_CASHSOURCE => $row['sourceid'],
-                        SYSLOG::RES_SOURCEFILE => $row['sourcefileid'],
-                        'closed' => 0,
+                            SYSLOG::RES_CASHIMPORT => $row['importid'],
+                            SYSLOG::RES_CUST => $row['customerid'],
+                            SYSLOG::RES_CASHSOURCE => $row['sourceid'],
+                            SYSLOG::RES_SOURCEFILE => $row['sourcefileid'],
+                            'closed' => 0,
                         );
                         $this->syslog->AddMessage(SYSLOG::RES_CASHIMPORT, SYSLOG::OPER_UPDATE, $args);
                     }
@@ -4282,5 +4337,180 @@ class LMSFinanceManager extends LMSManager implements LMSFinanceManagerInterface
         }
 
         return $change_count;
+    }
+
+    public function transformProformaInvoice($docid)
+    {
+        static $document_manager = null;
+        static $location_manager = null;
+        static $currencyvalues = array();
+        static $numplans = array();
+
+        if (!isset($document_manager)) {
+            $document_manager = new LMSDocumentManager($this->db, $this->auth, $this->cache, $this->syslog);
+        }
+
+        if (!isset($location_manager)) {
+            $location_manager = new LMSLocationManager($this->db, $this->auth, $this->cache, $this->syslog);
+        }
+
+        $proforma = $this->GetInvoiceContent($docid);
+
+        if (!isset($currencyvalues[$proforma['currency']])) {
+            $currencyvalues[$proforma['currency']] = $this->getCurrencyValue($proforma['currency']);
+            if (!isset($currencyvalues[$proforma['currency']])) {
+                return 'Unable to determine currency value for new document and currency ' . $proforma['currency'] . '.';
+            }
+        }
+
+        if (!isset($numplans[$proforma['divisionid']])) {
+            $numplan = $this->db->GetOne(
+                'SELECT n.id
+                FROM numberplans n
+                LEFT JOIN numberplanassignments a ON (a.planid = n.id)
+                WHERE isdefault = 1 AND doctype = ? AND a.divisionid = ?',
+                array(DOC_INVOICE, $proforma['divisionid'])
+            );
+            $numplans[$proforma['divisionid']] = $numplan ?: null;
+        }
+        $numplanid = $numplans[$proforma['divisionid']];
+
+        $this->db->BeginTrans();
+        $tables = array('documents', 'cash', 'invoicecontents', 'numberplans', 'divisions', 'vdivisions',
+            'customerview', 'customercontacts', 'netdevices', 'nodes',
+            'logtransactions', 'logmessages', 'logmessagekeys', 'logmessagedata');
+        if (ConfigHelper::getConfig('database.type') == 'postgres') {
+            $tables = array_merge($tables, array('customers', 'customer_addresses'));
+        } else {
+            $tables = array_merge($tables, array('customers cv', 'customer_addresses ca'));
+        }
+        $this->db->LockTables($tables);
+
+        $currtime = time();
+
+        $args = array(
+            'cdate' => $currtime,
+            'sdate' => $currtime,
+            'paytime' => $proforma['paytime'],
+            'paytype' => $proforma['paytype'],
+            'splitpayment' => empty($proforma['splitpayment']) ? 0 : 1,
+            SYSLOG::RES_CUST => $proforma['customerid'],
+            'name' => $proforma['name'],
+            'address' => $proforma['address'],
+            'ten' => $proforma ['ten'],
+            'ssn' => $proforma['ssn'],
+            'zip' => $proforma['zip'],
+            'city' => $proforma['city'],
+            SYSLOG::RES_COUNTRY => $proforma['countryid'],
+            SYSLOG::RES_DIV => $proforma['divisionid'],
+            'div_name' => $proforma['div_name'] ?: '',
+            'div_shortname' => $proforma['div_shortname'] ?: '',
+            'div_address' => $proforma['div_address'] ?: '',
+            'div_city' => $proforma['div_city'] ?: '',
+            'div_zip' => $proforma['div_zip'] ?: '',
+            'div_' . SYSLOG::getResourceKey(SYSLOG::RES_COUNTRY) => $proforma['div_countryid'] ?: null,
+            'div_ten'=> $proforma['div_ten'] ?: '',
+            'div_regon' => $proforma['div_regon'] ?: '',
+            'div_bank' => $proforma['div_bank'] ?: null,
+            'div_account' => $proforma['div_account'] ?: '',
+            'div_inv_header' => $proforma['div_inv_header'] ?: '',
+            'div_inv_footer' => $proforma['div_inv_footer'] ?: '',
+            'div_inv_author' => $proforma['div_inv_author'] ?: '',
+            'div_inv_cplace' => $proforma['div_inv_cplace'] ?: '',
+            'comment' => $proforma['comment'] ?: null,
+            'currency' => $proforma['currency'],
+            'currencyvalue' => $currencyvalues[$proforma['currencyvalue']],
+            'memo' => $proforma['memo'],
+            'type' => DOC_INVOICE,
+            'number' => $document_manager->GetNewDocumentNumber(array(
+                'doctype' => DOC_INVOICE,
+                'planid' => $numplanid,
+                'cdate' => $currtime,
+                'customerid' => $proforma['customerid'],
+            )),
+        );
+        $args['fullnumber'] = docnumber(array(
+            'number' => $args['number'],
+            'template' => $this->db->GetOne('SELECT template FROM numberplans WHERE id = ?', array($numplanid)),
+            'cdate' => $currtime,
+            'customerid' => $proforma['customerid'],
+        ));
+        $args[SYSLOG::RES_NUMPLAN] = $numplanid;
+
+        $args['recipient_address_id'] = empty($proforma['recipient_address_id']) ? null :
+            $location_manager->CopyAddress($proforma['recipient_address_id']);
+
+        $this->db->Execute(
+            'INSERT INTO documents (cdate, sdate, paytime, paytype, splitpayment, customerid,
+                name, address, ten, ssn, zip, city, countryid, divisionid,
+                div_name, div_shortname, div_address, div_city, div_zip, div_countryid,
+                div_ten, div_regon, div_bank, div_account, div_inv_header, div_inv_footer,
+                div_inv_author, div_inv_cplace, comment, currency, currencyvalue, memo,
+                type, number, fullnumber, numberplanid, recipient_address_id)
+                VALUES (?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?)',
+            array_values($args)
+        );
+        $invoiceid = $args[SYSLOG::RES_DOC] = $this->db->GetLastInsertID('documents');
+        if ($this->syslog) {
+            $this->syslog->AddMessage(
+                SYSLOG::RES_DOC,
+                SYSLOG::OPER_ADD,
+                $args,
+                array('div_' . SYSLOG::getResourceKey(SYSLOG::RES_COUNTRY))
+            );
+        }
+
+        foreach ($proforma['content'] as $idx => $item) {
+            $args = array(
+                SYSLOG::RES_DOC => $invoiceid,
+                'itemid' => $item['itemid'],
+                'value' => str_replace(',', '.', $item['value']),
+                SYSLOG::RES_TAX => $item['taxid'],
+                'taxcategory' => $item['taxcategory'],
+                'prodid' => $item['prodid'],
+                'content' => $item['content'],
+                'count' => str_replace(',', '.', $item['count']),
+                'pdiscount' => str_replace(',', '.', $item['pdiscount']),
+                'vdiscount' => str_replace(',', '.', $item['vdiscount']),
+                'description' => $item['description'],
+                SYSLOG::RES_TARIFF => $item['tariffid'] ?: null,
+            );
+            $this->db->Execute('INSERT INTO invoicecontents (docid, itemid, value,
+					taxid, taxcategory, prodid, content, count, pdiscount, vdiscount, description, tariffid)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', array_values($args));
+            if ($this->syslog) {
+                $args[SYSLOG::RES_CUST] = $proforma['customerid'];
+                $this->syslog->AddMessage(SYSLOG::RES_INVOICECONT, SYSLOG::OPER_ADD, $args);
+            }
+
+            $this->AddBalance(array(
+                'time' => $currtime,
+                'value' => $item['value'] * $item['count']*-1,
+                'currency' => $proforma['currency'],
+                'currencyvalue' => $currencyvalues[$proforma['currencyvalue']],
+                'taxid' => $item['taxid'],
+                'customerid' => $proforma['customerid'],
+                'comment' => $item['description'],
+                'docid' => $invoiceid,
+                'itemid' => $item['itemid'],
+            ));
+        }
+
+        if (ConfigHelper::checkConfig('phpui.default_preserve_proforma_invoice')) {
+            $this->PreserveProforma($docid);
+        } else {
+            $this->DeleteArchiveTradeDocument($docid);
+            $this->InvoiceDelete($docid);
+        }
+
+        $this->db->UnLockTables();
+        $this->db->CommitTrans();
+
+        return intval($invoiceid);
     }
 }

@@ -172,7 +172,7 @@ class LMSNetNodeManager extends LMSManager implements LMSNetNodeManagerInterface
             'info'        => $netnodedata['info'],
             'admcontact' => empty($netnodedata['admcontact']) ? null : $netnodedata['admcontact'],
             'lastinspectiontime' => empty($netnodedata['lastinspectiontime']) ? null : $netnodedata['lastinspectiontime'],
-            'address_id'       => ($netnodedata['address_id'] >= 0 ? $netnodedata['address_id'] : null),
+            'address_id'       => !empty($netnodedata['ownerid']) && $netnodedata['customer_address_id'] > 0 ? $netnodedata['customer_address_id'] : null,
             'ownerid'          => !empty($netnodedata['ownerid']) && !empty($netnodedata['ownership']) ? $netnodedata['ownerid'] : null
         );
 
@@ -186,11 +186,9 @@ class LMSNetNodeManager extends LMSManager implements LMSNetNodeManagerInterface
 
             $address_id = $LMS->InsertAddress($netnodedata);
 
-            if ($address_id >= 0) {
+            if (!empty($address_id)) {
                 $this->db->Execute('UPDATE netnodes SET address_id = ? WHERE id = ?', array($address_id, $id));
             }
-        } else if ($netnodedata['address_id'] && $netnodedata['address_id'] >= 0) {
-            $this->db->Execute('UPDATE netnodes SET address_id = ? WHERE id = ?', array($netnodedata['address_id'], $id));
         }
 
         return $id;
@@ -205,7 +203,7 @@ class LMSNetNodeManager extends LMSManager implements LMSNetNodeManagerInterface
     {
         $addr_id = $this->db->GetOne('SELECT address_id FROM netnodes WHERE id = ?', array($id));
 
-        if (!empty($addr_id)) {
+        if (!empty($addr_id) && !$this->db->GetOne('SELECT 1 FROM customer_addresses WHERE address_id = ?', array($addr_id))) {
             $this->db->Execute('DELETE FROM addresses WHERE id = ?', array($addr_id));
         }
 
@@ -333,6 +331,10 @@ class LMSNetNodeManager extends LMSManager implements LMSNetNodeManagerInterface
 				LEFT JOIN location_districts ld ON ld.id = lb.districtid
 				LEFT JOIN location_states ls ON ls.id = ld.stateid
 			WHERE n.id=?", array($id));
+
+        if (!empty($result['location_city'])) {
+            $result['teryt'] = 1;
+        }
 
         // if location is empty and owner is set then heirdom address from owner
         if (!$result['location'] && $result['ownerid']) {

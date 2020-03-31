@@ -258,9 +258,7 @@ if (isset($_POST['assignment'])) {
         }
     }
 
-    if ($a['tarifftype'] == SERVICE_PHONE) {
-        unset($a['nodes']);
-    } else {
+    if ($a['tarifftype'] != SERVICE_PHONE) {
         unset($a['phones']);
     }
 
@@ -305,7 +303,7 @@ if (isset($_POST['assignment'])) {
         $DB->BeginTrans();
 
         if ($a['liabilityid']) {
-            if ($a['tariffid']) {
+            if ($a['tariffid'] > 0) {
                 $DB->Execute(
                     'UPDATE assignments SET tariffid = ?, liabilityid = NULL WHERE id = ?',
                     array($a['tariffid'], $a['id'])
